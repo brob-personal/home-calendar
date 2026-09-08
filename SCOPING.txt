@@ -1,0 +1,31 @@
+﻿Core Features & Requirements
+* Architecture around Application: Ipad, 7th gen, A2197 web app. Set Auto-Lock setting to never. Set up guided access pinning to your app. 
+   * Set up an iOS shortcuts app to personally automate setting brightness lower at sunset and up again at sunrise, as well as up to an almost full brightness level throughout the core hours of the day (not 100%, but close). 
+* Sizing of Web App: Everything needs to be specifically built for the dimensions of an Ipad, 7th gen, A2197. 
+* Interfacing of Web App: Everything should be specifically built for the tapping experience of an Ipad, 7th gen, A2197. This web app is made to constantly run on an Ipad and be used through an ipad. It is NOT meant for a laptop experience, it’s meant for a tablet. 
+* Calendar Syncing: Integrates directly with Google Calendar. Calendar events are imported onto the UI. Calendar events can be added on the touchscreen and written back to Google Calendar.
+* Color Coding: Each member in the calendar gets a unique pastel color. When events are loaded in via gcal with differing colors, different hues of their respective color populate for their calendar, rather than “flatly” rendering in as the same color. These subcolors take advantage of Google’s colorId.
+* Sticky Notes: The pencil bubble sits bottom-right above the footer. Tap it and a draggable note window opens — grab the yellow header bar to move it anywhere on the board.
+* Multiple Views: Easily switch between day, week, month, and schedule layouts. For consistent UI, we should have time on the up/down axis on the left, and then date breakdowns (for month/week) at the top, or per person breakdowns at the top (for day mode). 
+* Sleep Mode: Separate from the automatic dimming via iOS shortcuts, the UI itself can be configured in its sleep mode to physically display a black screen in the core hours of the night (midnight to 6am). A simple tap on the screen will relight the screen. The exact times for this dimming feature can be configured in a settings tab, and whether or not its a full “black” screen or if its a dimmed version of the existing screen is also in that same settings tab. 
+* Countdown Feature: Create a day-by-day ticker tracking how close you are to specific events tagged as major milestones (could be vacations, holidays, birthdays, anniversary, etc.).
+* Color Palette: I want the color palette to be much brighter... instead of the dark gradients you have, we should have colorful pastels, similar to what Skylight Calendar or Cozyla uses. In the 60-30-10 rule, we want the 60% to be a white/off white, then 30% (being the background behind buttons/other areas, should be a light grey, and then our 10% is all the colors for each respective person's pastel color.
+* Photoscreensaver: Turn the display into a digital photo frame when idle.
+   * Implementation: Connect to google drive folder via Drive API. Google Photos is too finicky, so we’ll be utilizing a google drive folder. 
+* Filtering: Tapping a face hides that person's events everywhere at once — lanes disappear from Day, blocks vanish from Week and Month, rows drop from Agenda, and countdowns follow. The avatar greys out and desaturates so it's obvious what's off. Each person has a respective profile pic icon with a small dot at the bottom right showing their color.
+
+
+
+
+New Features
+All of the above features have at least begun development in the current JSX file. The following features are somewhat “new”:
+* High Level Two Modes: Roommate Mode, Personal Mode (switched under settings).
+   * Roommate Mode and Family have two different sets of calendars attached. You're essentially just toggling between whether you display the ipad publicly between roommates or if you move it into your room as a family calendar. 
+   * The only feature difference is the inclusion of the “To-do” tab. That “To-do” tab will be described below.
+* To-do Tab: For the Roommates mode, a to-do tab with a little checklist icon is available to click. In this screen, you have a chore bank on the left side, and then similar column panels with each person's name/profile picture at the top. Chores can be dragged from the bank to each person or manually assigned. You can hit the checklist circle to mark them completed, and it goes to the bottom of the screen. You should be able to add emojis next to these tasks. When adding new chore tasks, there should be a default list that includes all the basic chores (i.e. vacuuming, clean bathroom, take out trash). You can also set up a “routine”, where a certain chore is always assigned to a certain person each week or where chores are rotated between a certain group of people selected at a given rate (i.e. one of the four will be selected to vacuum each week, repeated every week).
+* Weather API: For both modes, we should have a basic set of icons for Sunny, Partially Cloudy, Cloudy, and Precipitation (Rain & Snow), and then all other weather conditions just default to the Sun Icon for sunny. We should have temperature in Fahrenheit next to this icon. 
+   * If you click on the weather part, where the temperature is listed it will expand out into a rectangular widget that expands from the current position. It’ll show high/low temperatures at the top, temperatures for each hour, change of precipitation in each hr, list sunrise/sunset time in this list for the day, and then have a peak UV time and number. 
+
+
+Things we don’t need
+* Don’t need onboarding, everything can be managed in settings. This is a web app for myself, not a commercial product.
