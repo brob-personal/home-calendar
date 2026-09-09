@@ -56,6 +56,19 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
     setMembers((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   const setWeather = (k, v) => setSettings((s) => ({ ...s, weather: { ...s.weather, [k]: v } }));
   const setDrive = (k, v) => setSettings((s) => ({ ...s, drive: { ...s.drive, [k]: v } }));
+  const calendarList = settings.calendars[mode] || [];
+  const setCalendars = (list) =>
+    setSettings((s) => ({ ...s, calendars: { ...s.calendars, [mode]: list } }));
+  const updateCalendarAt = (i, patch) =>
+    setCalendars(calendarList.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+  const removeCalendarAt = (i) => setCalendars(calendarList.filter((_, idx) => idx !== i));
+  const toggleCalendarMember = (i, memberId) => {
+    const cal = calendarList[i];
+    const has = cal.memberIds.includes(memberId);
+    updateCalendarAt(i, {
+      memberIds: has ? cal.memberIds.filter((x) => x !== memberId) : [...cal.memberIds, memberId],
+    });
+  };
 
   /* A member with no mode at all is invisible everywhere — the same
      invariant normalizeModes() enforces on load. Unchecking a person's only
@@ -188,6 +201,58 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           The strip beside each name is that person&apos;s eleven shades. Google&apos;s event colors
           1 to 11 land on these, so two of Brian&apos;s events can look different without either of
           them stopping looking like Brian.
+        </p>
+      </Field>
+
+      <Field label="Calendars">
+        <div className="fb-members">
+          {calendarList.map((cal, i) => (
+            <div className="fb-memberblock" key={`${mode}-${i}`}>
+              <div className="fb-inline">
+                <input
+                  className="fb-input fb-input-sm"
+                  value={cal.id}
+                  onChange={(e) => updateCalendarAt(i, { id: e.target.value.trim() })}
+                  placeholder="you@gmail.com or calendar id"
+                  spellCheck="false"
+                />
+                <label className="fb-check fb-check-sm">
+                  <input
+                    type="checkbox"
+                    checked={cal.enabled !== false}
+                    onChange={(e) => updateCalendarAt(i, { enabled: e.target.checked })}
+                  />
+                  <span>Enabled</span>
+                </label>
+                <button className="fb-ghost fb-ghost-sm" onClick={() => removeCalendarAt(i)}>
+                  Remove
+                </button>
+              </div>
+              <div className="fb-inline">
+                {members.map((m) => (
+                  <label className="fb-check fb-check-sm" key={m.id}>
+                    <input
+                      type="checkbox"
+                      checked={cal.memberIds.includes(m.id)}
+                      onChange={() => toggleCalendarMember(i, m.id)}
+                    />
+                    <span>{m.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+          <button
+            className="fb-ghost"
+            onClick={() => setCalendars([...calendarList, { id: "", memberIds: [], enabled: true }])}
+          >
+            Add calendar
+          </button>
+        </div>
+        <p className="fb-note">
+          Which Google calendars sync in {MODE_LABELS[mode] || mode} mode, and which people&apos;s
+          color their events wear. Checking two or more people on the same calendar is what makes
+          a shared event show as a diagonal split. Only enabled calendars sync.
         </p>
       </Field>
 
