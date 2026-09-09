@@ -9,17 +9,26 @@ import { Chevron } from "./icons.jsx";
 
   Two things later roles need from this file:
 
-    - The view list is hardcoded here. R10's backlog item 5 makes it
-      mode-derived, because the To-do tab exists in Roommate mode only and is
-      the single feature difference between the two modes.
+    - The view list used to be hardcoded here. R10 made it mode-derived — the
+      To-do tab exists in Roommate mode only, the single feature difference
+      between the two modes (PLAN.md §R10 item 5) — by lifting the list into
+      a `views` prop that App.jsx computes from ModeContext. Whatever App
+      passes is what renders; this component no longer knows "day" from
+      "todo".
     - Paging is chevron-only. R12's item 2 adds pointer-event swipe paging for
       day and week; `page()` below is the function that swipe should call, so
       the stepping logic — a month at a time in month view, seven days in
       week, one day otherwise — does not get reimplemented.
 */
+/* Only "todo" needs a spelling the capitalize-first-letter default can't
+   produce — SCOPING.txt writes it "To-do". Every other view id is already
+   its own display label. */
+const VIEW_LABELS = { todo: "To-do" };
+
 export function Footer({
   view,
   setView,
+  views,
   anchor,
   setAnchor,
   members,
@@ -37,13 +46,13 @@ export function Footer({
   return (
     <footer className="fb-foot">
       <div className="fb-views">
-        {["day", "week", "month", "agenda"].map((v) => (
+        {views.map((v) => (
           <button
             key={v}
             className={`fb-view${view === v ? " is-on" : ""}`}
             onClick={() => setView(v)}
           >
-            {v[0].toUpperCase() + v.slice(1)}
+            {VIEW_LABELS[v] || v[0].toUpperCase() + v.slice(1)}
           </button>
         ))}
       </div>

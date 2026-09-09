@@ -167,8 +167,14 @@ offline cache is already wired: `store.set("events", …)` round-trips live Date
 unchanged.
 
 **R10 — Modes.** `settings.mode` is persisted and validated; `MODES` is the closed
-union. `Member.modes` is your per-mode roster. `ModeContext` goes beside
-`BoardContext` and can read `settings`/`setSettings` from `useBoard()`.
+union. `Member.modes` is your per-mode roster — landed narrowed to `["personal"]` on
+the five defaults; Roommate mode starts empty and is populated from Settings. Landed
+as `src/state/ModeContext.js`, beside `BoardContext` as planned, but exporting a
+plain `useModeState(members, settings, setSettings)` hook rather than reading
+`useBoard()` internally — App.jsx already holds those three directly and would
+otherwise be consuming a context it is itself about to provide, the same reason
+`useBoardPalette` sits beside `PaletteContext` instead of inside it. `useMode()` is
+still there for everyone else — Settings' mode toggle, R11's chores tab.
 
 **R11 — Chores.** `Task` and `Routine` are frozen in `schema.js` and `STORE_KEYS`
 reserves the `tasks` and `routines` keys. `Routine` carries `anchor`, `cadence`,

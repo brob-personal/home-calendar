@@ -17,20 +17,30 @@
   before this file grew — verified by the smoke test — while the shape it
   persists is now the final one.
 
-  The five original members are the family, which is Personal mode. They arrive
-  in both modes (see `modes`) so the board still renders somebody in Roommate
-  mode before R10 lands a roster editor; R10 narrows them.
+  The five original members are the family, which is Personal mode.
+
+  R10 note: they used to arrive in both modes so the board rendered somebody
+  in Roommate mode before a roster editor existed. That editor now exists
+  (Settings' Family section — see Settings.jsx), so they are narrowed to
+  `["personal"]` here, per SCOPING.txt's own framing: "you're essentially
+  just toggling between whether you display the iPad publicly between
+  roommates or if you move it into your room as a family calendar." The
+  family and the roommates are two different sets of people, not the same
+  five wearing a different hat. Roommate mode therefore starts with an empty
+  roster by design — consistent with `weather.lat: null` and
+  `drive.folderId: ""` below, "not configured yet" is a normal default on a
+  board with no onboarding — and is populated by adding a person in Settings
+  and ticking "Roommate".
   ============================================================================
 */
-import { MODES } from "./schema.js";
 
 /** @type {import("./schema.js").Member[]} */
 export const DEFAULT_MEMBERS = [
-  { id: "brian", name: "Brian", color: "#7EB6E8", photo: "", onBoard: true, modes: [...MODES] },
-  { id: "rachel", name: "Rachel", color: "#F0A3B8", photo: "", onBoard: true, modes: [...MODES] },
-  { id: "david", name: "David", color: "#8ED9B2", photo: "", onBoard: true, modes: [...MODES] },
-  { id: "john", name: "John", color: "#F6C58A", photo: "", onBoard: true, modes: [...MODES] },
-  { id: "tatyana", name: "Tatyana", color: "#C2A8E8", photo: "", onBoard: true, modes: [...MODES] },
+  { id: "brian", name: "Brian", color: "#7EB6E8", photo: "", onBoard: true, modes: ["personal"] },
+  { id: "rachel", name: "Rachel", color: "#F0A3B8", photo: "", onBoard: true, modes: ["personal"] },
+  { id: "david", name: "David", color: "#8ED9B2", photo: "", onBoard: true, modes: ["personal"] },
+  { id: "john", name: "John", color: "#F6C58A", photo: "", onBoard: true, modes: ["personal"] },
+  { id: "tatyana", name: "Tatyana", color: "#C2A8E8", photo: "", onBoard: true, modes: ["personal"] },
 ];
 
 /*

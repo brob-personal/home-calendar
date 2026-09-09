@@ -595,3 +595,83 @@ files. Resolved keeping both roles' work, not diminishing either:
   it's a strict superset, adding token-contract coverage on top of R7's four checks.
   `src/test/fixtures/prototype-css.txt` and `scripts/extract-prototype-css.mjs` are
   now unused by any test; left in place as R0/R13's call, not deleted mid-merge.
+
+---
+
+**R10 note, and a wave-order flag for R0.** §3 puts R10 in Wave 2, depending on R3
+and R8. R8 has not landed — no `src/data/google.js`, no `api/calendar/**` — so this
+role went ahead on R3's half of the dependency alone, which CONTRACTS.md's own §6
+entry for R10 already anticipated ("`ModeContext` goes beside `BoardContext` and can
+read `settings`/`setSettings` from `useBoard()`" — no mention of needing R8 present).
+The only thing R8 actually supplies is real entries in `settings.calendars[mode]`;
+until then both modes' calendar sets stay `[]`, exactly as R3 defaulted them, and
+mode-switching itself — roster, views, the active mode — never touches a calendar at
+all. Nothing here is provisional or needs revisiting once R8 lands: R8's job is to
+populate `CalendarLink[]` per mode and tag synced events with `calendarId`; this
+role's job was to make the board read whichever mode is active, which it already
+does correctly against an empty calendar set. Flagging the order violation for the
+record, not asking to redo the work.
+
+Landed:
+
+1. `src/state/ModeContext.js` — the mode bundle: `mode`, `setMode`, `roster` (members
+   narrowed to the active mode), `calendars` (`settings.calendars[mode]`), `views`
+   (the footer's tab list, mode-derived), `isRoommate`. Named `.js` and holds no
+   components, not the `.jsx` PLAN.md §2 named — the same deviation BoardContext.js
+   took, and for the same reason: `<ModeContext.Provider value={...}>` is rendered
+   directly by App.jsx (its value taken as a prop, exactly as BoardContext and
+   PaletteContext already do) rather than through a wrapper component this file
+   would export, so there is no JSX in it to justify the extension. Exports the plain
+   `useModeState(members, settings, setSettings)` hook App.jsx calls directly — App
+   cannot consume a context it is about to provide — and `useMode()` for descendants
+   (Settings, R11's future chores tab) that can.
+2. `src/App.jsx` — wired the provider; every prop that used to receive `members`
+   (Footer's legend, Composer's and EventDetailSheet's "Who" pickers, AgendaView,
+   `useMemberFilter`, `useBoardPalette`) now receives `roster` instead. Settings
+   alone keeps the full `members` list, because it is where a person's mode
+   membership gets assigned in the first place. One correctness fix beyond the
+   rename: `useMemberFilter`'s "hidden" list is an exclusion list, not an allowlist,
+   so handing it `roster` alone was not enough — an event belonging entirely to
+   people outside the active mode's roster would still have passed through, because
+   nobody on it was ever added to a hidden list scoped to a roster that no longer
+   contains them. `App.jsx` now filters `events` down to the ones with at least one
+   member in `roster` before `useMemberFilter` runs at all. Also added the one-line
+   effect that resets `view` to `"day"` if the active mode's `views` no longer
+   include it, so leaving Roommate mode while the To-do tab is open cannot strand the
+   footer with no button lit.
+3. `src/components/shell/Footer.jsx` — item 5's mode-derived view list. The hardcoded
+   `["day","week","month","agenda"]` is now a `views` prop; Footer no longer knows
+   what any view id means beyond how to capitalize it, with one label override
+   (`"todo"` → `"To-do"`, SCOPING.txt's own spelling).
+4. `src/components/settings/Settings.jsx` — the mode toggle (a "Mode" Field, pills,
+   same shape as the Weather units control) and, since a mode toggle with nobody to
+   switch to Roommate mode with is not a feature, the roster editor R3's
+   `DEFAULT_MEMBERS` comment was written expecting: a "Personal" / "Roommate"
+   checkbox pair per member. Unchecking a person's last remaining mode is refused
+   rather than silently producing a member no view or filter can ever find again.
+   "Add person" now defaults new members to both modes, matching
+   `normalizeModes()`'s own fallback — it previously omitted `modes` entirely, which
+   `useModeState`'s `m.modes.includes(mode)` would have thrown on for anyone added
+   this way before their next reload revived them through `migrate()`.
+5. `src/contracts/defaults.js` — narrowed `DEFAULT_MEMBERS`' `modes` from `[...MODES]`
+   to `["personal"]`. This is R3's file, but its own comment invited exactly this
+   edit ("R10 narrows them"): the five are the family, Roommate mode is "whether you
+   display the iPad publicly between roommates or if you move it into your room as a
+   family calendar" (SCOPING.txt), and a mode whose default roster is the same five
+   people under a different label is not the feature described. Roommate mode now
+   starts with zero members by default, the same "not configured yet" shape as
+   `weather.lat: null` and `drive.folderId: ""` — consistent with "not building:
+   onboarding" (§1), and item 4 above is exactly how a board configures it.
+6. Tests: `src/state/ModeContext.test.js` (roster narrowing, calendar selection, the
+   view list per mode, `setMode`'s validation and its no-op-on-repeat identity check),
+   `src/components/shell/Footer.test.jsx` (the view switcher is a pure function of its
+   `views` prop), `src/mode.integration.test.jsx` (the acceptance criterion end to
+   end, in the shape of R3's `persistence.integration.test.jsx`: real Settings UI,
+   real App, the To-do tab appearing and disappearing, the roster swap, and the mode
+   surviving an unmount/remount).
+
+Acceptance re-checked against PLAN.md's own wording: toggling in Settings swaps the
+roster, the footer's views and (via `useBoardPalette` now reading `roster`) the
+colour set derived from it, wholesale; `settings.mode` persists through R3's
+store/migrate path unchanged, so it survives reload; the To-do tab is present in
+`views` in Roommate mode only, verified by both the unit test and the DOM-level one.

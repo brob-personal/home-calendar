@@ -1,9 +1,15 @@
 import { clampHex, variantColor, VARIATION_COUNT } from "../../lib/color.js";
 import { uid } from "../../lib/uid.js";
 import { THEMES } from "../../lib/theme.js";
+import { MODES } from "../../contracts/schema.js";
+import { useMode } from "../../state/ModeContext.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { Sheet } from "../shell/Sheet.jsx";
 import { Field } from "../shell/Field.jsx";
+
+/* "Roommate" reads better than the raw mode id in a UI label; every other
+   mode id is already its own label. */
+const MODE_LABELS = { personal: "Personal", roommate: "Roommate" };
 
 /*
   Board settings. Moved verbatim from family-board.jsx:1441-1625.
@@ -12,7 +18,11 @@ import { Field } from "../shell/Field.jsx";
   onboarding" as a locked decision, so this panel is the only configuration
   surface the board will ever have. Three later roles add sections to this
   file: R6 the weather location (landed — the "Weather" Field below), R9 the
-  Drive folder id, R10 the mode toggle.
+  Drive folder id, R10 the mode toggle (landed — the "Mode" Field below) and
+  the per-member "Personal" / "Roommate" checkboxes in the Family section,
+  which are the roster editor R3's DEFAULT_MEMBERS comment was written
+  expecting: the roommates are not the family (SCOPING.txt), so which mode a
+  person belongs to is data on the Member, set here.
 
   The four apostrophes in the prose below are written as &apos; rather than as
   literal quotes. That is not a style preference: `react/no-unescaped-entities`
@@ -37,14 +47,47 @@ import { Field } from "../shell/Field.jsx";
   need to fix it from. R3's migrate() is the natural home for the fix.
 */
 export function Settings({ settings, setSettings, members, setMembers, onClose }) {
+  const { mode, setMode } = useMode();
+
   const set = (k, v) => setSettings((s) => ({ ...s, [k]: v }));
   const setMember = (id, patch) =>
     setMembers((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   const setWeather = (k, v) =>
     setSettings((s) => ({ ...s, weather: { ...s.weather, [k]: v } }));
 
+  /* A member with no mode at all is invisible everywhere — the same
+     invariant normalizeModes() enforces on load. Unchecking a person's only
+     remaining mode here is refused rather than silently producing that
+     state, so the checkbox itself cannot create a member Settings has no way
+     to find again. */
+  const toggleMemberMode = (m, targetMode) => {
+    const has = m.modes.includes(targetMode);
+    if (has && m.modes.length === 1) return;
+    const modes = has ? m.modes.filter((x) => x !== targetMode) : [...m.modes, targetMode];
+    setMember(m.id, { modes });
+  };
+
   return (
     <Sheet title="Board settings" onClose={onClose} wide>
+      <Field label="Mode">
+        <div className="fb-pills">
+          {MODES.map((m) => (
+            <button
+              key={m}
+              className={`fb-pill${mode === m ? " is-on" : ""}`}
+              onClick={() => setMode(m)}
+            >
+              {MODE_LABELS[m] || m}
+            </button>
+          ))}
+        </div>
+        <p className="fb-note">
+          Personal mode shows the family calendar. Roommate mode shows a separate
+          calendar and roster for when the board is on public display, and adds a
+          To-do tab. Switch who is on each below.
+        </p>
+      </Field>
+
       <Field label="Family">
         <div className="fb-members">
           {members.map((m) => (
@@ -98,6 +141,16 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
                   />
                   <span>On the board by default</span>
                 </label>
+                {MODES.map((targetMode) => (
+                  <label className="fb-check fb-check-sm" key={targetMode}>
+                    <input
+                      type="checkbox"
+                      checked={m.modes.includes(targetMode)}
+                      onChange={() => toggleMemberMode(m, targetMode)}
+                    />
+                    <span>{MODE_LABELS[targetMode] || targetMode}</span>
+                  </label>
+                ))}
                 <div className="fb-ramp fb-ramp-sm">
                   {Array.from({ length: VARIATION_COUNT }, (_, i) => (
                     <span
@@ -115,7 +168,14 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
             onClick={() =>
               setMembers((ms) => [
                 ...ms,
-                { id: uid(), name: "New person", color: "#A8D8D0", photo: "", onBoard: true },
+                {
+                  id: uid(),
+                  name: "New person",
+                  color: "#A8D8D0",
+                  photo: "",
+                  onBoard: true,
+                  modes: [...MODES],
+                },
               ])
             }
           >
