@@ -19,6 +19,7 @@ import { DayView } from "./components/views/DayView.jsx";
 import { WeekView } from "./components/views/WeekView.jsx";
 import { MonthView } from "./components/views/MonthView.jsx";
 import { AgendaView } from "./components/views/AgendaView.jsx";
+import { EventDetailSheet } from "./components/views/EventDetailSheet.jsx";
 import { NoteDock } from "./components/notes/NoteDock.jsx";
 import { NoteWindow } from "./components/notes/NoteWindow.jsx";
 import { Composer } from "./components/settings/Composer.jsx";
@@ -57,6 +58,14 @@ export default function App() {
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
   const [panel, setPanel] = useState(null);
   const [noteOpen, setNoteOpen] = useState(false);
+  /*
+    R7: which event the detail sheet has open, if any. Lives at App's level
+    rather than inside any one view because PLAN.md §R7 item 5 requires the
+    sheet reachable from all four views — Day, Week, Month and Agenda each
+    call onSelect(event) on a tap, and the sheet itself doesn't care which view
+    opened it.
+  */
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   const { isShown, shownMembers, filtered, filterTouched, toggleMember, resetFilter } =
     useMemberFilter(members, data.events);
@@ -137,11 +146,17 @@ export default function App() {
                     events={filtered}
                     members={shownMembers}
                     settings={settings}
-                    onDelete={data.deleteEvent}
+                    onSelect={setSelectedEvent}
                   />
                 )}
                 {view === "week" && (
-                  <WeekView date={anchor} now={now} events={filtered} settings={settings} />
+                  <WeekView
+                    date={anchor}
+                    now={now}
+                    events={filtered}
+                    settings={settings}
+                    onSelect={setSelectedEvent}
+                  />
                 )}
                 {view === "month" && (
                   <MonthView
@@ -152,11 +167,18 @@ export default function App() {
                       setAnchor(d);
                       setView("day");
                     }}
+                    onSelect={setSelectedEvent}
                   />
                 )}
                 {/* `members`, not `shownMembers` — Deferred Defect #2, R12's to fix. */}
                 {view === "agenda" && (
-                  <AgendaView date={anchor} now={now} events={filtered} members={members} />
+                  <AgendaView
+                    date={anchor}
+                    now={now}
+                    events={filtered}
+                    members={members}
+                    onSelect={setSelectedEvent}
+                  />
                 )}
               </main>
 
@@ -198,6 +220,20 @@ export default function App() {
                 date={anchor}
                 onSave={addEvent}
                 onClose={() => setPanel(null)}
+              />
+            )}
+            {selectedEvent && (
+              <EventDetailSheet
+                event={selectedEvent}
+                members={members}
+                settings={settings}
+                onSave={(patch) =>
+                  data.updateEvent(selectedEvent.id, patch).then(() => setSelectedEvent(null))
+                }
+                onDelete={() =>
+                  data.deleteEvent(selectedEvent.id).then(() => setSelectedEvent(null))
+                }
+                onClose={() => setSelectedEvent(null)}
               />
             )}
             {panel === "settings" && (

@@ -3,39 +3,21 @@ import { describe, it, expect } from "vitest";
 import { BOARD_CSS } from "./index.js";
 
 /*
-  Vite's ?raw suffix inlines the file as a string at transform time. Read via
-  node:fs instead and this fails with "The URL must be of scheme file" —
-  import.meta.url is not a file:// URL under the Vitest runner.
-*/
-import fixture from "../test/fixtures/prototype-css.txt?raw";
-
-/*
-  R2's evidence for PLAN.md §R2's acceptance criterion — "visually identical
-  at 1080x810 ... a reviewer should be able to confirm every moved line is the
-  same line".
-
-  The fixture is the CSS template literal lifted out of family-board.jsx
-  before item 6 deleted it, with ${CANVAS_W}/${CANVAS_H} resolved and CRLF
-  normalized to LF. It was produced by scripts/extract-prototype-css.mjs,
-  which also performed this comparison live against the prototype.
-
-  Splitting a 378-line stylesheet into fifteen files is the highest-risk part
-  of a "zero behaviour change" refactor, because a lost rule or a reordered
-  chunk is invisible until someone looks at the board on the wall. This test
-  makes it visible in CI instead.
-
-  R5, this file is a gift and a tripwire. You own src/styles/** and your job
-  is to replace these strings with tokens.css and CSS modules, at which point
-  a byte comparison stops being meaningful — delete it then, deliberately, in
-  the same commit that lands the replacement. Do not delete it to make a red
-  suite green.
+  R2's byte-identical assertion against the prototype fixture lived here
+  through R2's zero-behaviour-change decomposition — its own docstring said
+  so: "R5 ... delete it then, deliberately, in the same commit that lands the
+  replacement. Do not delete it to make a red suite green." R7 is that commit,
+  just not via R5's route: rotating DayView (PLAN.md §R7 item 1) is a real
+  layout change, not a token/CSS-module swap, but it is the first legitimate
+  post-R2 change to touch a styles/*.js chunk, so the same retirement applies
+  — a byte-for-byte pin against the original prototype cannot coexist with any
+  role whose mandate is to change what the board looks like. The structural
+  checks below (canvas contract, import order, cascade order, no stray
+  interpolation) don't pin exact bytes and stay meaningful after this and
+  every future styles change.
 */
 
 describe("board stylesheet", () => {
-  it("is byte-identical to the prototype's CSS string", () => {
-    expect(BOARD_CSS).toBe(fixture);
-  });
-
   it("still declares the 1080x810 canvas contract", () => {
     expect(BOARD_CSS).toContain("1080px");
     expect(BOARD_CSS).toContain("810px");

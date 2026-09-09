@@ -21,8 +21,13 @@ import { usePalette } from "../../state/PaletteContext.js";
   cannot occur because the first cell is never past the last of the month.
   Dropping whole weeks rather than trailing cells is what keeps
   `visible.length / 7` an exact row count for grid-template-rows.
+
+  `onSelect` is R7's addition (PLAN.md §R7 item 5): a chip tap opens the
+  EventDetailSheet instead of the cell's own onPick navigation, so it needs
+  its own handler with stopPropagation — the cell itself is already a button
+  and a chip is a nested span, not a nested button, so this stays valid HTML.
 */
-export function MonthView({ date, now, events, onPick }) {
+export function MonthView({ date, now, events, onPick, onSelect }) {
   const { fillFor } = usePalette();
 
   const first = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -53,7 +58,17 @@ export function MonthView({ date, now, events, onPick }) {
               <span className="fb-cellnum">{d.getDate()}</span>
               <span className="fb-cellevents">
                 {list.slice(0, 3).map((e) => (
-                  <span key={e.id} className="fb-cellev" style={{ background: fillFor(e) }}>
+                  <span
+                    key={e.id}
+                    className="fb-cellev"
+                    style={{ background: fillFor(e) }}
+                    role="button"
+                    tabIndex={0}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      onSelect(e);
+                    }}
+                  >
                     {e.title}
                   </span>
                 ))}

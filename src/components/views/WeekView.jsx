@@ -1,5 +1,6 @@
 import { addDays, sameDay, startOfWeek, minutesInto, fmtTime, DOW } from "../../lib/date.js";
 import { usePalette } from "../../state/PaletteContext.js";
+import { TimeGutter } from "./TimeGutter.jsx";
 
 /*
   Week — moved from family-board.jsx:854-928.
@@ -12,15 +13,19 @@ import { usePalette } from "../../state/PaletteContext.js";
   now-line's `top`, and every block's top and height. Changing it rescales the
   view coherently.
 
-  For R7's backlog item 2: `.fb-gutter fb-hours` below is the hour column Day
-  is supposed to reuse so the two views read as one system. If that becomes a
-  shared TimeGutter component this file has to change, which makes it a
-  contract change routed through R0 rather than something R7 can do inside its
-  own paths.
+  R7 extracted the hour column into `./TimeGutter.jsx` so Day and Week share
+  one rendering of the hour labels instead of two copies drifting apart —
+  PLAN.md §R7 item 2. The styles it renders against (`.fb-gutter`, `.fb-hours`,
+  `.fb-hour`) still live in styles/week.js, unchanged.
+
+  `onSelect` is new: PLAN.md §R7 item 5 requires events be inspectable from
+  every view, not just Day, so a block tap opens the same EventDetailSheet
+  App.jsx wires up for Day. `.fb-wblock` becomes a button for it; the global
+  button reset in root.js means that costs no visual diff.
 */
 const HOUR_H = 34;
 
-export function WeekView({ date, now, events, settings }) {
+export function WeekView({ date, now, events, settings, onSelect }) {
   const { fillFor } = usePalette();
 
   const start = startOfWeek(date);
@@ -48,13 +53,7 @@ export function WeekView({ date, now, events, settings }) {
 
       <div className="fb-weekbody">
         <div className="fb-weekgrid" style={{ height: gridH }}>
-          <div className="fb-gutter fb-hours">
-            {hours.map((h) => (
-              <span className="fb-hour" style={{ height: HOUR_H }} key={h}>
-                {fmtTime(new Date(2000, 0, 1, h))}
-              </span>
-            ))}
-          </div>
+          <TimeGutter hours={hours} hourH={HOUR_H} />
 
           {days.map((d, i) => {
             const today = sameDay(d, now);
@@ -73,7 +72,7 @@ export function WeekView({ date, now, events, settings }) {
                   const s = Math.max(minutesInto(e.start), spanStart);
                   const en = Math.min(minutesInto(e.end), spanEnd);
                   return (
-                    <div
+                    <button
                       key={e.id}
                       className="fb-wblock"
                       style={{
@@ -81,10 +80,11 @@ export function WeekView({ date, now, events, settings }) {
                         height: Math.max(((en - s) / 60) * HOUR_H - 2, 18),
                         background: fillFor(e),
                       }}
+                      onClick={() => onSelect(e)}
                     >
                       <span className="fb-wbtitle">{e.title}</span>
                       <span className="fb-wbtime">{fmtTime(e.start)}</span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
