@@ -596,6 +596,52 @@ files. Resolved keeping both roles' work, not diminishing either:
   `src/test/fixtures/prototype-css.txt` and `scripts/extract-prototype-css.mjs` are
   now unused by any test; left in place as R0/R13's call, not deleted mid-merge.
 
+---
+
+**R8 note on the calendar sync build.** `src/data/google.js` and `api/calendar/**`
+are landed, implementing the sketch that used to live as a block comment in
+`src/data/index.js`. What the sketch left open, and how it was resolved:
+
+- **Calendar-to-member map.** Read from `Settings.calendars[settings.mode]` fresh
+  on every sync — not passed in at construction — via `store.get()` +
+  `migrateSettings()`, the same path `useBoardData` itself uses. This means a
+  calendar edited in Settings, or a mode switch R10 makes later, takes effect on
+  the source's next 5-minute poll without the source being recreated, and it kept
+  this role from having to reach into `useBoardData.js` or `App.jsx` at all —
+  `createSource()` in `src/data/index.js` stays the only call site, exactly as
+  that file's own header promises.
+- **`api/calendar/events.js`** is a generic, member-and-mode-agnostic proxy: one
+  `calendarId` per call, list/create/update/delete, pagination resolved to
+  completion server-side, Google's own incremental sync tokens forwarded rather
+  than reinvented. The JSON envelope between it and `src/data/google.js` is this
+  role's own design, not a mirror of Google's raw resource shapes — documented at
+  the top of each function in that file. It is not wired into `vitest` — Deferred
+  Defect #16 already flagged `api/**` as outside the current test include, and
+  widening that is R13's call, not this role's. Confidence instead comes from
+  `src/data/google.test.js` and the `"google"` entry in
+  `src/data/source.contract.test.js`, both of which drive `src/data/google.js`
+  against an in-memory fake that speaks the same client/server contract, plus a
+  manual code review of the route against the real Calendar v3 API.
+- **Calendar selection on `create()`.** Exact member-set match first (a
+  two-person draft should land on the calendar that produces exactly that
+  diagonal split), then a calendar that's a superset of the requested members,
+  then the first enabled calendar; throws if none is configured. `Settings.
+  calendars` starts empty per R3's defaults, so an operator has to populate at
+  least one `CalendarLink` — in Settings, once that UI exists, or by hand in the
+  persisted blob today — before the board can create events against Google.
+- **Degrading.** `list()` never throws. A total failure across every configured
+  calendar falls back to this session's last good in-memory merge, or — on a
+  cold start where nothing has synced yet — the contract-shaped cache
+  `useBoardData` already persists under `STORE_KEYS.events`. The array returned
+  in that case carries a non-contract, additive `degraded: true` property for
+  whichever failure UI eventually reads it. Deferred Defect #7 (no failure UI at
+  all) is deliberately still open — building that UI is R12's, not this role's.
+- **Two files touched outside this role's own paths**, both pre-authorized by
+  their own comments rather than negotiated fresh: `src/data/index.js`'s
+  `>>> SWAP` block said outright "the choice belongs here," and
+  `src/data/source.contract.test.js` said outright "R8: add
+  `runs("google", ...)` here." Recorded per §5 rule 3 anyway, same as R7 and R5
+  did for their own cross-file touches above.
 **R9 note.** Drive photo screensaver landed: `src/data/drive.js` (`listDrivePhotos` /
 `getDrivePhotos` / `useDrivePhotos`, mirroring R6's `weather.js` split), two routes
 under `api/drive/**` (`photos.js` lists image metadata, `photo.js` proxies one file's
