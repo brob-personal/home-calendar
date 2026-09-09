@@ -29,13 +29,19 @@
   physical-object metaphor, not a themed surface, so it does not read
   --paper/--surface either.
 
-  The --header-h / --footer-h / --board-gap / --board-pad-b block feeds two
-  derived values that PLAN.md §R5 item 3 calls out by name: `.fb-axis`'s
-  left margin has to clear the lane-name column plus its gap, and
-  `.fb-dock`'s bottom offset has to clear the footer plus the board's own
-  padding and flex gap. Both were separate magic numbers that happened to
-  agree; expressing them as calc() means changing one input can't silently
-  break the other.
+  --danger-bg / --danger-ink are EventDetailSheet's delete-confirm colours
+  (R7, PLAN.md §R7 item 5). They happen to share a hex with --now today, but
+  stay their own tokens rather than aliasing it: --now is reserved for the
+  now-line "and nothing else," and a future now-line recolour shouldn't drag
+  the delete button's danger red along with it.
+
+  --footer-h / --board-gap / --board-pad-b feed --dock-bottom, the derived
+  value PLAN.md §R5 item 3 calls out: `.fb-dock`'s bottom offset has to clear
+  the footer plus the board's own padding and flex gap, and nothing enforced
+  that before. (Its sibling duplication, `.fb-axis`'s left margin against
+  Day's old lane-name column, was retired by R7's DayView rewrite along with
+  the column it measured — there is no --lane-name-w/--lane-gap here because
+  nothing consumes them anymore.)
 */
 export default `
 :root {
@@ -72,9 +78,8 @@ export default `
   --veil-bg: #000;
   --ink-on-dark: #fff;
 
-  --lane-name-w: 150px;
-  --lane-gap: 14px;
-  --axis-margin: calc(var(--lane-name-w) + var(--lane-gap));
+  --danger-bg: #E0574F;
+  --danger-ink: #C43A33;
 
   --footer-h: 60px;
   --board-gap: 14px;

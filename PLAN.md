@@ -500,6 +500,7 @@ Roles append here when they find something outside their mandate. R0 assigns.
 | 13 | R2 | `hooks/useBoardData.js` | `store.set` JSON-stringifies whatever it is handed, and `notes` survives that only because strokes are plain numbers. Events are not persisted at all, so a cold board shows nothing until `source.list()` resolves. Both are blocked on the Date serializer | R3 (items 2, 3) |
 | 14 | R2 | `hooks/useBoardData.js` load effect | The three `store.get` calls are awaited together, then `source.list()` is awaited, then `setLoaded(true)`. Nothing distinguishes "still loading" from "loaded and empty", so the board renders a fully-populated empty state during startup. `loaded` exists but is only used to gate persistence | R12 (item 4, loading UI) |
 | 15 | R2 | `components/settings/Composer.jsx` | Creating an event ignores `end` when `milestone` is ticked: `allDay: milestone` is set but `end` is still `start + dur`, so an all-day milestone carries a stale 60-minute duration. Harmless today because no view reads `end` for all-day events; a landmine for R8's write-back, which will POST it to Google | R8 |
+| 16 | R4 | `vitest.config.js` `test.include` | Scoped to `src/**/*.{test,spec}.{js,jsx}`, so `api/**` (auth, tokens, security, CORS, rate limit) has zero automated coverage — verified manually instead for this wave. Needs either a second Vitest project for the Node environment or a widened include once `api/` has enough surface to justify it | R13 |
 
 | 16 | R3 | `components/settings/Settings.jsx` Sleep section | `sleepStyle` now exists, is persisted, is validated, and is *derived* for every pre-existing board — but there is no control for it. The Sleep section still shows only the 0–0.4 `sleepDim` slider, which cannot express "black": `SleepVeil` floors its opacity at `Math.max(opacity, 0.02)`. Two lines: a black/dim pair of pills, and `App.jsx` passing `0` for opacity when the style is `"black"`. Same section still only *displays* `wakeTapSeconds` with no control, which R3's item 4 asked to expose | R12, or whoever next owns `Settings.jsx` |
 | 17 | R3 | `src/test/fixtures/prototype-css.txt` | `styles.contract.test.js` compares `BOARD_CSS` byte-for-byte against this fixture. The repo has no `.gitattributes`, so on Windows — where Git for Windows defaults to `core.autocrlf=true` — the fixture checks out CRLF while the JS template literals are LF, and the test fails on a clean clone for reasons unrelated to the CSS. Verified: the two are identical once `\r\n` is normalized. `npm run format:check` is red across all 60 `src/` files for the same reason. One-line fix: a `.gitattributes` holding `* text=auto eol=lf`, then re-normalize. R3 did not add it — root tooling files are R1's | R1 (tooling), blocks R5 and R13's gate |
@@ -540,3 +541,57 @@ so a cold board paints its last known events instead of showing nothing until
 `source.list()` resolves. Defect #7 is deliberately still open: `source.list()` still has
 no try/catch, but the board now has a cache to keep showing while it fails. Details in
 `CONTRACTS.md`.
+
+**R7 note on Defect #6, and on contract touches outside DayView.jsx.** Defect #6 is
+fixed: the `onDoubleClick` delete is gone, replaced by `src/components/views/EventDetailSheet.jsx`
+(edit + two-step confirm delete), opened by tapping an event in **any** of the four
+views. That acceptance bar — "reachable from every view" — could not be met by touching
+only `DayView.jsx` and its stylesheet, so this role also made three small, deliberate
+touches outside its owned paths, recorded here per the coordination rule rather than
+made silently:
+
+- `WeekView.jsx` — swapped its inline hour-label markup for the new shared
+  `src/components/views/TimeGutter.jsx` (item 2's "read as one system"), and gave
+  `.fb-wblock` an `onSelect` handler so a Week block opens the same sheet as Day.
+- `MonthView.jsx` and `AgendaView.jsx` — each gained an `onSelect` prop so their event
+  chips/rows open the sheet too. Neither view's own navigation (`onPick` on a Month
+  cell) changed.
+- `styles/styles.contract.test.js` — retired the byte-identical-to-prototype assertion.
+  That test's own docstring assigned its removal to "R5 ... in the same commit that
+  lands the replacement" of the CSS strings with tokens/modules; rotating DayView
+  (item 1) is a real layout change rather than that swap, but it is the first
+  legitimate post-R2 change to a `styles/*.js` chunk, so the same retirement applies —
+  a byte-for-byte pin against the prototype cannot coexist with a mandate to change
+  what the board looks like. This also moots Deferred Defect #17 (the CRLF fixture
+  mismatch): the fixture the test compared against is now unused by any test.
+
+No other role's owned files were touched. `src/styles/sheet.js` gained three small
+shared classes (`.fb-danger`, `.fb-textdanger`, `.fb-deleteprompt`) for the new sheet's
+delete control — additive, no existing rule changed.
+
+**R5 note on reconciling with R7.** R5's design-system pass and R7's DayView rebuild
+were both branched off R2's baseline and landed back to back, conflicting in three
+files. Resolved keeping both roles' work, not diminishing either:
+
+- `src/styles/*.js` moved into `shell/`, `views/`, `notes/`, `idle/` (mirroring §2's
+  component tree) in the same commit every literal became a `tokens.js` custom
+  property. Any note above naming a flat path like `src/styles/day.js` or
+  `src/styles/sheet.js` now means `src/styles/views/DayView.js` /
+  `src/styles/shell/Sheet.js` respectively — content, not intent, moved.
+- R7's DayView rotation is kept exactly as landed; R5 only replaced its one
+  remaining literal (`.fb-dblock`'s `#24262B`) with the same `--ink-on-color`
+  token every other event block already reads. R7's rewrite eliminated `.fb-lane`/
+  `.fb-lanename`/`.fb-axis`/`.fb-tick` and the lane-name column they measured, which
+  retires R5's `--lane-name-w`/`--lane-gap`/`--axis-margin` derivation along with
+  them — there is no rule left to derive a margin for. `--dock-bottom` (the other
+  half of R5's magic-number item) is untouched and still load-bearing.
+- R7's three additive `.fb-danger`/`.fb-textdanger`/`.fb-deleteprompt` classes in
+  the sheet stylesheet are tokenized (`--danger-bg`, `--danger-ink`) rather than
+  aliased to `--now`, even though they share a hex today — `--now` stays reserved
+  for the now-line alone, per its own contract.
+- Both roles independently retired `styles.contract.test.js`'s byte-identical
+  assertion in favour of the same four structural checks (R7's note above explains
+  why). R5's replacement, `styles.smoke.test.js`, is kept as the single test file:
+  it's a strict superset, adding token-contract coverage on top of R7's four checks.
+  `src/test/fixtures/prototype-css.txt` and `scripts/extract-prototype-css.mjs` are
+  now unused by any test; left in place as R0/R13's call, not deleted mid-merge.

@@ -68,6 +68,12 @@ button.fb-shade.is-on { border-color: var(--ink); }
   background: var(--surface); border-radius: 10px; color: var(--mute);
 }
 .fb-ghost-sm { font-size: 12px; padding: 8px 12px; }
+/* R7: EventDetailSheet's delete path. Trigger stays a quiet ghost button so
+   opening the sheet doesn't read as an ultimatum; the confirm step is the one
+   filled in danger red. */
+.fb-textdanger { color: var(--danger-ink); }
+.fb-danger { background: var(--danger-bg); color: var(--ink-on-dark); }
+.fb-deleteprompt { margin-right: auto; color: var(--ink); font-weight: 600; }
 .fb-check { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
 .fb-check-sm { font-size: 13px; color: var(--mute); }
 .fb-check input { width: 19px; height: 19px; accent-color: var(--ink); }

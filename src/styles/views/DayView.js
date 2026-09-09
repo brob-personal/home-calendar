@@ -1,17 +1,23 @@
 /*
-  Day.
+  Day — rebuilt by R7 (PLAN.md §R7 item 1), reconciled with R5's token pass
+  when the two branches landed back to back.
 
-  Everything here is about to be rewritten. R7's mandate is to rotate the
-  view — time onto the vertical left axis, people across the top — which is
-  the transpose of what these rules lay out: .fb-lane is a row,
-  .fb-lanetrack runs horizontally, and .fb-axis is a strip underneath. R2
-  moved the rules unchanged so R7 inherits a working baseline to diff
-  against; R5 only replaces literals with tokens, no layout change.
+  R7 rotated the view to spec: `.fb-lane`/`.fb-lanetrack`/`.fb-axis` (a row
+  per person, time left-to-right, an hour strip underneath) are gone,
+  replaced by the same vertical grid WeekView uses — `.fb-gutter`/`.fb-hours`/
+  `.fb-hour` via the shared `<TimeGutter>`, plus `.fb-hourline` and
+  `.fb-nowrow`/`.fb-nowdot`, all still declared once in week.js and reused
+  here unchanged (item 2). Only the column head (`.fb-dayhead`/`.fb-dhead`/
+  `.fb-dname`, people instead of days) and the block/track rules below
+  (`.fb-daybody`/`.fb-daygrid`/`.fb-dcol`, `.fb-dblock` — member-tinted, not
+  shared-fill) are Day's own.
 
-  .fb-axis's margin used to hardcode 164px — R5's item 3 magic number,
-  named in PLAN.md: 164 is .fb-lanename's width plus .fb-lane's gap, and
-  nothing enforced that. Both now read the same --lane-name-w / --lane-gap
-  tokens as --axis-margin's calc() in tokens.js, so the two can't drift.
+  That rewrite retired R5's magic-number derivation for this file: `.fb-axis`
+  no longer exists, so tokens.js no longer carries --lane-name-w/--lane-gap/
+  --axis-margin — there is nothing left to keep in sync. R5's other
+  contribution survives: `.fb-dblock`'s text colour reads var(--ink-on-color)
+  rather than the #24262B literal R7's version hardcoded, same as every
+  other event block across Day/Week/Month.
 */
 export default `
 /* Day */
@@ -21,33 +27,29 @@ export default `
   font-size: 13px; font-weight: 600; padding: 6px 12px;
   background: var(--surface); border-radius: 8px; color: var(--mute);
 }
-.fb-lanes { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
-.fb-lane { display: flex; align-items: stretch; gap: var(--lane-gap); flex: 1; min-height: 0; }
-.fb-lanename { width: var(--lane-name-w); flex: none; display: flex; align-items: center; gap: 11px; }
-.fb-lanetext { font-size: 17px; font-weight: 600; letter-spacing: -.015em; }
-.fb-lanetrack { position: relative; flex: 1; border-radius: 10px; }
+.fb-dayhead { display: flex; flex: none; padding-right: 6px; }
+.fb-dhead {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 9px;
+  padding: 2px 0 8px; color: var(--ink); border-bottom: 1px solid var(--line);
+}
+.fb-dname { font-size: 15px; font-weight: 600; letter-spacing: -.015em; }
+.fb-daybody { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.fb-daygrid { display: flex; position: relative; }
+.fb-dcol { position: relative; flex: 1; border-left: 1px solid var(--line); }
+.fb-dcol:last-child { border-right: 1px solid var(--line); }
 .fb-laneempty {
-  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  position: absolute; left: 14px; top: 10px;
   font-size: 13px; font-weight: 500; color: var(--mute); opacity: .75;
 }
-.fb-block {
-  position: absolute; top: 5px; bottom: 5px; min-width: 38px;
-  border-radius: 8px; padding: 0 11px;
+.fb-dblock {
+  position: absolute; left: 6px; right: 6px; z-index: 2;
+  border-radius: 8px; padding: 5px 11px;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
   color: var(--ink-on-color); overflow: hidden; text-align: left;
 }
 .fb-blocktitle {
-  font-size: 15px; font-weight: 700; letter-spacing: -.015em;
+  font-size: 14px; font-weight: 700; letter-spacing: -.015em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 .fb-blocktime { font-size: 11px; font-weight: 600; opacity: .66; }
-.fb-nowline {
-  position: absolute; top: 0; bottom: 0; width: 2px; border-radius: 2px;
-  background: var(--now); z-index: 3; pointer-events: none;
-}
-.fb-axis { position: relative; height: 18px; margin-left: var(--axis-margin); flex: none; }
-.fb-tick {
-  position: absolute; transform: translateX(-50%);
-  font-size: 12px; font-weight: 600; color: var(--mute); font-variant-numeric: tabular-nums;
-}
 `;

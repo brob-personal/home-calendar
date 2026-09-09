@@ -23,10 +23,12 @@ import motion from "./motion.js";
   regression guard for a mechanical split that changed no values. That
   comparison stopped being meaningful once R5 replaced the per-chunk
   literals with tokens.js custom properties, so it's deleted rather than
-  chased. The invariants below are the ones that still hold under the new
-  approach: the canvas contract, cascade order, and "no leftover template
-  interpolation" now covers every chunk, plus new coverage for the token
-  contract itself.
+  chased. (R7 independently reached the same call when rotating DayView —
+  see the merge of role/r7-dayview — and left an equivalent four-check file
+  under the same name; this version wins because it also covers the token
+  contract below.) The invariants that follow are the ones that still hold:
+  the canvas contract, cascade order, "no leftover template interpolation,"
+  plus new coverage for tokens.js itself.
 */
 
 describe("board stylesheet", () => {
@@ -57,13 +59,21 @@ describe("board stylesheet", () => {
     expect(BOARD_CSS).toContain("--tap-min: 44px");
   });
 
-  it("derives the axis margin and dock offset instead of restating them", () => {
-    expect(BOARD_CSS).toContain("--axis-margin: calc(var(--lane-name-w) + var(--lane-gap))");
+  it("keeps EventDetailSheet's danger colours as their own tokens, not aliases of --now", () => {
+    expect(BOARD_CSS).toContain("--danger-bg:");
+    expect(BOARD_CSS).toContain("--danger-ink:");
+    expect(day + sheet).not.toMatch(/#C43A33|#E0574F/i);
+  });
+
+  it("derives the dock offset instead of restating it", () => {
     expect(BOARD_CSS).toContain(
       "--dock-bottom: calc(var(--footer-h) + var(--board-gap) + var(--board-pad-b))",
     );
-    expect(BOARD_CSS).not.toContain("164px");
     expect(BOARD_CSS).not.toContain("bottom: 92px");
+    // R7's DayView rewrite retired the axis-margin duplication (and the
+    // .fb-axis it measured) along with the old lane-name column.
+    expect(BOARD_CSS).not.toContain("164px");
+    expect(BOARD_CSS).not.toContain("--axis-margin");
   });
 
   it("has no hardcoded colour literal outside tokens.js", () => {
