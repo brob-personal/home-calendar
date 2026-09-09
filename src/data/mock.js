@@ -1,19 +1,31 @@
 /*
-  The in-memory mock calendar source — moved verbatim from
-  family-board.jsx:352-359 (createMockSource) and :225-299 (seedEvents).
+  ============================================================================
+  THE MOCK CALENDAR SOURCE — R3, backlog item 5
+  ----------------------------------------------------------------------------
+  seedEvents() below is the prototype's, unchanged, and stays that way: it is
+  the fixture every view, test and screenshot has been read against, and R8
+  keeps it as the offline development path once the Google adapter lands.
 
-  Two things R3 inherits with this file:
+  What R3 changed is only the source around it:
 
-    1. `start`/`end` are live Date objects. seedEvents builds them with
-       new Date(), and nothing serializes them. This is the "Date landmine"
-       in PLAN.md §1 and R3's backlog item 2.
-    2. The source implements three of the five methods R3's item 5
-       formalizes: `list`, `create`, `remove`. There is no `update`, and no
-       `subscribe`. R2 did not add them — inventing an interface is a
-       contract change, which routes through R0.
+    - All five methods now exist. `list`, `create` and `remove` were here;
+      `update` and `subscribe` are new, and the mock is the reference
+      implementation R8 matches (see ../contracts/source.js for the contract
+      and for why those two matter).
+    - Everything leaves through normalizeEvent(), so the mock cannot hand a
+      view a shape the contract forbids — no missing `location`, no string
+      where a Date belongs. That makes it a real test of downstream code
+      rather than a source of conveniently perfect objects.
+
+  The Date landmine that used to be flagged here is fixed, but not in this
+  file: seedEvents still builds live Dates, exactly as before. What changed is
+  that they now survive persistence, via ../contracts/serialize.js.
+  ============================================================================
 */
 import { uid } from "../lib/uid.js";
 import { startOfDay, addDays } from "../lib/date.js";
+import { normalizeEvent } from "../contracts/schema.js";
+import { defineSource, inRange } from "../contracts/source.js";
 
 function seedEvents() {
   const t = startOfDay(new Date());
@@ -115,18 +127,80 @@ function seedEvents() {
 }
 
 export function createMockSource() {
-  let events = seedEvents();
-  return {
-    async list() {
-      return events;
-    },
-    async create(e) {
-      const withId = { ...e, id: uid() };
-      events = [...events, withId];
-      return withId;
-    },
-    async remove(id) {
-      events = events.filter((e) => e.id !== id);
-    },
+  let events = seedEvents().map(normalizeEvent);
+
+  /*
+    A Set, not an array: unsubscribing is by identity and a listener registered
+    twice — which StrictMode's double-invoked effects will do — must not be
+    notified twice.
+  */
+  const listeners = new Set();
+
+  /*
+    Notified after the mutation, with the whole list. A diff would be cheaper
+    and is not worth it: the board holds a few hundred events at most, and
+    "here is the current truth" is a contract a consumer cannot misapply,
+    whereas a patch stream is one it can.
+  */
+  const emit = () => {
+    const snapshot = [...events];
+    for (const fn of [...listeners]) fn(snapshot);
   };
+
+  return defineSource(
+    {
+      /* A copy, never the internal array. Handing out the live reference lets
+         a caller's `.push()` or `.sort()` rewrite the source's state from the
+         outside — silently, and only on the mock, which is precisely the kind
+         of difference that makes a mock stop being a valid stand-in. */
+      async list(range) {
+        return range ? events.filter((e) => inRange(e, range)) : [...events];
+      },
+
+      async create(draft) {
+        /* The id is the source's to assign, which is why create resolves with
+           the stored event rather than echoing the draft. */
+        const created = normalizeEvent({ ...draft, id: uid() });
+        events = [...events, created];
+        emit();
+        return created;
+      },
+
+      /*
+        The method the app has never had. Patch semantics rather than replace:
+        R7's detail sheet edits a title or a time and should not have to send
+        back fields it never showed. `id` is stripped from the patch so an edit
+        cannot silently fork an event into a second one.
+      */
+      async update(id, patch) {
+        const i = events.findIndex((e) => e.id === id);
+        if (i === -1) {
+          throw new Error(`Cannot update unknown event "${id}".`);
+        }
+        const { id: _ignored, ...rest } = patch || {};
+        const next = normalizeEvent({ ...events[i], ...rest, id });
+        events = events.map((e, j) => (j === i ? next : e));
+        emit();
+        return next;
+      },
+
+      /* Idempotent by construction — filter on an absent id is a no-op. A
+         wall board double-firing a delete must not raise. */
+      async remove(id) {
+        const before = events.length;
+        events = events.filter((e) => e.id !== id);
+        if (events.length !== before) emit();
+      },
+
+      subscribe(listener) {
+        if (typeof listener !== "function") {
+          throw new TypeError("subscribe expects a function.");
+        }
+        listeners.add(listener);
+        /* Safe to call twice: Set.delete on an absent member is a no-op. */
+        return () => listeners.delete(listener);
+      },
+    },
+    "mock source",
+  );
 }

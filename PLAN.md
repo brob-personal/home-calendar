@@ -501,6 +501,9 @@ Roles append here when they find something outside their mandate. R0 assigns.
 | 14 | R2 | `hooks/useBoardData.js` load effect | The three `store.get` calls are awaited together, then `source.list()` is awaited, then `setLoaded(true)`. Nothing distinguishes "still loading" from "loaded and empty", so the board renders a fully-populated empty state during startup. `loaded` exists but is only used to gate persistence | R12 (item 4, loading UI) |
 | 15 | R2 | `components/settings/Composer.jsx` | Creating an event ignores `end` when `milestone` is ticked: `allDay: milestone` is set but `end` is still `start + dur`, so an all-day milestone carries a stale 60-minute duration. Harmless today because no view reads `end` for all-day events; a landmine for R8's write-back, which will POST it to Google | R8 |
 
+| 16 | R3 | `components/settings/Settings.jsx` Sleep section | `sleepStyle` now exists, is persisted, is validated, and is *derived* for every pre-existing board — but there is no control for it. The Sleep section still shows only the 0–0.4 `sleepDim` slider, which cannot express "black": `SleepVeil` floors its opacity at `Math.max(opacity, 0.02)`. Two lines: a black/dim pair of pills, and `App.jsx` passing `0` for opacity when the style is `"black"`. Same section still only *displays* `wakeTapSeconds` with no control, which R3's item 4 asked to expose | R12, or whoever next owns `Settings.jsx` |
+| 17 | R3 | `src/test/fixtures/prototype-css.txt` | `styles.contract.test.js` compares `BOARD_CSS` byte-for-byte against this fixture. The repo has no `.gitattributes`, so on Windows — where Git for Windows defaults to `core.autocrlf=true` — the fixture checks out CRLF while the JS template literals are LF, and the test fails on a clean clone for reasons unrelated to the CSS. Verified: the two are identical once `\r\n` is normalized. `npm run format:check` is red across all 60 `src/` files for the same reason. One-line fix: a `.gitattributes` holding `* text=auto eol=lf`, then re-normalize. R3 did not add it — root tooling files are R1's | R1 (tooling), blocks R5 and R13's gate |
+
 **R1 note on Defect #1.** `src/main.jsx` mounts the board inside `React.StrictMode`, so
 that defect is now live in dev: note strokes save twice. Kept on deliberately — the
 alternative is hiding it until the board is on the wall. Production builds are
@@ -527,3 +530,13 @@ numbers in rows 1–11 refer to the deleted `family-board.jsx`; their new homes 
 | 9 | `:936-937` | `src/components/views/MonthView.jsx` — now documented in place for R13 |
 | 10 | `:1730` | `src/styles/fit.js` — the `@import` leads the sheet |
 | 11 | `:1733` | `src/styles/fit.js` — `.fb-fit { height: 100vh }` |
+
+**R3 note on Defects #12 and #13.** Both are fixed. #12 is fixed in `migrate()` rather
+than in `Settings.jsx`: `theme` is validated against `THEMES` on every load, so a stale
+name never reaches a component and the unguarded read is unreachable — the read itself
+is still there, and is still R12's to tidy if it wants. #13 is fixed in both halves —
+Dates survive persistence via `src/contracts/serialize.js`, and events are now cached,
+so a cold board paints its last known events instead of showing nothing until
+`source.list()` resolves. Defect #7 is deliberately still open: `source.list()` still has
+no try/catch, but the board now has a cache to keep showing while it fails. Details in
+`CONTRACTS.md`.
