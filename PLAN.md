@@ -996,3 +996,71 @@ and remains correct there. Four new tests in `google.test.js` cover it: an
 unchanged event survives an empty delta, an update in a later delta still applies,
 a cancellation removes the event, and one calendar's empty delta doesn't erase
 another calendar's events.
+
+---
+
+**R14 note.** Wave 4, last role — R1 through R13 are all merged into `main`. This
+role's mandate ("get it onto the wall and keep it there") is entirely documentation
+and deployment configuration, not application code, so nothing under `src/` or
+`api/` changed. Landed: `docs/README.md` (reading order + the acceptance bar this
+folder is held to) and five runbook documents, cross-referencing each other and the
+actual shipped code rather than restating PLAN.md's plan-stage description of it:
+
+1. **`docs/DEPLOY.md`** — backlog item 1. Confirms R1's `vercel.json` choice
+   (`BUILD-NOTES.md` item 1) rather than re-deciding a hosting provider, and walks
+   the OAuth consent run end to end against R4's actual endpoints
+   (`api/auth/google.js`'s "run once" comment, `api/health.js`, `api/auth/
+   refresh.js`) — every `curl` in it targets a real, landed route, not a
+   hypothetical one. Includes secret rotation for all three secrets R4 defined.
+2. **`docs/DEVICE-SETUP.md`** — backlog item 2. Home-screen install, Auto-Lock,
+   Guided Access, and — the one thing not explicit in the backlog line but
+   necessary to make the other three coherent — what a redeploy actually requires
+   on a standalone PWA with no reload button (`vercel.json`'s cache headers plus a
+   close-and-reopen cycle, since `overscroll-behavior: none` in `index.html` is
+   deliberate and rules out pull-to-refresh).
+3. **`docs/BRIGHTNESS-SHORTCUTS.md`** — backlog item 3. Two Shortcuts automations
+   (sunset/sunrise), not three, with the reasoning for why two covers the spec's
+   three named brightness states written down rather than left implicit. Explicit
+   about this being independent from `settings.bedtime`/`wakeTime`/`sleepStyle`
+   (R3/R12's in-app veil) — same spirit as PLAN.md §R14's own item 3 note, restated
+   for an operator who won't have read PLAN.md.
+4. **`docs/RECOVERY.md`** — backlog item 4. Keyed to the actual failure surfaces
+   that exist in the landed code: `ErrorBoundary`'s 30s auto-reload, `Header`'s
+   `degraded` "Offline" chip and what `useBoardData` means by it, `store.js`'s
+   `StorageError` codes and its deliberate no-self-heal design (its own comment
+   anticipates this doc: *"a human clears it with `store.remove()`"*), and
+   `api/auth/refresh.js`'s non-secret-leaking failure report for diagnosing a
+   revoked Google grant. Also carries Deferred Defect #10's disposition (see below).
+5. **`docs/BACKUP-RESTORE.md`** — backlog item 5. `store.js`'s per-write `{v, at,
+   data}` envelope and its own comment (*"R14's recovery notes need an answer that
+   does not depend on the app still working"* / *"R14's backup and restore notes
+   lean on [`store.remove()`]"*) were written by R3 anticipating exactly this doc.
+   No in-app export/import exists — building one would mean editing `Settings.jsx`,
+   outside this role's owned paths — so the procedure is a Web Inspector console
+   script against the real `board:`-namespaced keys, using Safari's `copy()` to get
+   a backup off the device without any extra tooling.
+6. **`docs/SOAK-TEST.md`** — not its own backlog line, but R12's own handoff note
+   asked for it by name: *"R14's runbook is the right home for an actual multi-day
+   device soak procedure ... out of scope for a role whose own acceptance bar is
+   code, not a runbook."* Written around the concrete intervals that actually exist
+   in the shipped code (`useNow`'s clock tick, `Screensaver`'s 30s rotation, and
+   especially `google.js`'s 5-minute poll — R12's note documents a real bug this
+   exact loop had, caught only by a running board, not a unit test) rather than a
+   generic "watch memory for a while" checklist.
+
+**Disposition of Deferred Defect #10** (Google Fonts `@import` is a runtime network
+dependency, assigned to this role in the table above). Not fixed: the fix is
+self-hosting the font, which means editing `src/styles/shell/Fit.js` — R5's owned
+path, not `docs/` or deployment configuration, and R5's own work there is already
+merged and not otherwise being revisited. Per §5 rule 3, recorded rather than
+reached into silently: `docs/RECOVERY.md` documents it as a cosmetic-only,
+self-resolving-once-network-returns limitation so an operator hitting it doesn't
+mistake it for a real outage. `index.html`'s existing `<link rel="preconnect">`
+(R1) is the only mitigation in place; a full fix is left for whoever next owns
+`src/styles/shell/Fit.js`.
+
+**Acceptance re-checked against PLAN.md's own wording:** every step in
+`DEPLOY.md` → `DEVICE-SETUP.md`, followed in order against a real Vercel project
+and a real iPad, reaches a running, pinned board — no step assumes information not
+already in an earlier doc or in a file the docs explicitly point to
+(`.env.example`, `CONTRACTS.md`, the specific `src`/`api` files cited above).
