@@ -32,20 +32,21 @@ const MODE_LABELS = { personal: "Personal", roommate: "Roommate" };
   character-identical to the prototype's — &apos; decodes to U+0027, the same
   ASCII apostrophe the prototype used.
 
-  Two notes for R3, whose backlog item 4 rewrites the settings shape:
+  Deferred Defect #16, fixed. The Sleep section now has a Black/Dim pill pair
+  bound to `settings.sleepStyle` (R3's discrete choice) instead of only the
+  0-0.4 `sleepDim` slider, which the pills now gate — it only means anything
+  when the style is "dim". App.jsx passes `0` for `<SleepVeil>`'s opacity
+  when the style is "black"; `SleepVeil` still floors that at 0.02 so a
+  sleeping board never reads as a dead one, by the same reasoning as its own
+  header comment. `wakeTapSeconds`, previously only *displayed* in the Sleep
+  note, is now an editable number field next to it, clamped the same 5-3600
+  range `migrate()` already enforces on load (../contracts/migrate.js).
 
-    - The Sleep section exposes `sleepDim` as a 0-0.4 range slider. The spec
-      asks for a discrete black-or-dim choice, which becomes `sleepStyle`.
-    - `wakeTapSeconds` is *displayed* in the Sleep note and nowhere editable.
-      It is a hardcoded 90 in DEFAULT_SETTINGS.
-
-  One latent crash R2 found and is not authorized to fix — logged as Deferred
-  Defect #12. The Board color section reads
-  `THEMES[settings.theme].paper` with no fallback, while every other consumer
-  writes `THEMES[settings.theme] || THEMES.paper`. A persisted settings blob
-  naming a theme this build does not have — a rename, a downgrade, a partial
-  migration — throws on opening Settings, which is the one panel you would
-  need to fix it from. R3's migrate() is the natural home for the fix.
+  Deferred Defect #12: R3's migrate() already validates `theme` against
+  THEMES on every load (PLAN.md §7's note from R3), so the crash this defect
+  named is unreachable in practice. The Board color section's read is
+  tidied anyway, to `THEMES[settings.theme] || THEMES.paper`, matching every
+  other consumer — defense in depth against whatever reaches this panel next.
 */
 export function Settings({ settings, setSettings, members, setMembers, onClose }) {
   const { mode, setMode } = useMode();
@@ -83,9 +84,9 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           ))}
         </div>
         <p className="fb-note">
-          Personal mode shows the family calendar. Roommate mode shows a separate
-          calendar and roster for when the board is on public display, and adds a
-          To-do tab. Switch who is on each below.
+          Personal mode shows the family calendar. Roommate mode shows a separate calendar and
+          roster for when the board is on public display, and adds a To-do tab. Switch who is on
+          each below.
         </p>
       </Field>
 
@@ -210,7 +211,7 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           <input
             type="color"
             className="fb-swatch"
-            value={clampHex(settings.customPaper || THEMES[settings.theme].paper)}
+            value={clampHex(settings.customPaper || (THEMES[settings.theme] || THEMES.paper).paper)}
             onChange={(e) => set("customPaper", e.target.value)}
             aria-label="Custom background color"
           />
@@ -246,21 +247,49 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
             onChange={(e) => set("wakeTime", e.target.value)}
           />
         </div>
+        <div className="fb-pills">
+          {[
+            { id: "black", label: "Black" },
+            { id: "dim", label: "Dim" },
+          ].map((s) => (
+            <button
+              key={s.id}
+              className={`fb-pill${settings.sleepStyle === s.id ? " is-on" : ""}`}
+              onClick={() => set("sleepStyle", s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        {settings.sleepStyle === "dim" && (
+          <div className="fb-inline">
+            <span className="fb-inlabel">Brightness while asleep</span>
+            <input
+              type="range"
+              min="0"
+              max="0.4"
+              step="0.02"
+              value={settings.sleepDim}
+              onChange={(e) => set("sleepDim", Number(e.target.value))}
+            />
+            <span className="fb-inval">{Math.round(settings.sleepDim * 100)}%</span>
+          </div>
+        )}
         <div className="fb-inline">
-          <span className="fb-inlabel">Brightness while asleep</span>
+          <span className="fb-inlabel">A tap wakes the board for</span>
           <input
-            type="range"
-            min="0"
-            max="0.4"
-            step="0.02"
-            value={settings.sleepDim}
-            onChange={(e) => set("sleepDim", Number(e.target.value))}
+            className="fb-input fb-input-sm"
+            type="number"
+            min="5"
+            max="3600"
+            value={settings.wakeTapSeconds}
+            onChange={(e) => set("wakeTapSeconds", Number(e.target.value))}
           />
-          <span className="fb-inval">{Math.round(settings.sleepDim * 100)}%</span>
+          <span className="fb-inlabel">seconds</span>
         </div>
         <p className="fb-note">
-          A tap brings the board back for {settings.wakeTapSeconds} seconds, then it dims again. The
-          iPad never locks, so there is no swipe and no passcode.
+          Then it {settings.sleepStyle === "black" ? "goes black" : "dims"} again. The iPad never
+          locks, so there is no swipe and no passcode.
         </p>
       </Field>
 

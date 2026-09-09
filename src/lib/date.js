@@ -43,6 +43,17 @@ export function daysUntil(d, from) {
   return Math.round((startOfDay(d) - startOfDay(from)) / 86400000);
 }
 
+/*
+  The paging step shared by Footer's chevrons and R12's swipe gesture — a
+  month at a time in month view, seven days in week, one day otherwise. Pulled
+  out to a pure function so the two call sites can't drift apart; see
+  Footer.jsx's header comment and src/hooks/useSwipePage.js.
+*/
+export function stepAnchor(view, anchor, dir) {
+  if (view === "month") return new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1);
+  return addDays(anchor, (view === "week" ? 7 : 1) * dir);
+}
+
 export function dayKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate(),

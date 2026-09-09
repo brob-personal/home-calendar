@@ -50,6 +50,22 @@ function stalledSource() {
   );
 }
 
+/** A source whose list() rejects outright — a 401, a DNS failure, anything
+    less disciplined than R8's google.js, which degrades internally instead
+    of throwing. Deferred Defect #7's regression guard. */
+function rejectingSource() {
+  return defineSource(
+    {
+      list: () => Promise.reject(new Error("network down")),
+      create: async (e) => e,
+      update: async (_id, p) => p,
+      remove: async () => {},
+      subscribe: () => () => {},
+    },
+    "rejecting source",
+  );
+}
+
 /** A source that answers, with nothing. The board is online and empty. */
 function emptySource() {
   let events = [];
@@ -168,6 +184,57 @@ describe("an event survives a reload with live Dates", () => {
 
     expect(result.current.events[0].start).toBeInstanceOf(Date);
     expect(result.current.events[0].start.getHours()).toBe(9);
+  });
+});
+
+describe("loading state — Deferred Defect #14", () => {
+  it("shows a loading message rather than an empty-state view on a cold, cacheless start", async () => {
+    active = stalledSource();
+
+    render(<App />);
+
+    expect(await screen.findByText("Loading your board…")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Everyone is hidden. Tap a face below to bring a calendar back."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("skips the loading message when a cache paints immediately", async () => {
+    active = stalledSource();
+    await store.set(STORE_KEYS.events, [CACHED_EVENT]);
+
+    render(<App />);
+
+    expect(await screen.findByText("Persisted rehearsal")).toBeInTheDocument();
+    expect(screen.queryByText("Loading your board…")).not.toBeInTheDocument();
+  });
+});
+
+describe("source.list() rejects — Deferred Defect #7", () => {
+  it("keeps the cache on screen and marks the board degraded instead of throwing", async () => {
+    active = rejectingSource();
+    await store.set(STORE_KEYS.events, [CACHED_EVENT]);
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const { result } = renderHook(() => useBoardData(new Date()));
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    expect(result.current.events).toHaveLength(1);
+    expect(result.current.events[0].title).toBe("Persisted rehearsal");
+    expect(result.current.degraded).toBe(true);
+
+    errors.mockRestore();
+  });
+
+  it("renders the Offline chip instead of a blank board", async () => {
+    active = rejectingSource();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<App />);
+
+    expect(await screen.findByText("Offline")).toBeInTheDocument();
+
+    errors.mockRestore();
   });
 });
 

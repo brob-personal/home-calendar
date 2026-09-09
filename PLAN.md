@@ -504,6 +504,7 @@ Roles append here when they find something outside their mandate. R0 assigns.
 
 | 16 | R3 | `components/settings/Settings.jsx` Sleep section | `sleepStyle` now exists, is persisted, is validated, and is *derived* for every pre-existing board — but there is no control for it. The Sleep section still shows only the 0–0.4 `sleepDim` slider, which cannot express "black": `SleepVeil` floors its opacity at `Math.max(opacity, 0.02)`. Two lines: a black/dim pair of pills, and `App.jsx` passing `0` for opacity when the style is `"black"`. Same section still only *displays* `wakeTapSeconds` with no control, which R3's item 4 asked to expose | R12, or whoever next owns `Settings.jsx` |
 | 17 | R3 | `src/test/fixtures/prototype-css.txt` | `styles.contract.test.js` compares `BOARD_CSS` byte-for-byte against this fixture. The repo has no `.gitattributes`, so on Windows — where Git for Windows defaults to `core.autocrlf=true` — the fixture checks out CRLF while the JS template literals are LF, and the test fails on a clean clone for reasons unrelated to the CSS. Verified: the two are identical once `\r\n` is normalized. `npm run format:check` is red across all 60 `src/` files for the same reason. One-line fix: a `.gitattributes` holding `* text=auto eol=lf`, then re-normalize. R3 did not add it — root tooling files are R1's | R1 (tooling), blocks R5 and R13's gate |
+| 18 | R12 | `src/data/google.js` `refreshAll()` | `cache = merged` replaced the full event cache with just that round's result on every branch, including the sync-token poll the app actually uses — a diff of what changed, not a snapshot. A healthy 5-minute poll silently erased every unchanged event from the board. Verified with a reproduction, then fixed disclosed (user consulted first, given `google.js` is R8's file): the sync-token branch now upserts changed events and removes cancelled ids instead of replacing wholesale; the `list(range)` branch, unused by the app, is untouched | R12 (fixed) |
 
 **R1 note on Defect #1.** `src/main.jsx` mounts the board inside `React.StrictMode`, so
 that defect is now live in dev: note strokes save twice. Kept on deliberately — the
@@ -764,3 +765,137 @@ roster, the footer's views and (via `useBoardPalette` now reading `roster`) the
 colour set derived from it, wholesale; `settings.mode` persists through R3's
 store/migrate path unchanged, so it survives reload; the To-do tab is present in
 `views` in Roommate mode only, verified by both the unit test and the DOM-level one.
+
+---
+
+**R12 note.** Landed on top of main after R6, R8, R9 and R10 (R11/chores had not
+started at the time this role ran — nothing in `src/components/chores/**` existed
+to hit the 44pt bar or need hardening, so backlog item 1's audit and item 5's fix
+list only ever covered what R2/R5/R6/R7/R9/R10 had actually shipped). Per-item:
+
+1. **Tap targets.** All six of R5's `tap-target-audit.md` gaps raised to
+   `--tap-min` (44px): `.fb-pen`/`.fb-width`/`.fb-notenav`/`.fb-noteclose`
+   (`styles/notes/Notes.js`), `.fb-shade` (`styles/shell/Sheet.js`, 48×44 —
+   kept rectangular rather than squared off, so it still reads as a distinct
+   shape from the circular swatches), `.fb-icon` (`styles/shell/Header.js`).
+   `.fb-pen` needed a structural change, not just a bigger box: the button
+   itself used to be the 22px colour dot, so `NoteWindow.jsx` now wraps a
+   `.fb-penswatch` inner span carrying the original dot and its `is-on` ring,
+   and the button is the invisible 44px hit box around it — the visible
+   design is unchanged. `.fb-notetools` gained `flex-wrap: wrap` since five
+   44px pen buttons plus three 44px width buttons plus the Undo/Clear ghosts
+   no longer fit `NOTE_W`'s one row; it wraps to a second line rather than
+   overflowing or widening the note past its established proportions. Every
+   `<Avatar>` call site was also audited directly, per the audit doc's own
+   delegation note — none of them is a bare tap target (each is either
+   decorative or paired with a text label inside a larger button), so none
+   were touched; `.fb-leg`/`.fb-avpill`'s own sizing is flagged in
+   `tap-target-audit.md` for whoever next revisits it, not fixed here.
+2. **Swipe paging.** `src/hooks/useSwipePage.js`, pointer-event based,
+   gated to day/week in `App.jsx`. The stepping logic (a month at a time in
+   month view, seven days in week, one day otherwise) was pulled out of
+   `Footer.jsx` into `stepAnchor()` in `lib/date.js` so the chevrons and the
+   swipe gesture can't drift apart — Footer's own `page()` now just calls it.
+3. **Orientation.** Asked before touching anything, per this item's own
+   instruction. Landscape 1080×810 stays; SCOPING.txt's "810×1080pt" reading
+   is not being pursued. No code changed for this item.
+4. **Error boundary + loading/offline/failure UI.**
+   `src/components/shell/ErrorBoundary.jsx` wraps `<App>` in `main.jsx` —
+   a render throw now lands on a plain-inline-styled recovery screen (styled
+   outside tokens.css deliberately, since the point is surviving a failure
+   that could be upstream of BoardStyles itself) with a manual "Reload now"
+   button and a 30-second auto-reload, since this board runs unattended with
+   nobody to tap it. `useBoardData.js` gained a `degraded` flag and a
+   try/catch around `source.list()` — Deferred Defect #7, fixed: a rejection
+   used to escape as an unhandled promise; now it's caught, logged, and the
+   cached events from `migrate()` stay on screen instead. `App.jsx` shows a
+   loading message in the stage instead of each view's own empty state
+   (Deferred Defect #14) only when there's truly nothing to paint yet
+   (`!loaded && events.length === 0`) — a warm reload with cached events
+   skips it entirely, unchanged from R3's cache-paints-first behaviour.
+   `Header.jsx` shows a quiet "Offline" `.fb-chip` when `degraded` or a
+   storage write failed, reusing the same pill "Back to today" already uses
+   rather than inventing a second visual language for status.
+5. **Deferred Defects assigned here, all fixed:**
+   - **#1** (`NoteWindow.jsx`'s `onUp` calling `onSave` inside a `setStrokes`
+     updater) — the updater call was always redundant besides being a
+     StrictMode double-fire risk: `onMove` already lands every point of the
+     in-progress stroke in `strokes` state, so by pointer-up `strokes` *is*
+     the finished stroke. `onUp` now just reads the closed-over `strokes` and
+     calls `onSave` directly.
+   - **#2** (`AgendaView` rendering avatars for filtered-out people) —
+     `App.jsx` now passes `shownMembers`, matching `DayView`, instead of the
+     unfiltered `roster`.
+   - **#3** (`useIdle` re-registering three window listeners on every
+     settings edit) — `seconds`/`enabled` moved into refs `reset` reads from,
+     so `reset` itself is stable and the listener effect's `[reset]`
+     dependency no longer changes; a second effect still calls `reset()` on
+     every `seconds`/`enabled` change so the timer itself still restarts.
+   - **#4** (Composer's hour picker hardcoded 6am–10pm) — `Composer.jsx` now
+     walks `[settings.dayStart, settings.dayEnd)`, the same half-open range
+     `DayView`/`WeekView` already loop over for their own gutters, via a new
+     `settings` prop `App.jsx` passes at the call site.
+   - **#5** (`NoteWindow` handed a dead `members` prop) — deleted at the
+     `App.jsx` call site; the component never destructured it in the first
+     place.
+   - **#16** (Sleep section had no Black/Dim control and only displayed
+     `wakeTapSeconds`) — `Settings.jsx` gained a Black/Dim pill pair bound to
+     `settings.sleepStyle`, gating the existing 0-0.4 dim slider (it only
+     means anything in "dim"), and an editable `wakeTapSeconds` number field
+     next to the note that used to only display it, clamped the same 5-3600
+     range `migrate()` already enforces. `App.jsx` passes `0` for
+     `<SleepVeil>`'s opacity when the style is "black" — `SleepVeil` still
+     floors that at 0.02 so a sleeping board never reads as a dead one, per
+     its own existing comment; that floor was left alone rather than
+     special-cased away for "black", since the reasoning behind it applies
+     regardless of which style chose the veil's opacity.
+   - **#12**, tidied rather than fixed (R3's note already made the crash it
+     names unreachable): `Settings.jsx`'s Board color read is now
+     `THEMES[settings.theme] || THEMES.paper`, matching the pattern every
+     other consumer already uses, as defense in depth.
+6. **Focus trap + Escape on `Sheet`.** `Sheet.jsx` — Escape closes from
+   anywhere inside (a `keydown` listener on the sheet's own div, not
+   `document`, since every key bubbles to it naturally); Tab/Shift+Tab wrap
+   at the sheet's first/last focusable descendant instead of escaping to
+   whatever's behind the scrim; focus moves onto the sheet's first focusable
+   element (the header's own Close button) on open unless something inside —
+   Composer's and EventDetailSheet's own `autoFocus` title inputs — has
+   already claimed it, and returns to whatever had focus before once the
+   sheet unmounts. Composer, Settings and EventDetailSheet all get this for
+   free; none of the three needed a change.
+7. **Long-run soak.** No multi-day live soak is possible from this session —
+   flagging that limitation rather than claiming one happened. What *is*
+   done: every `setInterval`/`setTimeout`/`addEventListener` in `src/` was
+   read end to end (`useNow`, `useSleep`, `useIdle`, `Fit`, `Screensaver`,
+   `useWeather`, `useDrivePhotos`, `google.js`'s poll+wake listeners) and each
+   pairs cleanup correctly except `useIdle`, fixed under item 5 above — no
+   other timer or listener leak found. One correctness bug well beyond a
+   "leak" was found and fixed while doing this audit; see the next paragraph.
+   R14's runbook is the right home for an actual multi-day device soak
+   procedure, which this role did not write — out of scope for a role whose
+   own acceptance bar is code, not a runbook.
+
+**R12 note on a disclosed touch outside its owned paths — `src/data/google.js`
+(R8's file).** While auditing for item 7, found and verified (with a throwaway
+reproduction before writing the real fix) that `refreshAll()` did `cache = merged`
+on *every* branch, including the sync-token poll — which the app only ever takes,
+since `useBoardData.js` calls `source.list()` with no range. Google's sync-token
+response is a diff (created/updated/cancelled since the last poll), not a fresh
+snapshot, so every unchanged event — the overwhelming majority, on any given poll —
+was silently dropped from `cache` every `POLL_MS` (5 minutes). A healthy poll was
+erasing the board, not just a failed one. Checked with the user before fixing a
+file outside R12's owned paths, given PLAN.md §5 rule 3; asked to fix it disclosed
+rather than only log it, given the severity and that it undermines both R8's own
+acceptance bar and this role's "no drift over days of uptime" one. The fix: for the
+sync-token branch only, each calendar's changed events are upserted into `cache`
+and its cancelled ids removed, leaving everything else alone; a calendar whose own
+fetch came back as a full set rather than a delta (no token yet, or one just
+invalidated by a 410) reconciles `cache` against that complete set for that one
+calendar only, so a deletion that happened while its token was stale doesn't linger
+forever. The other branch (`useSyncToken: false`, only ever reached by
+`list(range)`, which nothing in the app actually calls) is untouched — that result
+already is the complete answer for its bounded range, so wholesale replacement was
+and remains correct there. Four new tests in `google.test.js` cover it: an
+unchanged event survives an empty delta, an update in a later delta still applies,
+a cancellation removes the event, and one calendar's empty delta doesn't erase
+another calendar's events.

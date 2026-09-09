@@ -33,6 +33,9 @@
        everything. `list()` with no range and the background poll both use it;
        list(range) always does a fresh ranged fetch instead, because a token
        and a time window are mutually exclusive to Google's own API.
+       refreshAll() merges a sync-token delta into `cache` rather than
+       replacing it — see its own header comment for the R12 fix and why the
+       original wholesale-replace erased the board every POLL_MS.
 
     5. DEGRADING.  A dead network or a 401 must not blank the board (PLAN.md
        §1's "no error handling anywhere"). list() never throws: on failure it
@@ -40,8 +43,10 @@
        where nothing has synced yet this run — the contract-shaped cache
        useBoardData already persists under STORE_KEYS.events. The array it
        returns in that case carries a non-contract `degraded: true` flag,
-       additive and safe to ignore, for whichever failure UI eventually reads
-       it (Deferred Defect #7 is still open and is not this role's to close).
+       additive and safe to ignore — Deferred Defect #7 (useBoardData.js's
+       own try/catch around list()) is now fixed, so this is the second of
+       the two ways a failure reaches the board's failure UI, not the only
+       one.
   ============================================================================
 */
 import { normalizeEvent, clampVariant, VARIATION_COUNT, STORE_KEYS } from "../contracts/schema.js";
@@ -255,25 +260,112 @@ export function createGoogleSource(options = {}) {
       await writeSyncTokens(fresh);
     }
 
-    return (data.items || [])
-      .filter((raw) => raw.status !== "cancelled")
-      .map((raw) => mapGoogleEvent(raw, calendarLink));
+    const items = data.items || [];
+    return {
+      events: items
+        .filter((raw) => raw.status !== "cancelled")
+        .map((raw) => mapGoogleEvent(raw, calendarLink)),
+      cancelledIds: items.filter((raw) => raw.status === "cancelled").map((raw) => raw.id),
+      /* This *particular* calendar's own token — not the caller's
+         useSyncToken flag — decides whether `events` is a delta or a full
+         set: a calendar with no token yet (new, or just invalidated by a
+         410 above) always gets a full window fetch even inside an
+         otherwise sync-token poll. See refreshAll's disclosure note. */
+      isDelta: Boolean(syncToken),
+    };
   }
 
   /* ── Merging every enabled calendar ──────────────────────────────────── */
 
+  /*
+    R12, disclosed per PLAN.md §5 rule 3: this function is R8's, not R12's,
+    but the bug it had was severe enough — and squarely R12's own soak-test
+    mandate ("no drift over days of uptime") — to fix rather than only log.
+
+    The bug: every branch used to end with `cache = merged`, a full
+    replacement, regardless of whether `merged` was a full fetch or a
+    sync-token *delta* (Google's syncToken response contains only what
+    changed since the last poll — created, updated, or cancelled — not a
+    fresh snapshot of everything). Since src/hooks/useBoardData.js only ever
+    calls `source.list()` with no range, the app's real poll path
+    (POLL_MS = 5 minutes, above) always took the sync-token branch, so every
+    unchanged event — the overwhelming majority, on any given poll — was
+    silently dropped from `cache` five minutes after it first loaded. R8's
+    own acceptance bar ("events load from real calendars... a clear degraded
+    indicator" on failure) assumed a healthy poll leaves the board alone;
+    instead a healthy poll was the thing erasing it.
+
+    Verified with a reproduction before fixing: seed one event via a normal
+    fetch, then answer the next (token-bearing) request with `items: []` —
+    under the old code the event disappeared from the second list() despite
+    nothing having changed.
+
+    The fix merges instead of replacing, split on whether the *caller*
+    wanted sync-token mode at all:
+
+      - `useSyncToken: false` (the only other caller, list(range), used for
+        an explicit ad-hoc window) is untouched: that result already *is*
+        the complete answer for that bounded range, so wholesale replacement
+        is correct there and always was — this function returns early for
+        that branch without going near `cache`'s merge path below.
+      - `useSyncToken: true` (the real app's only path, cold start and every
+        poll) now upserts each calendar's changed events into `cache` and
+        drops whatever Google reports cancelled, leaving everything else in
+        place. A calendar whose own fetch came back as a full set rather
+        than a delta (`isDelta: false` — no token yet, or one just
+        invalidated by a 410) reconciles cache against that *complete* set
+        for that one calendar, so a deletion that happened while the token
+        was stale doesn't linger forever just because no cancellation event
+        ever arrived for it. Every sync-token call shares the same
+        defaultWindow() bound, so "complete set for this calendar" means the
+        same thing on every call — there's no narrower ad-hoc range here to
+        wrongly evict against.
+  */
   async function refreshAll({ timeMin, timeMax, useSyncToken }) {
     const calendars = await readActiveCalendars();
-    const merged = [];
     let hadFailure = false;
+    let successCount = 0;
+
+    if (!useSyncToken) {
+      const merged = [];
+      for (const cal of calendars) {
+        try {
+          const { events } = await fetchCalendar(cal, { timeMin, timeMax, useSyncToken });
+          for (const e of events) {
+            if (e.id) eventCalendarMap.set(e.id, cal);
+          }
+          merged.push(...events);
+          successCount++;
+        } catch {
+          hadFailure = true;
+        }
+      }
+      if (hadFailure && successCount === 0 && calendars.length > 0) return null;
+      cache = merged;
+      return { events: merged, degraded: hadFailure };
+    }
 
     for (const cal of calendars) {
       try {
-        const events = await fetchCalendar(cal, { timeMin, timeMax, useSyncToken });
+        const { events, cancelledIds, isDelta } = await fetchCalendar(cal, {
+          timeMin,
+          timeMax,
+          useSyncToken,
+        });
         for (const e of events) {
           if (e.id) eventCalendarMap.set(e.id, cal);
+          cache = upsert(cache, e);
         }
-        merged.push(...events);
+        for (const id of cancelledIds) {
+          cache = cache.filter((e) => e.id !== id);
+        }
+        if (!isDelta) {
+          const freshIds = new Set(events.map((e) => e.id));
+          cache = cache.filter(
+            (e) => eventCalendarMap.get(e.id)?.id !== cal.id || freshIds.has(e.id),
+          );
+        }
+        successCount++;
       } catch {
         hadFailure = true;
       }
@@ -282,10 +374,9 @@ export function createGoogleSource(options = {}) {
     /* Every configured calendar failed (or none are configured yet) — signal
        "nothing usable this round" so the caller degrades to its own cache
        rather than showing an empty board. */
-    if (hadFailure && merged.length === 0 && calendars.length > 0) return null;
+    if (hadFailure && successCount === 0 && calendars.length > 0) return null;
 
-    cache = merged;
-    return { events: merged, degraded: hadFailure };
+    return { events: cache, degraded: hadFailure };
   }
 
   async function readPersistedEventsCache() {
