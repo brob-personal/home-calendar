@@ -8,6 +8,7 @@ import { useBoardData } from "./hooks/useBoardData.js";
 import { useMemberFilter } from "./hooks/useMemberFilter.js";
 import { useSleep } from "./hooks/useSleep.js";
 import { PaletteContext, useBoardPalette } from "./state/PaletteContext.js";
+import { BoardContext } from "./state/BoardContext.js";
 
 import { Fit } from "./components/shell/Fit.jsx";
 import { BoardStyles } from "./components/shell/BoardStyles.jsx";
@@ -99,110 +100,123 @@ export default function App() {
   return (
     <Fit>
       <BoardStyles />
-      <PaletteContext.Provider value={paletteBundle}>
-        <div className="fb-root" style={cssVars}>
-          {settings.monthArt && (
-            <div className="fb-art" style={{ backgroundImage: monthArt.art }} aria-hidden="true" />
-          )}
+      {/*
+        R3: the board-data bundle is published on a context as well as passed
+        down as props. Nothing below reads it yet — every existing consumer
+        keeps its props, so this changes no behaviour — but R6's weather
+        settings, R10's mode toggle and R11's chores tab all need members and
+        settings from places props do not reach. See src/state/BoardContext.js.
+      */}
+      <BoardContext.Provider value={data}>
+        <PaletteContext.Provider value={paletteBundle}>
+          <div className="fb-root" style={cssVars}>
+            {settings.monthArt && (
+              <div
+                className="fb-art"
+                style={{ backgroundImage: monthArt.art }}
+                aria-hidden="true"
+              />
+            )}
 
-          <div className="fb-board">
-            <Header
-              now={now}
-              anchor={anchor}
-              events={filtered}
-              onToday={() => setAnchor(startOfDay(new Date()))}
-              onSettings={() => setPanel("settings")}
+            <div className="fb-board">
+              <Header
+                now={now}
+                anchor={anchor}
+                events={filtered}
+                onToday={() => setAnchor(startOfDay(new Date()))}
+                onSettings={() => setPanel("settings")}
+              />
+
+              {milestones.length > 0 && <Countdowns items={milestones} now={now} />}
+
+              <main className="fb-stage">
+                {view === "day" && (
+                  <DayView
+                    date={anchor}
+                    now={now}
+                    events={filtered}
+                    members={shownMembers}
+                    settings={settings}
+                    onDelete={data.deleteEvent}
+                  />
+                )}
+                {view === "week" && (
+                  <WeekView date={anchor} now={now} events={filtered} settings={settings} />
+                )}
+                {view === "month" && (
+                  <MonthView
+                    date={anchor}
+                    now={now}
+                    events={filtered}
+                    onPick={(d) => {
+                      setAnchor(d);
+                      setView("day");
+                    }}
+                  />
+                )}
+                {/* `members`, not `shownMembers` — Deferred Defect #2, R12's to fix. */}
+                {view === "agenda" && (
+                  <AgendaView date={anchor} now={now} events={filtered} members={members} />
+                )}
+              </main>
+
+              <Footer
+                view={view}
+                setView={setView}
+                anchor={anchor}
+                setAnchor={setAnchor}
+                members={members}
+                isShown={isShown}
+                onToggleMember={toggleMember}
+                showReset={filterTouched}
+                onReset={resetFilter}
+                onCompose={() => setPanel("compose")}
+              />
+            </div>
+
+            <NoteDock
+              note={data.todayNote}
+              onOpen={() => setNoteOpen(true)}
+              hidden={noteOpen || Boolean(panel)}
             />
 
-            {milestones.length > 0 && <Countdowns items={milestones} now={now} />}
+            {/* `members` is dead on arrival here — Deferred Defect #5, R12's. */}
+            {noteOpen && (
+              <NoteWindow
+                notes={data.notes}
+                todayKey={data.todayKey}
+                now={now}
+                members={members}
+                onSave={data.saveStrokes}
+                onClose={() => setNoteOpen(false)}
+              />
+            )}
 
-            <main className="fb-stage">
-              {view === "day" && (
-                <DayView
-                  date={anchor}
-                  now={now}
-                  events={filtered}
-                  members={shownMembers}
-                  settings={settings}
-                  onDelete={data.deleteEvent}
-                />
-              )}
-              {view === "week" && (
-                <WeekView date={anchor} now={now} events={filtered} settings={settings} />
-              )}
-              {view === "month" && (
-                <MonthView
-                  date={anchor}
-                  now={now}
-                  events={filtered}
-                  onPick={(d) => {
-                    setAnchor(d);
-                    setView("day");
-                  }}
-                />
-              )}
-              {/* `members`, not `shownMembers` — Deferred Defect #2, R12's to fix. */}
-              {view === "agenda" && (
-                <AgendaView date={anchor} now={now} events={filtered} members={members} />
-              )}
-            </main>
+            {panel === "compose" && (
+              <Composer
+                members={members}
+                date={anchor}
+                onSave={addEvent}
+                onClose={() => setPanel(null)}
+              />
+            )}
+            {panel === "settings" && (
+              <Settings
+                settings={settings}
+                setSettings={data.setSettings}
+                members={members}
+                setMembers={data.setMembers}
+                onClose={() => setPanel(null)}
+              />
+            )}
 
-            <Footer
-              view={view}
-              setView={setView}
-              anchor={anchor}
-              setAnchor={setAnchor}
-              members={members}
-              isShown={isShown}
-              onToggleMember={toggleMember}
-              showReset={filterTouched}
-              onReset={resetFilter}
-              onCompose={() => setPanel("compose")}
-            />
+            {showSaver && (
+              <Screensaver now={now} art={monthArt} photos={settings.photos} events={filtered} />
+            )}
+            {dimmed && <SleepVeil now={now} opacity={settings.sleepDim} onWake={wake} />}
           </div>
-
-          <NoteDock
-            note={data.todayNote}
-            onOpen={() => setNoteOpen(true)}
-            hidden={noteOpen || Boolean(panel)}
-          />
-
-          {/* `members` is dead on arrival here — Deferred Defect #5, R12's. */}
-          {noteOpen && (
-            <NoteWindow
-              notes={data.notes}
-              todayKey={data.todayKey}
-              now={now}
-              members={members}
-              onSave={data.saveStrokes}
-              onClose={() => setNoteOpen(false)}
-            />
-          )}
-
-          {panel === "compose" && (
-            <Composer
-              members={members}
-              date={anchor}
-              onSave={addEvent}
-              onClose={() => setPanel(null)}
-            />
-          )}
-          {panel === "settings" && (
-            <Settings
-              settings={settings}
-              setSettings={data.setSettings}
-              members={members}
-              setMembers={data.setMembers}
-              onClose={() => setPanel(null)}
-            />
-          )}
-
-          {showSaver && (
-            <Screensaver now={now} art={monthArt} photos={settings.photos} events={filtered} />
-          )}
-          {dimmed && <SleepVeil now={now} opacity={settings.sleepDim} onWake={wake} />}
-        </div>
-      </PaletteContext.Provider>
+        </PaletteContext.Provider>
+      </BoardContext.Provider>
     </Fit>
   );
 }
