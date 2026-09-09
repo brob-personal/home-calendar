@@ -1,9 +1,12 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { createSource } from "./index.js";
 import { createMockSource } from "./mock.js";
+import { createGoogleSource } from "./google.js";
 import { defineSource, inRange, SOURCE_METHODS } from "../contracts/source.js";
-import { VARIATION_COUNT } from "../contracts/schema.js";
+import { VARIATION_COUNT, STORE_KEYS } from "../contracts/schema.js";
+import { DEFAULT_SETTINGS } from "../contracts/defaults.js";
+import { store } from "../lib/store.js";
 
 /*
   PLAN.md §R13 item 3: "Contract tests against R3's shapes so a wave cannot
@@ -37,9 +40,20 @@ const DRAFT = {
   variant: 3,
 };
 
-/** @param {string} name @param {() => import("../contracts/source.js").CalendarSource} make */
-function runs(name, make) {
+/**
+ * @param {string} name
+ * @param {() => import("../contracts/source.js").CalendarSource} make
+ * @param {{seed?: () => Promise<void>}} [opts] `seed` runs before every test —
+ *   the google source needs Settings.calendars and a fake backend in place
+ *   before `make()` is called, which the mock and createSource() variants do
+ *   not.
+ */
+function runs(name, make, opts = {}) {
   describe(`${name} — source contract`, () => {
+    beforeEach(async () => {
+      if (opts.seed) await opts.seed();
+    });
+
     it("implements all five methods", () => {
       const source = make();
       for (const method of SOURCE_METHODS) {
@@ -197,7 +211,125 @@ function runs(name, make) {
 
 runs("mock", () => createMockSource());
 runs("createSource()", () => createSource());
-/* R8: add `runs("google", () => createGoogleSource(fakeApiBase))` here. */
+
+/*
+  R8's google source, exercised against a fake backend rather than a real
+  Google account. The fake speaks exactly the contract api/calendar/events.js
+  and src/data/google.js agree on — one in-memory events map per calendarId —
+  which is enough to prove google.js satisfies CalendarSource without needing
+  network access or credentials in CI. api/calendar/events.js's own mapping
+  onto the *real* Google API is reviewed, not covered here — see Deferred
+  Defect #16.
+*/
+const FAKE_API_BASE = "https://fake-board.example";
+const FAKE_SECRET = "test-device-secret";
+const CALENDAR_A = "brian@example.com"; // memberIds: ["brian"]
+const CALENDAR_B = "family@example.com"; // memberIds: ["brian", "rachel"]
+
+function makeFakeGoogleBackend() {
+  /** @type {Map<string, Map<string, object>>} */
+  const calendars = new Map();
+  let counter = 0;
+
+  const calendarStore = (id) => {
+    if (!calendars.has(id)) calendars.set(id, new Map());
+    return calendars.get(id);
+  };
+
+  const respond = (status, body) =>
+    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+
+  /** Seeds one event directly, bypassing HTTP — for fixture setup. */
+  function seedEvent(calendarId, event) {
+    const id = `evt-${++counter}`;
+    calendarStore(calendarId).set(id, { ...event, id, etag: `"e${counter}"` });
+    return id;
+  }
+
+  async function fetchImpl(input, init = {}) {
+    const url = new URL(input instanceof URL ? input.toString() : input);
+    if (url.pathname !== "/api/calendar/events")
+      return respond(404, { ok: false, error: "not found" });
+
+    const method = init.method || "GET";
+
+    if (method === "GET") {
+      const calendarId = url.searchParams.get("calendarId");
+      const items = [...calendarStore(calendarId).values()];
+      return respond(200, { ok: true, items, nextSyncToken: "fake-sync-token" });
+    }
+
+    if (method === "POST") {
+      const { calendarId, event } = JSON.parse(init.body);
+      const id = `evt-${++counter}`;
+      const item = { ...event, id, etag: `"e${counter}"` };
+      calendarStore(calendarId).set(id, item);
+      return respond(200, { ok: true, item });
+    }
+
+    if (method === "PATCH") {
+      const { calendarId, eventId, patch } = JSON.parse(init.body);
+      const store = calendarStore(calendarId);
+      const existing = store.get(eventId);
+      if (!existing) return respond(404, { ok: false, error: "not found" });
+      const item = {
+        ...existing,
+        ...patch,
+        extendedProperties: {
+          private: {
+            ...existing.extendedProperties?.private,
+            ...patch.extendedProperties?.private,
+          },
+        },
+        id: eventId,
+        etag: `"e${++counter}"`,
+      };
+      store.set(eventId, item);
+      return respond(200, { ok: true, item });
+    }
+
+    if (method === "DELETE") {
+      const calendarId = url.searchParams.get("calendarId");
+      const eventId = url.searchParams.get("eventId");
+      calendarStore(calendarId).delete(eventId);
+      return respond(200, { ok: true });
+    }
+
+    return respond(405, { ok: false, error: "method not allowed" });
+  }
+
+  return { fetchImpl, seedEvent };
+}
+
+async function seedGoogleFixture() {
+  localStorage.clear();
+  await store.set(STORE_KEYS.settings, {
+    ...DEFAULT_SETTINGS,
+    mode: "personal",
+    calendars: {
+      personal: [
+        { id: CALENDAR_A, memberIds: ["brian"], enabled: true },
+        { id: CALENDAR_B, memberIds: ["brian", "rachel"], enabled: true },
+      ],
+      roommate: [],
+    },
+  });
+
+  const backend = makeFakeGoogleBackend();
+  vi.stubGlobal("fetch", vi.fn(backend.fetchImpl));
+
+  /* At least one event must exist before any create() runs, so "lists
+     contract-shaped events" (which calls list() first) has something. */
+  backend.seedEvent(CALENDAR_A, {
+    summary: "Seed event",
+    start: { dateTime: new Date().toISOString() },
+    end: { dateTime: new Date(Date.now() + 3600_000).toISOString() },
+  });
+}
+
+runs("google", () => createGoogleSource({ apiBase: FAKE_API_BASE, deviceSecret: FAKE_SECRET }), {
+  seed: seedGoogleFixture,
+});
 
 describe("defineSource", () => {
   it("names the methods a partial adapter is missing", () => {

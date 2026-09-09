@@ -598,6 +598,59 @@ files. Resolved keeping both roles' work, not diminishing either:
 
 ---
 
+**R8 note on the calendar sync build.** `src/data/google.js` and `api/calendar/**`
+are landed, implementing the sketch that used to live as a block comment in
+`src/data/index.js`. What the sketch left open, and how it was resolved:
+
+- **Calendar-to-member map.** Read from `Settings.calendars[settings.mode]` fresh
+  on every sync — not passed in at construction — via `store.get()` +
+  `migrateSettings()`, the same path `useBoardData` itself uses. This means a
+  calendar edited in Settings, or a mode switch R10 makes later, takes effect on
+  the source's next 5-minute poll without the source being recreated, and it kept
+  this role from having to reach into `useBoardData.js` or `App.jsx` at all —
+  `createSource()` in `src/data/index.js` stays the only call site, exactly as
+  that file's own header promises.
+- **`api/calendar/events.js`** is a generic, member-and-mode-agnostic proxy: one
+  `calendarId` per call, list/create/update/delete, pagination resolved to
+  completion server-side, Google's own incremental sync tokens forwarded rather
+  than reinvented. The JSON envelope between it and `src/data/google.js` is this
+  role's own design, not a mirror of Google's raw resource shapes — documented at
+  the top of each function in that file. It is not wired into `vitest` — Deferred
+  Defect #16 already flagged `api/**` as outside the current test include, and
+  widening that is R13's call, not this role's. Confidence instead comes from
+  `src/data/google.test.js` and the `"google"` entry in
+  `src/data/source.contract.test.js`, both of which drive `src/data/google.js`
+  against an in-memory fake that speaks the same client/server contract, plus a
+  manual code review of the route against the real Calendar v3 API.
+- **Calendar selection on `create()`.** Exact member-set match first (a
+  two-person draft should land on the calendar that produces exactly that
+  diagonal split), then a calendar that's a superset of the requested members,
+  then the first enabled calendar; throws if none is configured. `Settings.
+  calendars` starts empty per R3's defaults, so an operator has to populate at
+  least one `CalendarLink` — in Settings, once that UI exists, or by hand in the
+  persisted blob today — before the board can create events against Google.
+- **Degrading.** `list()` never throws. A total failure across every configured
+  calendar falls back to this session's last good in-memory merge, or — on a
+  cold start where nothing has synced yet — the contract-shaped cache
+  `useBoardData` already persists under `STORE_KEYS.events`. The array returned
+  in that case carries a non-contract, additive `degraded: true` property for
+  whichever failure UI eventually reads it. Deferred Defect #7 (no failure UI at
+  all) is deliberately still open — building that UI is R12's, not this role's.
+- **Two files touched outside this role's own paths**, both pre-authorized by
+  their own comments rather than negotiated fresh: `src/data/index.js`'s
+  `>>> SWAP` block said outright "the choice belongs here," and
+  `src/data/source.contract.test.js` said outright "R8: add
+  `runs("google", ...)` here." Recorded per §5 rule 3 anyway, same as R7 and R5
+  did for their own cross-file touches above.
+
+Note for R10 (this role, reconciling on merge): R8 reads `Settings.calendars[mode]`
+directly off storage on its own poll cycle rather than taking a mode argument at
+construction, which is exactly why R10's mode switch needed no coordination with
+`createSource()` — flipping `settings.mode` in Settings is itself the signal R8's
+next poll picks up, no call into `src/data/index.js` required from either side.
+
+---
+
 **R9 note.** Drive photo screensaver landed: `src/data/drive.js` (`listDrivePhotos` /
 `getDrivePhotos` / `useDrivePhotos`, mirroring R6's `weather.js` split), two routes
 under `api/drive/**` (`photos.js` lists image metadata, `photo.js` proxies one file's
@@ -634,18 +687,19 @@ Two Drive-API design notes worth a reviewer's attention:
 ---
 
 **R10 note, and a wave-order flag for R0.** §3 puts R10 in Wave 2, depending on R3
-and R8. R8 has not landed — no `src/data/google.js`, no `api/calendar/**` — so this
-role went ahead on R3's half of the dependency alone, which CONTRACTS.md's own §6
-entry for R10 already anticipated ("`ModeContext` goes beside `BoardContext` and can
-read `settings`/`setSettings` from `useBoard()`" — no mention of needing R8 present).
-The only thing R8 actually supplies is real entries in `settings.calendars[mode]`;
-until then both modes' calendar sets stay `[]`, exactly as R3 defaulted them, and
-mode-switching itself — roster, views, the active mode — never touches a calendar at
-all. Nothing here is provisional or needs revisiting once R8 lands: R8's job is to
-populate `CalendarLink[]` per mode and tag synced events with `calendarId`; this
-role's job was to make the board read whichever mode is active, which it already
-does correctly against an empty calendar set. Flagging the order violation for the
-record, not asking to redo the work.
+and R8. At the time this role started, R8 had not landed — no `src/data/google.js`,
+no `api/calendar/**` existed yet — so this role went ahead on R3's half of the
+dependency alone, which CONTRACTS.md's own §6 entry for R10 already anticipated
+("`ModeContext` goes beside `BoardContext` and can read `settings`/`setSettings` from
+`useBoard()`" — no mention of needing R8 present). The only thing R8 actually
+supplies is real entries in `settings.calendars[mode]`; until then both modes'
+calendar sets stayed `[]`, exactly as R3 defaulted them, and mode-switching itself —
+roster, views, the active mode — never touched a calendar at all. R8 has since landed
+(merged into `main` while this branch was in flight, reconciled above) and confirms
+the bet: its own note records that it reads `Settings.calendars[settings.mode]` fresh
+from storage on every poll rather than taking a mode at construction, so nothing in
+either role's landed code needed to change once both existed side by side. Flagging
+the order violation for the record, not because it required redoing any work.
 
 Landed:
 
