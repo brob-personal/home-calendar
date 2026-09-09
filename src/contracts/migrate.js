@@ -49,6 +49,8 @@ import {
   normalizeEvent,
   normalizeMember,
   normalizeNote,
+  normalizeTask,
+  normalizeRoutine,
 } from "./schema.js";
 
 /**
@@ -62,6 +64,8 @@ import {
  * @property {unknown}  [settings]
  * @property {unknown}  [notes]
  * @property {unknown}  [events]
+ * @property {unknown}  [tasks]
+ * @property {unknown}  [routines]
  */
 
 /*
@@ -114,6 +118,8 @@ export const MIGRATIONS = [
  *            settings: import("./schema.js").Settings,
  *            notes: import("./schema.js").Note[],
  *            events: import("./schema.js").Event[],
+ *            tasks: import("./schema.js").Task[],
+ *            routines: import("./schema.js").Routine[],
  *            migratedFrom: number}}
  */
 export function migrate(persisted) {
@@ -136,6 +142,8 @@ export function migrate(persisted) {
     settings: migrateSettings(bundle.settings),
     notes: migrateNotes(bundle.notes),
     events: migrateEvents(bundle.events),
+    tasks: migrateTasks(bundle.tasks),
+    routines: migrateRoutines(bundle.routines),
   };
 }
 
@@ -250,6 +258,36 @@ export function migrateEvents(raw) {
        carrying them into a view. */
       .filter((e) => e.id && !Number.isNaN(e.start.getTime()) && !Number.isNaN(e.end.getTime()))
   );
+}
+
+/**
+ * PLAN.md §R11 item 6: absent (never persisted) means first run, which is
+ * exactly what warrants the seeded default list — same rule migrateMembers
+ * applies to DEFAULT_MEMBERS. An empty array, unlike an empty members list,
+ * is left alone: a roommate board that has completed and never re-added its
+ * seeded chores is a normal state, not a corrupt one.
+ *
+ * @param {unknown} raw
+ * @returns {import("./schema.js").Task[]}
+ */
+export function migrateTasks(raw) {
+  if (!Array.isArray(raw)) return DEFAULT_BOARD.tasks.map(normalizeTask);
+  return raw
+    .filter(isObject)
+    .map(normalizeTask)
+    .filter((t) => t.id);
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {import("./schema.js").Routine[]}
+ */
+export function migrateRoutines(raw) {
+  if (!Array.isArray(raw)) return DEFAULT_BOARD.routines.map(normalizeRoutine);
+  return raw
+    .filter(isObject)
+    .map(normalizeRoutine)
+    .filter((r) => r.id);
 }
 
 /* ============================================================================

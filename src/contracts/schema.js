@@ -254,6 +254,72 @@ export function normalizeNote(raw) {
  * @property {string}      mode
  */
 
+/*
+  The one cadence SCOPING asks for. A closed union of one still buys a
+  validated field over a bare string — migrate() can reject a hand-edited
+  "biweekly" the same way it rejects a stale theme name, and widening this
+  later is the contract change PLAN.md §R11 item 7's own comment already
+  calls out ("widening this is a contract change").
+*/
+export const ROUTINE_CADENCES = ["weekly"];
+export const ROUTINE_KINDS = ["fixed", "rotating"];
+
+/**
+ * Coerce anything task-shaped into a contract-valid Task. Same totality
+ * guarantee as normalizeEvent: a corrupt cache entry degrades to a
+ * renderable chore rather than throwing inside a column.
+ *
+ * @param {Partial<Task>} raw
+ * @returns {Task}
+ */
+export function normalizeTask(raw) {
+  const t = raw || {};
+  const doneAt = t.doneAt == null ? null : asDate(t.doneAt);
+  return {
+    id: String(t.id ?? ""),
+    title: typeof t.title === "string" && t.title.trim() ? t.title : "Untitled chore",
+    emoji: typeof t.emoji === "string" ? t.emoji : "",
+    assigneeId: t.assigneeId == null ? null : String(t.assigneeId),
+    done: Boolean(t.done),
+    /* An Invalid Date here would render "Invalid Date" wherever completion
+       time is shown; a done task with no valid doneAt reads as done anyway. */
+    doneAt: doneAt && !Number.isNaN(doneAt.getTime()) ? doneAt : null,
+    order: Number.isFinite(Number(t.order)) ? Number(t.order) : 0,
+    routineId: t.routineId == null ? null : String(t.routineId),
+    mode: MODES.includes(t.mode) ? t.mode : "roommate",
+  };
+}
+
+/**
+ * Coerce anything routine-shaped into a contract-valid Routine.
+ *
+ * `kind` decides which of `assigneeId`/`memberIds` actually drives rotation —
+ * both are kept on every routine regardless of kind (rather than one being
+ * absent) so switching kind in an editor never has to invent the other
+ * field from nothing.
+ *
+ * @param {Partial<Routine>} raw
+ * @returns {Routine}
+ */
+export function normalizeRoutine(raw) {
+  const r = raw || {};
+  const anchor = asDate(r.anchor);
+  return {
+    id: String(r.id ?? ""),
+    title: typeof r.title === "string" && r.title.trim() ? r.title : "Untitled routine",
+    emoji: typeof r.emoji === "string" ? r.emoji : "",
+    kind: ROUTINE_KINDS.includes(r.kind) ? r.kind : "rotating",
+    assigneeId: r.assigneeId == null ? null : String(r.assigneeId),
+    memberIds: Array.isArray(r.memberIds) ? r.memberIds.map(String) : [],
+    cadence: ROUTINE_CADENCES.includes(r.cadence) ? r.cadence : "weekly",
+    /* Zero or negative would divide cycle math by nothing; every other week
+       forward is the smallest meaningful step below "every week". */
+    everyN: Math.max(1, Math.trunc(Number(r.everyN)) || 1),
+    anchor: Number.isNaN(anchor.getTime()) ? new Date(0) : anchor,
+    mode: MODES.includes(r.mode) ? r.mode : "roommate",
+  };
+}
+
 /* ============================================================================
    WeatherSnapshot — R6's shape, frozen here
    ========================================================================= */
