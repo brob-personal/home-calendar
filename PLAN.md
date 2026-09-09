@@ -764,3 +764,100 @@ roster, the footer's views and (via `useBoardPalette` now reading `roster`) the
 colour set derived from it, wholesale; `settings.mode` persists through R3's
 store/migrate path unchanged, so it survives reload; the To-do tab is present in
 `views` in Roommate mode only, verified by both the unit test and the DOM-level one.
+
+---
+
+**R11 note.** The chores tab is landed: `src/components/chores/` (`ChoresView.jsx`,
+`ChoreCard.jsx`, `RoutineForm.jsx`, `ChoresStyles.jsx`, `icons.jsx`, `constants.js`,
+`rotation.js`), reading `members`/`tasks`/`routines` and their mutators off
+`BoardContext` and `roster`/`mode` off `ModeContext` — no props from `App.jsx` beyond
+the bare `<ChoresView />` call site R10 already left ready.
+
+1. **Contracts.** `normalizeTask`/`normalizeRoutine` added to `schema.js` beside
+   `normalizeEvent`/`normalizeMember`, same totality guarantee. `defaults.js` gains
+   `DEFAULT_TASKS` (the seeded eight-chore list, PLAN.md §R11 item 6, all unassigned
+   and Roommate-mode-only) and `DEFAULT_ROUTINES` (`[]`), both folded into
+   `DEFAULT_BOARD` per CONTRACTS.md's own invitation. `migrate.js` gains
+   `migrateTasks`/`migrateRoutines`, wired into `migrate()`'s return —
+   absent-key-means-seed-the-defaults is the same rule `migrateMembers` already
+   applies, but an *empty* persisted `tasks` array is left empty rather than
+   re-seeded, because a roommate board that finished its seeded chores and hasn't
+   added new ones is a normal state, not a corrupt one (unlike an empty roster,
+   which has no way back through the UI). Own test file,
+   `src/contracts/chores.contract.test.js`, rather than editing R3's
+   `schema.test.js`/`migrate.test.js`.
+2. **Persistence.** `useBoardData.js` gains the `tasks`/`routines` state pair, load
+   and write-through effects (mirroring `notes`, not `events` — these are board-local
+   and never touch the source seam), and the mutators the chores tab and rotation
+   scheduler call: `addTask`, `updateTask`, `toggleTask`, `ensureRoutineTask`,
+   `addRoutine`, `removeRoutine`. This is the file CONTRACTS.md's own note on
+   `BoardContext.js` named in advance ("R11 the chores tab needs members and the
+   Task/Routine slices"), so touching it is this role's mandate, not a disclosed
+   exception.
+3. **Rotation (`src/components/chores/rotation.js`).** Pure functions only —
+   `assigneeForRoutine`, `isActiveCycle`, `cycleIndex`, `materializedTask`,
+   `isCurrentInstance` — none of them read or write React state, which is what
+   PLAN.md §R11 item 7's "deterministic and testable" cashes out to: the answer for
+   a given `(routine, date)` pair never depends on when or how many times it's
+   asked. A cycle is `everyN` whole *weeks* from `startOfWeek(anchor)`, not raw
+   millisecond distance, so an anchor on any weekday still rotates on a clean weekly
+   boundary. `rotation.test.js` walks a routine across nine simulated Sundays (a
+   two-month span) to cover PLAN.md's "advances correctly across a simulated month"
+   acceptance line directly, plus edge cases: empty rotation group, pre-anchor weeks,
+   `everyN > 1`, and same-week stability for any weekday.
+4. **Materializing without duplicating.** A routine's weekly chore instance is a
+   real `Task` row (`Task.routineId` is exactly this — R3 froze the field for it) with
+   a *deterministic id*, `` `${routineId}@${weekKey}` `` — the week is encoded in the
+   id itself, so "is this row still current" is a string comparison
+   (`isCurrentInstance`) rather than a second piece of state that could drift out of
+   sync with `tasks`. `ChoresView` re-materializes on every render whose `weekKey`
+   changed (not on `useNow`'s own tick — `weekKey` is the actual dependency, so this
+   doesn't refire every minute) and `ensureRoutineTask` is idempotent by construction,
+   so calling it for an already-materialized week is a no-op rather than a duplicate.
+   Once a new week starts, the previous week's instance is not deleted — it stays in
+   storage as history — but `isCurrentInstance` filters it out of every rendered
+   column and the bank, so nothing stale is ever shown. Reassigning a materialized
+   instance for one week (drag or tap, same as any ad-hoc chore) is a deliberate,
+   harmless side door: it only overrides that already-created row, and the next
+   cycle's row is computed fresh from the routine regardless of any override left on
+   an old one.
+5. **Interaction: tap always works, drag is a bonus.** PLAN.md §R11 item 3 asks for
+   tap specifically *because* "drag alone is a poor sole interaction on a
+   wall-mounted tablet" — and on the iPad this board actually ships on, it's worse
+   than poor: iOS Safari has never fired HTML5 `dragstart`/`drop` events from touch
+   input for a plain `<div draggable>`, only from certain built-in drag sources (text
+   selections, links, images). So drag here is native HTML5 drag-and-drop —
+   `ChoreCard.jsx` sets `draggable` and `dataTransfer`, the bank and each column
+   accept a drop — which gives desktop/trackpad testing a working drag for free but
+   is inert on the real device; tap-to-select-then-tap-a-destination-header is the
+   path documented as required, tested first, and the only one that works on an
+   iPad. Recorded here rather than silently shipping a drag handler that looks
+   complete but isn't the thing the acceptance criterion is actually asking for.
+6. **No Settings section.** R11 owns `src/components/chores/**` exclusively — there
+   is no chores entry in PLAN.md §2's Settings row the way R6/R9/R10 each got one —
+   so routine authoring (the "+ Routine" button and `RoutineForm.jsx`) lives inside
+   the chores tab itself rather than in `Settings.jsx`, which this role does not
+   touch at all. `RoutineForm` stamps `anchor` as today at save time rather than
+   exposing it as a field: the rule only needs *a* stable anchor week, not an
+   author-chosen one, and one fewer decision matches "not building: onboarding."
+7. **`App.jsx`.** One line changed, inside the block its own comment pre-authorized
+   ("R11 owns the real chores tab ... this placeholder only keeps the tab from
+   opening onto a blank stage"): the `fb-todoplaceholder` div is now `<ChoresView />`,
+   no props. No other line in `App.jsx` touched.
+8. **Tests.** `src/contracts/chores.contract.test.js` (normalizers + migration),
+   `src/components/chores/rotation.test.js` (the scheduler, in isolation),
+   `src/components/chores/ChoresView.test.jsx` (the seam test — a minimal in-memory
+   re-implementation of `useBoardData`'s mutator shape behind real `BoardContext`/
+   `ModeContext` providers, deliberately not the real hook, so a persistence bug
+   can't mask a component bug or vice versa): tap-assign, tap-to-cancel,
+   tap-back-to-bank, native drag-assign, complete-sinks-to-bottom, checkbox tap not
+   also selecting the card, routine materialization on and before its anchor week,
+   and adding a routine from the form materializing immediately.
+
+Acceptance re-checked against PLAN.md's own wording: chores assign by both drag and
+tap (item 5 above records why tap is the one that matters on-device); completing a
+chore sinks it below the still-open ones in its column without reordering the bank
+position underneath (`sortTasks` in `ChoresView.jsx`); a weekly rotation advances
+correctly across a simulated month (`rotation.test.js`); everything persists through
+`useBoardData`'s existing store/migrate path the same as every other slice, so it
+survives reload without a bespoke mechanism.

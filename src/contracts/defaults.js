@@ -123,6 +123,42 @@ export const DEFAULT_SETTINGS = {
 };
 
 /*
+  PLAN.md §R11 item 6: "A seeded default chore list on first use." First use
+  means the `tasks` key has never been written — migrateTasks() falls back to
+  this exact list, the same "absent means these defaults" rule migrateMembers
+  already applies to DEFAULT_MEMBERS. All start unassigned (`assigneeId:
+  null`) in the chore bank, Roommate-mode only, per PLAN.md §R11's mandate.
+*/
+/** @type {import("./schema.js").Task[]} */
+export const DEFAULT_TASKS = [
+  { id: "chore-vacuum", title: "Vacuuming", emoji: "🧹" },
+  { id: "chore-bathroom", title: "Clean bathroom", emoji: "🚽" },
+  { id: "chore-trash", title: "Take out trash", emoji: "🗑️" },
+  { id: "chore-dishes", title: "Dishes", emoji: "🍽️" },
+  { id: "chore-counters", title: "Wipe counters", emoji: "🧽" },
+  { id: "chore-laundry", title: "Laundry", emoji: "🧺" },
+  { id: "chore-floors", title: "Sweep & mop floors", emoji: "🪣" },
+  { id: "chore-tidy", title: "Tidy common areas", emoji: "🛋️" },
+].map((t, i) => ({
+  ...t,
+  assigneeId: null,
+  done: false,
+  doneAt: null,
+  order: i,
+  routineId: null,
+  mode: "roommate",
+}));
+
+/*
+  No routine is a feature on its own — an empty rotation is a normal "not
+  configured yet" default, the same shape as DEFAULT_CALENDARS. Authored from
+  inside the chores tab itself (PLAN.md §R11 owns src/components/chores/**
+  exclusively; there is no Settings section for this role to add one to).
+*/
+/** @type {import("./schema.js").Routine[]} */
+export const DEFAULT_ROUTINES = [];
+
+/*
   The per-slice defaults migrate() falls back to. Kept as a single object so a
   new persisted slice is declared in exactly one place — R11 adds `tasks` and
   `routines` here when it lands them.
@@ -134,4 +170,6 @@ export const DEFAULT_BOARD = {
   notes: [],
   /** @type {import("./schema.js").Event[]} */
   events: [],
+  tasks: DEFAULT_TASKS,
+  routines: DEFAULT_ROUTINES,
 };
