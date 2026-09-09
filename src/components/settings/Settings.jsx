@@ -18,11 +18,12 @@ const MODE_LABELS = { personal: "Personal", roommate: "Roommate" };
   onboarding" as a locked decision, so this panel is the only configuration
   surface the board will ever have. Three later roles add sections to this
   file: R6 the weather location (landed — the "Weather" Field below), R9 the
-  Drive folder id, R10 the mode toggle (landed — the "Mode" Field below) and
-  the per-member "Personal" / "Roommate" checkboxes in the Family section,
-  which are the roster editor R3's DEFAULT_MEMBERS comment was written
-  expecting: the roommates are not the family (SCOPING.txt), so which mode a
-  person belongs to is data on the Member, set here.
+  Drive folder id (landed — the "Photos" Field below), and R10 the mode
+  toggle (landed — the "Mode" Field below) plus the per-member "Personal" /
+  "Roommate" checkboxes in the Family section, which are the roster editor
+  R3's DEFAULT_MEMBERS comment was written expecting: the roommates are not
+  the family (SCOPING.txt), so which mode a person belongs to is data on the
+  Member, set here.
 
   The four apostrophes in the prose below are written as &apos; rather than as
   literal quotes. That is not a style preference: `react/no-unescaped-entities`
@@ -52,8 +53,8 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
   const set = (k, v) => setSettings((s) => ({ ...s, [k]: v }));
   const setMember = (id, patch) =>
     setMembers((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
-  const setWeather = (k, v) =>
-    setSettings((s) => ({ ...s, weather: { ...s.weather, [k]: v } }));
+  const setWeather = (k, v) => setSettings((s) => ({ ...s, weather: { ...s.weather, [k]: v } }));
+  const setDrive = (k, v) => setSettings((s) => ({ ...s, drive: { ...s.drive, [k]: v } }));
 
   /* A member with no mode at all is invisible everywhere — the same
      invariant normalizeModes() enforces on load. Unchecking a person's only
@@ -366,9 +367,28 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           ))}
         </div>
         <p className="fb-note">
-          Weather needs no account &mdash; Open-Meteo is keyless. Coordinates only, no street address;
-          find yours from any map by long-pressing a point. Empty latitude or longitude hides the
-          weather chip.
+          Weather needs no account &mdash; Open-Meteo is keyless. Coordinates only, no street
+          address; find yours from any map by long-pressing a point. Empty latitude or longitude
+          hides the weather chip.
+        </p>
+      </Field>
+
+      <Field label="Photos">
+        <div className="fb-inline">
+          <span className="fb-inlabel">Drive folder id</span>
+          <input
+            className="fb-input fb-input-sm"
+            value={settings.drive.folderId}
+            onChange={(e) => setDrive("folderId", e.target.value.trim())}
+            placeholder="1a2B3cD4EfGhIjKlmNoPqRsTuVwXyZ"
+            spellCheck="false"
+          />
+        </div>
+        <p className="fb-note">
+          The idle screensaver rotates through images in this Drive folder in place of the
+          month&apos;s artwork. Find the id in the folder&apos;s share link &mdash;
+          drive.google.com/drive/folders/<b>this part</b>. Leave it empty to keep the month art.
+          Only image files are shown; the board can read the folder but never edits it.
         </p>
       </Field>
 
