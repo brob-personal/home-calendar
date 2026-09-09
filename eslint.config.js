@@ -75,33 +75,13 @@ export default [
   },
 
   /*
-    Legacy override — delete this block together with the file.
-
-    `family-board.jsx` is the untouched artifact prototype. R1 is forbidden to
-    edit it and R2 deletes it at the end of Wave 0 (R2 backlog item 6), so its
-    two remaining rule violations are relaxed here rather than in the source.
-    Both are cosmetic and neither is worth a Deferred Defect:
-
-      - `React` is imported but unused: correct under the automatic JSX runtime
-        the Vite React plugin uses. The import simply becomes redundant.
-      - 4x unescaped apostrophes in JSX copy (:1535, :1536, :1606).
-
-    New code under src/ is held to the unrelaxed bar.
+    R1's legacy override for `family-board.jsx` was removed here together with
+    the file (R2 backlog item 6). Nothing under src/ needs the two relaxations
+    it carried: the unused `React` import is gone with the prototype, and the
+    four unescaped apostrophes are written as &apos; in
+    src/components/settings/Settings.jsx. The whole tree is now held to the
+    unrelaxed bar.
   */
-  {
-    files: ["family-board.jsx"],
-    rules: {
-      "react/no-unescaped-entities": "off",
-      "no-unused-vars": [
-        "error",
-        {
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^(_|React$)",
-          caughtErrors: "none",
-        },
-      ],
-    },
-  },
 
   {
     files: ["**/*.{test,spec}.{js,jsx}", "src/test/**/*.{js,jsx}"],
@@ -113,8 +93,13 @@ export default [
     },
   },
 
+  /*
+    Node-side files. `scripts/**` was added by R2 for
+    scripts/extract-prototype-css.mjs, which reads the filesystem and writes
+    to console — both undefined under the browser globals the src/ block sets.
+  */
   {
-    files: ["*.config.js", "api/**/*.js"],
+    files: ["*.config.js", "api/**/*.js", "scripts/**/*.{js,mjs}"],
     languageOptions: {
       globals: { ...globals.node },
     },

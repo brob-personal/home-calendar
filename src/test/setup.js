@@ -7,7 +7,7 @@ afterEach(() => {
 });
 
 /*
-  jsdom ships no ResizeObserver, and <Fit> (family-board.jsx:409) constructs one
+  jsdom ships no ResizeObserver, and <Fit> (src/components/shell/Fit.jsx) constructs one
   on mount to scale the 1080x810 canvas. Without a stub every render throws.
 
   The stub deliberately never fires its callback: jsdom reports 0x0 for
@@ -25,7 +25,7 @@ if (!("ResizeObserver" in globalThis)) {
 }
 
 /*
-  The prototype's storage seam calls window.storage (family-board.jsx:28) — an
+  The prototype's storage seam calls window.storage (src/lib/store.js) — an
   artifact host API that exists in no browser. Both bodies already swallow the
   failure and fall back to memory, so tests pass without this, but stubbing it
   keeps the console clean and documents the seam.

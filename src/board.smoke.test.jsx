@@ -2,7 +2,13 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import FamilyBoard from "../family-board.jsx";
+/*
+  R2: repointed from ../family-board.jsx to ./App.jsx. The import path and the
+  local name are the only edits — every assertion below is R1's, unchanged, and
+  all four still pass against the decomposed tree. That is the point of the
+  file: if R2 had changed behaviour, these would have caught it.
+*/
+import FamilyBoard from "./App.jsx";
 
 /*
   R1's scaffold smoke test: proof that the toolchain can mount the untouched

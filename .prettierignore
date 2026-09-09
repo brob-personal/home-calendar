@@ -1,7 +1,12 @@
-# The prototype is off limits to R1 and must stay byte-identical until R2
-# decomposes it. `npm run format` would otherwise rewrite all 2,106 lines and
-# make R2's "every moved line is the same line" review impossible.
-family-board.jsx
+# R1 pinned `family-board.jsx` here so `npm run format` could not reflow the
+# prototype before R2 reviewed the move line by line. The file is gone
+# (R2 backlog item 6) and the entry with it — everything under src/ is
+# Prettier-formatted now.
+
+# The extracted prototype stylesheet. It is a byte-for-byte fixture that
+# src/styles/styles.contract.test.js compares BOARD_CSS against; reformatting
+# it would break the comparison it exists to make.
+src/test/fixtures/
 
 # generated / vendored
 node_modules/
