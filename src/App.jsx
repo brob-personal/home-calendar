@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 import { startOfDay, daysUntil } from "./lib/date.js";
 import { ACCENT_NOW, MONTH_ART } from "./lib/theme.js";
@@ -10,6 +10,7 @@ import { useSleep } from "./hooks/useSleep.js";
 import { useDrivePhotos } from "./data/drive.js";
 import { PaletteContext, useBoardPalette } from "./state/PaletteContext.js";
 import { BoardContext } from "./state/BoardContext.js";
+import { ModeContext, useModeState } from "./state/ModeContext.js";
 
 import { Fit } from "./components/shell/Fit.jsx";
 import { BoardStyles } from "./components/shell/BoardStyles.jsx";
@@ -68,8 +69,45 @@ export default function App() {
   */
   const [selectedEvent, setSelectedEvent] = useState(null);
 
+  /*
+    R10: which mode is active, and everything that follows from it — the
+    roster narrowed to this mode's members, this mode's calendar set, and the
+    view list Footer switches between. Computed the same way useBoardPalette
+    is — a plain hook called directly, because App cannot consume the context
+    it is about to provide below. Everything past this point that used to
+    read `members` reads `roster` instead, so toggling the mode swaps the
+    footer's legend, every view's events, and the composer's "Who" picker
+    wholesale. Settings keeps the full, unnarrowed `members` list — it is
+    where a person's mode membership gets assigned in the first place.
+  */
+  const modeState = useModeState(members, settings, data.setSettings);
+  const { roster, views, isRoommate } = modeState;
+
+  /* The To-do tab only exists in Roommate mode (PLAN.md §R10 item 5). Without
+     this, switching out of Roommate mode while it is open would leave `view`
+     pointing at a tab Footer no longer renders — no button lit, an empty
+     stage. */
+  useEffect(() => {
+    if (!views.includes(view)) setView("day");
+  }, [views, view]);
+
+  /*
+    useMemberFilter's "hidden" list is an exclusion list, not an allowlist —
+    it was built to answer "which of these members did you tap off", never
+    "does this event belong to someone in scope at all". Handing it `roster`
+    alone would still let a family event through while looking at the
+    Roommate board, because nobody on that event was ever added to a hidden
+    list scoped to a roster that no longer contains them. Mode narrows the
+    universe of events before the avatar-tap filter narrows it further.
+  */
+  const rosterIds = useMemo(() => new Set(roster.map((m) => m.id)), [roster]);
+  const modeEvents = useMemo(
+    () => data.events.filter((e) => (e.memberIds || []).some((id) => rosterIds.has(id))),
+    [data.events, rosterIds],
+  );
+
   const { isShown, shownMembers, filtered, filterTouched, toggleMember, resetFilter } =
-    useMemberFilter(members, data.events);
+    useMemberFilter(roster, modeEvents);
 
   /*
     `palette` is all App still needs from the bundle — for the CSS custom
@@ -77,7 +115,7 @@ export default function App() {
     and threaded down as props to three views and the countdown ticker; they
     now travel by context, which is PLAN.md §R2 item 5 in one line of diff.
   */
-  const paletteBundle = useBoardPalette(members, settings, isShown);
+  const paletteBundle = useBoardPalette(roster, settings, isShown);
   const { palette } = paletteBundle;
 
   const { dimmed, showSaver, wake } = useSleep(now, settings, Boolean(panel) || noteOpen);
@@ -124,12 +162,17 @@ export default function App() {
       <BoardStyles />
       {/*
         R3: the board-data bundle is published on a context as well as passed
-        down as props. Nothing below reads it yet — every existing consumer
-        keeps its props, so this changes no behaviour — but R6's weather
-        settings, R10's mode toggle and R11's chores tab all need members and
-        settings from places props do not reach. See src/state/BoardContext.js.
+        down as props. R6's weather settings and R11's future chores tab read
+        it from here; App itself keeps using the props it already has.
       */}
       <BoardContext.Provider value={data}>
+        {/*
+          R10: the mode bundle App already computed above, published for
+          Settings' mode toggle and R11's chores tab — neither reachable by
+          prop from here. App does not consume this itself; see
+          src/state/ModeContext.js for why.
+        */}
+        <ModeContext.Provider value={modeState}>
         <PaletteContext.Provider value={paletteBundle}>
           <div className="fb-root" style={cssVars}>
             {settings.monthArt && (
@@ -183,24 +226,32 @@ export default function App() {
                     onSelect={setSelectedEvent}
                   />
                 )}
-                {/* `members`, not `shownMembers` — Deferred Defect #2, R12's to fix. */}
+                {/* `roster`, not `shownMembers` — Deferred Defect #2, R12's to fix. */}
                 {view === "agenda" && (
                   <AgendaView
                     date={anchor}
                     now={now}
                     events={filtered}
-                    members={members}
+                    members={roster}
                     onSelect={setSelectedEvent}
                   />
+                )}
+                {/* R11 owns the real chores tab (src/components/chores/**); this
+                    placeholder only keeps the tab from opening onto a blank
+                    stage between R10 landing the switcher and R11 landing the
+                    content it switches to. */}
+                {view === "todo" && isRoommate && (
+                  <div className="fb-todoplaceholder">Chores are coming soon.</div>
                 )}
               </main>
 
               <Footer
                 view={view}
                 setView={setView}
+                views={views}
                 anchor={anchor}
                 setAnchor={setAnchor}
-                members={members}
+                members={roster}
                 isShown={isShown}
                 onToggleMember={toggleMember}
                 showReset={filterTouched}
@@ -229,7 +280,7 @@ export default function App() {
 
             {panel === "compose" && (
               <Composer
-                members={members}
+                members={roster}
                 date={anchor}
                 onSave={addEvent}
                 onClose={() => setPanel(null)}
@@ -238,7 +289,7 @@ export default function App() {
             {selectedEvent && (
               <EventDetailSheet
                 event={selectedEvent}
-                members={members}
+                members={roster}
                 settings={settings}
                 onSave={(patch) =>
                   data.updateEvent(selectedEvent.id, patch).then(() => setSelectedEvent(null))
@@ -265,6 +316,7 @@ export default function App() {
             {dimmed && <SleepVeil now={now} opacity={settings.sleepDim} onWake={wake} />}
           </div>
         </PaletteContext.Provider>
+        </ModeContext.Provider>
       </BoardContext.Provider>
     </Fit>
   );
