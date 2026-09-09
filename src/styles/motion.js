@@ -2,8 +2,8 @@
   Last chunk in the sheet, and it has to stay last: it overrides transition
   and animation durations declared anywhere above it.
 
-  R5's backlog item 6 requires preserving this block and the :focus-visible
-  outlines in root.js.
+  PLAN.md §R5 item 6 requires preserving this block and the :focus-visible
+  outlines in shell/Root.js.
 */
 export default `
 @media (prefers-reduced-motion: reduce) {

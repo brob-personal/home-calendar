@@ -1,10 +1,10 @@
 /*
   Countdowns — 46px — and the stage that takes the rest of the column.
 
-  `.fb-stage` sits here rather than in root.js because it is the sibling that
-  absorbs whatever height the countdown row does or does not occupy: the row
-  is only rendered when there is a milestone to show, so the stage grows by
-  46px plus one 14px gap when nothing is counting down.
+  .fb-stage sits here rather than in Root.js because it is the sibling that
+  absorbs whatever height the countdown row does or does not occupy: the
+  row is only rendered when there is a milestone to show, so the stage
+  grows by 46px plus one board gap when nothing is counting down.
 */
 export default `
 /* Countdowns — 46px */

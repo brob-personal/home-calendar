@@ -17,7 +17,7 @@ export default `
 .fb-cellnum { font-size: 15px; font-weight: 700; letter-spacing: -.025em; }
 .fb-cellevents { display: flex; flex-direction: column; gap: 3px; overflow: hidden; }
 .fb-cellev {
-  font-size: 11px; font-weight: 600; color: #24262B;
+  font-size: 11px; font-weight: 600; color: var(--ink-on-color);
   padding: 2px 6px; border-radius: 4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }

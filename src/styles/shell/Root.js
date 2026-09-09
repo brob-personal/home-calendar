@@ -3,12 +3,12 @@
   below relies on, the month-art wash, and the flex column that gives the
   header, countdowns, stage and footer their fixed heights.
 
-  The six custom properties these rules read — --paper, --surface, --line,
-  --ink, --mute, --now — are set as inline style on .fb-root by App.jsx from
-  the active theme. That is the seam R5 turns into tokens.css.
+  The five per-theme custom properties this file reads through .fb-root
+  (--paper --surface --line --ink --mute) come from App.jsx's inline style;
+  tokens.js only supplies their fallback defaults.
 
-  The :focus-visible rule and the reduced-motion block in motion.js are the
-  two accessibility affordances R5's backlog item 6 must preserve.
+  :focus-visible here and the reduced-motion block in motion.js are the two
+  accessibility affordances PLAN.md §R5 item 6 requires preserving.
 */
 export default `
 .fb-root {
@@ -30,6 +30,6 @@ export default `
 
 .fb-board {
   position: relative; display: flex; flex-direction: column;
-  height: 100%; padding: 22px 24px 18px; gap: 14px;
+  height: 100%; padding: 22px 24px var(--board-pad-b); gap: var(--board-gap);
 }
 `;
