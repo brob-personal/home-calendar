@@ -7,6 +7,7 @@ import { useNow } from "./hooks/useNow.js";
 import { useBoardData } from "./hooks/useBoardData.js";
 import { useMemberFilter } from "./hooks/useMemberFilter.js";
 import { useSleep } from "./hooks/useSleep.js";
+import { useDrivePhotos } from "./data/drive.js";
 import { PaletteContext, useBoardPalette } from "./state/PaletteContext.js";
 import { BoardContext } from "./state/BoardContext.js";
 
@@ -80,6 +81,18 @@ export default function App() {
   const { palette } = paletteBundle;
 
   const { dimmed, showSaver, wake } = useSleep(now, settings, Boolean(panel) || noteOpen);
+
+  /*
+    R9, disclosed per PLAN.md §5 rule 3: one line reaching outside its own
+    owned paths (src/data/drive.js, api/drive/**, Settings.jsx), the same
+    exception R6 recorded for wiring WeatherWidget into Header.jsx. App.jsx
+    is the only place that already holds both `settings` and `setSettings`
+    outside of BoardContext, and this hook can't read that context itself —
+    App is the component that renders the Provider, not one of its
+    descendants. The hook is side-effect only: it feeds settings.photos, and
+    Screensaver's own prop below is unchanged.
+  */
+  useDrivePhotos(settings, data.setSettings);
 
   const monthArt = MONTH_ART[now.getMonth()];
 

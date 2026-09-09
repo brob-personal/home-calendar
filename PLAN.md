@@ -642,3 +642,35 @@ are landed, implementing the sketch that used to live as a block comment in
   `src/data/source.contract.test.js` said outright "R8: add
   `runs("google", ...)` here." Recorded per §5 rule 3 anyway, same as R7 and R5
   did for their own cross-file touches above.
+**R9 note.** Drive photo screensaver landed: `src/data/drive.js` (`listDrivePhotos` /
+`getDrivePhotos` / `useDrivePhotos`, mirroring R6's `weather.js` split), two routes
+under `api/drive/**` (`photos.js` lists image metadata, `photo.js` proxies one file's
+bytes using R4's `mintAccessToken()`), and a "Photos" `Field` in `Settings.jsx` for the
+folder id. `settings.photos` still feeds `Screensaver` exactly as CONTRACTS.md §6 says —
+nothing in `Screensaver.jsx` changed.
+
+One disclosed touch outside R9's owned paths, same category as R6's and R7's above:
+`src/App.jsx` gained an import and one hook call, `useDrivePhotos(settings,
+data.setSettings)`, right after `useSleep`. This was unavoidable rather than a
+convenience — `useDrivePhotos` has to run from a component that is always mounted (it
+polls and keeps `settings.photos` current), and both candidate homes for that are owned
+elsewhere and conditionally rendered besides: `Settings.jsx` only while the panel is
+open, `Screensaver.jsx` only while idle. `App.jsx` is also the one place already holding
+`setSettings` outside of `BoardContext` — the hook cannot read that context itself,
+because `App` is the component that renders `<BoardContext.Provider>`, not one of its
+descendants. No other line in `App.jsx` changed; the `Screensaver` call site and its
+`photos={settings.photos}` prop are untouched.
+
+Two Drive-API design notes worth a reviewer's attention:
+
+- `api/drive/photo.js` accepts the device secret via `?secret=` as well as the header,
+  using the fallback `api/_lib/security.js` already built into `hasValidDeviceSecret`.
+  This isn't a weaker path opened for R9's convenience: a CSS `background-image` or
+  `<img src>` load cannot attach a custom header, and that URL is exactly what
+  `Screensaver` needs to paint. `VITE_BOARD_DEVICE_SECRET` is already documented as
+  client-visible for this reason — it identifies the board, not a Google account.
+- Prefetching is "warm every URL in the resolved list" rather than tracking "the next
+  few" relative to Screensaver's own rotation index, which lives in a component R9
+  doesn't own. For a personal photo folder (tens of images, not thousands) this meets
+  the acceptance bar — rotation never lands on a cold URL — without R9 reaching into
+  `Screensaver.jsx` to coordinate a window against its `i` state.
