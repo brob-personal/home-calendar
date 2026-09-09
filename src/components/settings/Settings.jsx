@@ -11,7 +11,8 @@ import { Field } from "../shell/Field.jsx";
   Everything is configured here — PLAN.md §1 records "not building:
   onboarding" as a locked decision, so this panel is the only configuration
   surface the board will ever have. Three later roles add sections to this
-  file: R6 the weather location, R9 the Drive folder id, R10 the mode toggle.
+  file: R6 the weather location (landed — the "Weather" Field below), R9 the
+  Drive folder id, R10 the mode toggle.
 
   The four apostrophes in the prose below are written as &apos; rather than as
   literal quotes. That is not a style preference: `react/no-unescaped-entities`
@@ -39,6 +40,8 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
   const set = (k, v) => setSettings((s) => ({ ...s, [k]: v }));
   const setMember = (id, patch) =>
     setMembers((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  const setWeather = (k, v) =>
+    setSettings((s) => ({ ...s, weather: { ...s.weather, [k]: v } }));
 
   return (
     <Sheet title="Board settings" onClose={onClose} wide>
@@ -251,6 +254,62 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
             onChange={(e) => set("dayEnd", Number(e.target.value))}
           />
         </div>
+      </Field>
+
+      <Field label="Weather">
+        <div className="fb-inline">
+          <span className="fb-inlabel">Location name</span>
+          <input
+            className="fb-input fb-input-sm"
+            value={settings.weather.label}
+            onChange={(e) => setWeather("label", e.target.value)}
+            placeholder="Home"
+          />
+        </div>
+        <div className="fb-inline">
+          <span className="fb-inlabel">Latitude</span>
+          <input
+            className="fb-input fb-input-sm"
+            type="number"
+            step="0.0001"
+            min="-90"
+            max="90"
+            value={settings.weather.lat ?? ""}
+            onChange={(e) =>
+              setWeather("lat", e.target.value === "" ? null : Number(e.target.value))
+            }
+            placeholder="33.7490"
+          />
+          <span className="fb-inlabel">Longitude</span>
+          <input
+            className="fb-input fb-input-sm"
+            type="number"
+            step="0.0001"
+            min="-180"
+            max="180"
+            value={settings.weather.lon ?? ""}
+            onChange={(e) =>
+              setWeather("lon", e.target.value === "" ? null : Number(e.target.value))
+            }
+            placeholder="-84.3880"
+          />
+        </div>
+        <div className="fb-pills">
+          {["F", "C"].map((u) => (
+            <button
+              key={u}
+              className={`fb-pill${settings.weather.units === u ? " is-on" : ""}`}
+              onClick={() => setWeather("units", u)}
+            >
+              °{u}
+            </button>
+          ))}
+        </div>
+        <p className="fb-note">
+          Weather needs no account &mdash; Open-Meteo is keyless. Coordinates only, no street address;
+          find yours from any map by long-pressing a point. Empty latitude or longitude hides the
+          weather chip.
+        </p>
       </Field>
 
       <div className="fb-sheetfoot">

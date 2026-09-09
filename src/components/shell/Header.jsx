@@ -1,6 +1,7 @@
 import { sameDay, fmtClock, DOW_LONG } from "../../lib/date.js";
 import { MONTH_ART } from "../../lib/theme.js";
 import { Gear } from "./icons.jsx";
+import { WeatherWidget } from "../weather/WeatherWidget.jsx";
 
 /*
   Moved verbatim from family-board.jsx:710-739.
@@ -15,8 +16,9 @@ import { Gear } from "./icons.jsx";
   coupling came with the move; R5 may want to separate the two when the art
   becomes a token.
 
-  R6's weather is destined for this header — collapsed to an icon plus °F,
-  expanding on tap.
+  R6 landed here: <WeatherWidget> is one line, self-contained, and renders
+  nothing until settings.weather has a location — see
+  ../weather/WeatherWidget.jsx.
 */
 export function Header({ now, anchor, events, onToday, onSettings }) {
   const isToday = sameDay(anchor, now);
@@ -37,6 +39,7 @@ export function Header({ now, anchor, events, onToday, onSettings }) {
         </div>
       </div>
       <div className="fb-headright">
+        <WeatherWidget now={now} />
         <div className="fb-clock">{fmtClock(now)}</div>
         {!isToday && (
           <button className="fb-chip" onClick={onToday}>
