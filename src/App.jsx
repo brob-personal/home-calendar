@@ -29,6 +29,7 @@ import { Composer } from "./components/settings/Composer.jsx";
 import { Settings } from "./components/settings/Settings.jsx";
 import { SleepVeil } from "./components/idle/SleepVeil.jsx";
 import { Screensaver } from "./components/idle/Screensaver.jsx";
+import { ChoresView } from "./components/chores/ChoresView.jsx";
 
 /* ============================================================================
    FAMILY BOARD — wall-mounted calendar for iPad 7th gen (A2197)
@@ -262,13 +263,10 @@ export default function App() {
                           onSelect={setSelectedEvent}
                         />
                       )}
-                      {/* R11 owns the real chores tab (src/components/chores/**); this
-                    placeholder only keeps the tab from opening onto a blank
-                    stage between R10 landing the switcher and R11 landing the
-                    content it switches to. */}
-                      {view === "todo" && isRoommate && (
-                        <div className="fb-todoplaceholder">Chores are coming soon.</div>
-                      )}
+                      {/* R11's chores tab. No props: it reads members/tasks/routines
+                          off BoardContext and roster/mode off ModeContext, neither
+                          reachable more directly from here than a context read. */}
+                      {view === "todo" && isRoommate && <ChoresView />}
                     </>
                   )}
                 </main>

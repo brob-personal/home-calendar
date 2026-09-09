@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 
 import { store } from "../lib/store.js";
 import { dayKey } from "../lib/date.js";
+import { uid } from "../lib/uid.js";
 import { createSource } from "../data/index.js";
-import { SCHEMA_VERSION, STORE_KEYS } from "../contracts/schema.js";
+import { SCHEMA_VERSION, STORE_KEYS, normalizeTask, normalizeRoutine } from "../contracts/schema.js";
 import { migrate } from "../contracts/migrate.js";
 import { DEFAULT_MEMBERS, DEFAULT_SETTINGS } from "../contracts/defaults.js";
 
@@ -71,6 +72,12 @@ export function useBoardData(now) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [events, setEvents] = useState([]);
   const [notes, setNotes] = useState([]);
+  /* R11's slices — see the mutators below and CONTRACTS.md's note on
+     BoardContext.js: "R11 the chores tab needs members and the Task/Routine
+     slices." Persisted the same way notes are: independent of the source,
+     independent of `loaded`'s gate on events. */
+  const [tasks, setTasks] = useState([]);
+  const [routines, setRoutines] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [storageErrors, setStorageErrors] = useState([]);
   const [degraded, setDegraded] = useState(false);
@@ -97,7 +104,14 @@ export function useBoardData(now) {
         others: corrupt notes should not cost you your members. A key that
         throws reads as absent, which migrate() fills from the defaults.
       */
-      const keys = [STORE_KEYS.members, STORE_KEYS.settings, STORE_KEYS.notes, STORE_KEYS.events];
+      const keys = [
+        STORE_KEYS.members,
+        STORE_KEYS.settings,
+        STORE_KEYS.notes,
+        STORE_KEYS.events,
+        STORE_KEYS.tasks,
+        STORE_KEYS.routines,
+      ];
       const reads = await Promise.all(
         keys.map(async (key) => {
           try {
@@ -119,6 +133,8 @@ export function useBoardData(now) {
       setMembers(board.members);
       setSettings(board.settings);
       setNotes(board.notes);
+      setTasks(board.tasks);
+      setRoutines(board.routines);
       /*
         The cache paints only if it has something. Setting an empty array here
         would be indistinguishable from the initial state and would cost a
@@ -167,6 +183,12 @@ export function useBoardData(now) {
   useEffect(() => {
     if (loaded) persist(STORE_KEYS.events, events);
   }, [events, loaded, persist]);
+  useEffect(() => {
+    if (loaded) persist(STORE_KEYS.tasks, tasks);
+  }, [tasks, loaded, persist]);
+  useEffect(() => {
+    if (loaded) persist(STORE_KEYS.routines, routines);
+  }, [routines, loaded, persist]);
 
   /* ── Source subscription ──────────────────────────────────────────────── */
   /*
@@ -227,6 +249,62 @@ export function useBoardData(now) {
     });
   };
 
+  /* ── Tasks & Routines (R11) ───────────────────────────────────────────── */
+  /*
+    No source seam here — tasks/routines are board-local, never synced, so
+    these are plain state updaters rather than `source.create`-shaped async
+    calls. normalizeTask/normalizeRoutine keep every write contract-valid the
+    same way the persisted-load path does, so a chore built from a partial
+    draft is indistinguishable from one that round-tripped through storage.
+  */
+  const addTask = (draft) => {
+    setTasks((prev) => {
+      const order = prev.reduce((max, t) => Math.max(max, t.order), -1) + 1;
+      return [...prev, normalizeTask({ id: uid(), order, ...draft })];
+    });
+  };
+
+  const updateTask = (id, patch) => {
+    setTasks((prev) => prev.map((t) => (t.id === id ? normalizeTask({ ...t, ...patch }) : t)));
+  };
+
+  /*
+    Completion toggles `done`/`doneAt` only — `order` never changes here.
+    schema.js is explicit that sinking completed chores to the bottom is a
+    render rule, not a reorder, so the manual bank order a person left behind
+    survives a complete/undo round trip.
+  */
+  const toggleTask = (id) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, done: !t.done, doneAt: t.done ? null : new Date() } : t)),
+    );
+  };
+
+  /*
+    The rotation scheduler's only write path (src/components/chores/rotation.js
+    materializes the draft; this just lands it). Idempotent against its own
+    result for the same reason createEvent is: called once per (routine, week)
+    from an effect, and a re-render before that effect's dependencies change
+    must not append a second copy of the same cycle's chore.
+  */
+  const ensureRoutineTask = useCallback((draft) => {
+    setTasks((prev) =>
+      prev.some((t) => t.id === draft.id) ? prev : [...prev, normalizeTask(draft)],
+    );
+  }, []);
+
+  const addRoutine = (draft) => {
+    setRoutines((prev) => [...prev, normalizeRoutine({ id: uid(), ...draft })]);
+  };
+
+  /* Removing a routine also drops the chore instances it generated — an
+     orphaned routineId would otherwise leave a chore in a column with no
+     rotation behind it, unreachable from the UI that created it. */
+  const removeRoutine = (id) => {
+    setRoutines((prev) => prev.filter((r) => r.id !== id));
+    setTasks((prev) => prev.filter((t) => t.routineId !== id));
+  };
+
   return {
     members,
     setMembers,
@@ -234,6 +312,8 @@ export function useBoardData(now) {
     setSettings,
     events,
     notes,
+    tasks,
+    routines,
     loaded,
     createEvent,
     updateEvent,
@@ -241,6 +321,12 @@ export function useBoardData(now) {
     todayKey,
     todayNote,
     saveStrokes,
+    addTask,
+    updateTask,
+    toggleTask,
+    ensureRoutineTask,
+    addRoutine,
+    removeRoutine,
     /*
       For R12's offline / failure UI. `storageError` is the first failure
       because that is the one worth showing on a wall — a second line of error
