@@ -1,11 +1,22 @@
 /*
   Sticky notes — NoteDock, NoteWindow, NoteThumb.
 
-  Three of the six selectors on R12's 44pt list are here — .fb-notenav /
+  Three of the six selectors on R12's 44pt list were here — .fb-notenav /
   .fb-noteclose at 30px, .fb-pen at 22px and .fb-width at 26px. .fb-fab at
-  56px is the only interactive element in the whole board that already
-  passes. Left as found; raising them is R12's item 1, tracked in
-  tap-target-audit.md.
+  56px was the only interactive element in the whole board that already
+  passed. All raised to --tap-min (R12 item 1, tracked in
+  tap-target-audit.md).
+
+  .fb-notenav/.fb-noteclose/.fb-width only needed their own box enlarged —
+  each already renders an icon or a dynamically-sized inner <span> as its
+  visible content, so growing the button just adds padding around it.
+  .fb-pen is different: the button *was* the 22px colour dot (`background`
+  set inline on the button itself in NoteWindow.jsx), so enlarging the
+  button directly would have turned each swatch into a 44px circle — a
+  real visual regression to a feature this project preserves deliberately.
+  Instead NoteWindow.jsx now renders the button as a 44px invisible hit
+  box wrapping a `.fb-penswatch` inner span that carries the original
+  22px dot and its `is-on` ring, so the visible design is unchanged.
 
   touch-action: none on .fb-notehead and .fb-notecanvas is load-bearing,
   not decoration: without it iOS Safari claims the gesture for scrolling
@@ -47,20 +58,21 @@ export default `
 .fb-notehead:active { cursor: grabbing; }
 .fb-notedate { flex: 1; text-align: center; font-size: 14px; font-weight: 700; }
 .fb-notenav, .fb-noteclose {
-  display: grid; place-items: center; width: 30px; height: 30px;
+  display: grid; place-items: center; width: var(--tap-min); height: var(--tap-min);
   border-radius: 8px; color: var(--note-mute);
 }
 .fb-notecanvas { display: block; touch-action: none; cursor: crosshair; }
 .fb-notecanvas.is-readonly { cursor: default; opacity: .9; }
 .fb-notetools {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 9px 11px; background: var(--note-header);
 }
-.fb-pens { display: flex; gap: 6px; }
-.fb-pen { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; }
-.fb-pen.is-on { border-color: var(--note-ink); }
+.fb-pens { display: flex; gap: 2px; }
+.fb-pen { display: grid; place-items: center; width: var(--tap-min); height: var(--tap-min); border-radius: 50%; }
+.fb-penswatch { display: block; width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; }
+.fb-pen.is-on .fb-penswatch { border-color: var(--note-ink); }
 .fb-widths { display: flex; gap: 4px; color: var(--note-ink); }
-.fb-width { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; opacity: .45; }
+.fb-width { display: grid; place-items: center; width: var(--tap-min); height: var(--tap-min); border-radius: 7px; opacity: .45; }
 .fb-width.is-on { opacity: 1; background: var(--note-width-on-bg); }
 .fb-width span { display: block; border-radius: 50%; }
 .fb-noteact {

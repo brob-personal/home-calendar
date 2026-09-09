@@ -1,4 +1,4 @@
-import { addDays } from "../../lib/date.js";
+import { stepAnchor } from "../../lib/date.js";
 import { Avatar } from "./Avatar.jsx";
 import { Chevron } from "./icons.jsx";
 
@@ -15,10 +15,11 @@ import { Chevron } from "./icons.jsx";
       a `views` prop that App.jsx computes from ModeContext. Whatever App
       passes is what renders; this component no longer knows "day" from
       "todo".
-    - Paging is chevron-only. R12's item 2 adds pointer-event swipe paging for
-      day and week; `page()` below is the function that swipe should call, so
+    - Paging used to be chevron-only. R12's item 2 added pointer-event swipe
+      paging for day and week (src/hooks/useSwipePage.js, wired in App.jsx on
+      the stage). Both call sites step through `stepAnchor` in lib/date.js so
       the stepping logic — a month at a time in month view, seven days in
-      week, one day otherwise — does not get reimplemented.
+      week, one day otherwise — exists in exactly one place.
 */
 /* Only "todo" needs a spelling the capitalize-first-letter default can't
    produce — SCOPING.txt writes it "To-do". Every other view id is already
@@ -38,10 +39,7 @@ export function Footer({
   onReset,
   onCompose,
 }) {
-  const page = (dir) => {
-    if (view === "month") setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1));
-    else setAnchor(addDays(anchor, (view === "week" ? 7 : 1) * dir));
-  };
+  const page = (dir) => setAnchor(stepAnchor(view, anchor, dir));
 
   return (
     <footer className="fb-foot">

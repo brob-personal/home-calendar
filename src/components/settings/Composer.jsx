@@ -19,20 +19,28 @@ import { Field } from "../shell/Field.jsx";
   why the Starts/For fields disappear: a countdown is a date, not a time. This
   is the only place milestones can be authored.
 
-  Deferred Defect #4 is here, assigned to R12: the hour picker is hardcoded to
-  6am-10pm — `Array.from({ length: 17 }, (_, i) => i + 6)` — and ignores
-  settings.dayStart / dayEnd entirely. Set the board to show 5am and you
-  cannot create a 5am event. R2 may not fix it.
+  Deferred Defect #4, fixed: the hour picker used to be hardcoded to 6am-10pm
+  — `Array.from({ length: 17 }, (_, i) => i + 6)` — and ignored
+  settings.dayStart / dayEnd entirely, so setting the board to show 5am left
+  you unable to create a 5am event. `hours` below now walks
+  `[dayStart, dayEnd)`, the same half-open range DayView and WeekView already
+  loop over for their own hour gutters, so the picker can only ever offer a
+  time the grid can actually show.
 
   There is no edit path anywhere in the app; this composer only creates. R3's
   backlog item 5 adds `update` to the source interface and R7's item 5 adds
   the detail sheet that would use it.
 */
-export function Composer({ members, date, onSave, onClose }) {
+export function Composer({ members, date, settings, onSave, onClose }) {
+  const dayStart = settings.dayStart;
+  const dayEnd = settings.dayEnd;
+  const hours = [];
+  for (let h = dayStart; h < dayEnd; h++) hours.push(h);
+
   const [title, setTitle] = useState("");
   const [who, setWho] = useState([members[0]?.id].filter(Boolean));
   const [day, setDay] = useState(0);
-  const [hour, setHour] = useState(18);
+  const [hour, setHour] = useState(() => Math.min(Math.max(18, dayStart), dayEnd - 1));
   const [dur, setDur] = useState(60);
   const [variant, setVariant] = useState(0);
   const [milestone, setMilestone] = useState(false);
@@ -126,7 +134,7 @@ export function Composer({ members, date, onSave, onClose }) {
         <>
           <Field label="Starts">
             <div className="fb-pills fb-pills-scroll">
-              {Array.from({ length: 17 }, (_, i) => i + 6).map((h) => (
+              {hours.map((h) => (
                 <button
                   key={h}
                   className={`fb-pill${hour === h ? " is-on" : ""}`}

@@ -243,6 +243,162 @@ describe("incremental sync", () => {
   });
 });
 
+describe("incremental sync merges instead of replacing — R12's fix", () => {
+  /*
+    Regression guard for the bug R12 found and fixed while auditing for its
+    own soak-test item: refreshAll() used to do `cache = merged` on every
+    branch, so a sync-token poll that legitimately reported "nothing
+    changed" (`items: []`) replaced the whole cache with an empty list —
+    every previously-known, still-valid event vanished five minutes after
+    the board first loaded.
+  */
+  it("keeps an unchanged event across a poll that reports no changes", async () => {
+    await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true }]);
+    let call = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        call++;
+        if (call === 1) {
+          return respond(200, {
+            ok: true,
+            nextSyncToken: "tok-1",
+            items: [
+              {
+                id: "evt-1",
+                summary: "Unchanged event",
+                start: { dateTime: "2026-09-09T09:00:00.000Z" },
+                end: { dateTime: "2026-09-09T10:00:00.000Z" },
+              },
+            ],
+          });
+        }
+        return respond(200, { ok: true, nextSyncToken: "tok-2", items: [] });
+      }),
+    );
+
+    const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
+    expect((await source.list()).map((e) => e.id)).toEqual(["evt-1"]);
+    expect((await source.list()).map((e) => e.id)).toEqual(["evt-1"]);
+  });
+
+  it("still applies an update reported in a later delta", async () => {
+    await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true }]);
+    let call = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        call++;
+        if (call === 1) {
+          return respond(200, {
+            ok: true,
+            nextSyncToken: "tok-1",
+            items: [
+              {
+                id: "evt-1",
+                summary: "Original title",
+                start: { dateTime: "2026-09-09T09:00:00.000Z" },
+                end: { dateTime: "2026-09-09T10:00:00.000Z" },
+              },
+            ],
+          });
+        }
+        return respond(200, {
+          ok: true,
+          nextSyncToken: "tok-2",
+          items: [
+            {
+              id: "evt-1",
+              summary: "Renamed",
+              start: { dateTime: "2026-09-09T09:00:00.000Z" },
+              end: { dateTime: "2026-09-09T10:00:00.000Z" },
+            },
+          ],
+        });
+      }),
+    );
+
+    const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
+    await source.list();
+    const [event] = await source.list();
+    expect(event.title).toBe("Renamed");
+  });
+
+  it("removes an event a later delta reports cancelled", async () => {
+    await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true }]);
+    let call = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        call++;
+        if (call === 1) {
+          return respond(200, {
+            ok: true,
+            nextSyncToken: "tok-1",
+            items: [
+              {
+                id: "evt-1",
+                summary: "Will be cancelled",
+                start: { dateTime: "2026-09-09T09:00:00.000Z" },
+                end: { dateTime: "2026-09-09T10:00:00.000Z" },
+              },
+            ],
+          });
+        }
+        return respond(200, {
+          ok: true,
+          nextSyncToken: "tok-2",
+          items: [{ id: "evt-1", status: "cancelled" }],
+        });
+      }),
+    );
+
+    const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
+    expect((await source.list()).map((e) => e.id)).toEqual(["evt-1"]);
+    expect((await source.list()).map((e) => e.id)).toEqual([]);
+  });
+
+  it("doesn't let one calendar's empty delta erase another calendar's events", async () => {
+    const CAL_B = "roommate@example.com";
+    await seedSettings([
+      { id: CAL, memberIds: ["brian"], enabled: true },
+      { id: CAL_B, memberIds: ["rachel"], enabled: true },
+    ]);
+    let calls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        calls++;
+        const u = new URL(url);
+        const cal = u.searchParams.get("calendarId");
+        const round = Math.ceil(calls / 2);
+        if (round === 1) {
+          return respond(200, {
+            ok: true,
+            nextSyncToken: `tok-${cal}-1`,
+            items: [
+              {
+                id: `evt-${cal}`,
+                summary: `Event on ${cal}`,
+                start: { dateTime: "2026-09-09T09:00:00.000Z" },
+                end: { dateTime: "2026-09-09T10:00:00.000Z" },
+              },
+            ],
+          });
+        }
+        return respond(200, { ok: true, nextSyncToken: `tok-${cal}-2`, items: [] });
+      }),
+    );
+
+    const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
+    const first = (await source.list()).map((e) => e.id).sort();
+    expect(first).toEqual([`evt-${CAL}`, `evt-${CAL_B}`].sort());
+
+    const second = (await source.list()).map((e) => e.id).sort();
+    expect(second).toEqual([`evt-${CAL}`, `evt-${CAL_B}`].sort());
+  });
+});
+
 describe("degrading on failure", () => {
   it("falls back to the last successful merge within the session", async () => {
     await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true }]);

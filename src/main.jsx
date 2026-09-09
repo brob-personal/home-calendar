@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 // decomposition has landed, so it now points at the composed root. The
 // prototype family-board.jsx is deleted (PLAN.md §R2 item 6).
 import App from "./App.jsx";
+import { ErrorBoundary } from "./components/shell/ErrorBoundary.jsx";
 
 const container = document.getElementById("root");
 
@@ -14,16 +15,20 @@ if (!container) {
 }
 
 // StrictMode is on deliberately, and it is dev-only — it does not ship in the
-// production build and changes nothing visually.
+// production build and changes nothing visually. It used to double-invoke
+// Deferred Defect #1 (`onSave` called inside a `setStrokes` updater in
+// NoteWindow.jsx) on every stroke; that's fixed now, so StrictMode stays on
+// for the ordinary reason — it still catches other double-invocation bugs
+// before they reach the wall.
 //
-// Be aware that it double-invokes effects and state updaters, which means it
-// actively triggers Deferred Defect #1 (`onSave` called inside a `setStrokes`
-// updater — a side effect in a reducer, now at
-// src/components/notes/NoteWindow.jsx). That is the point: the plan already
-// describes that defect in terms of StrictMode and assigns the fix to R12.
-// Leaving StrictMode off would hide it until the board was on the wall.
+// R12 item 4: a render error anywhere in the tree used to take the whole
+// board down to a blank white screen with no recovery short of a reload a
+// human has to notice is needed. ErrorBoundary is the outermost thing that
+// can still render once App itself throws.
 createRoot(container).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 );

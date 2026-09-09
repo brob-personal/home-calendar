@@ -16,17 +16,21 @@ import { Chevron, Cross } from "../shell/icons.jsx";
   every save — the `activeKey` fallback to `todayKey` is what keeps that from
   going out of bounds.
 
-  Two defects are preserved here, both assigned elsewhere:
+  Two defects that were preserved here, both fixed by R12:
 
-    - Deferred Defect #1, R12. `onUp` calls `onSave` from inside a
+    - Deferred Defect #1. `onUp` used to call `onSave` from inside a
       `setStrokes` updater — a side effect in a reducer. Under StrictMode,
       which src/main.jsx enables deliberately in dev, updaters are
-      double-invoked, so every finished stroke saves twice. Production builds
-      are unaffected. The fix is to read the strokes and save outside the
-      updater; R2 may not make it.
-    - Deferred Defect #5, R12. App.jsx passes a `members` prop that this
-      component has never destructured. It is dead on both sides. Left in
-      place so the fix is one deletion at the call site rather than a hunt.
+      double-invoked, so every finished stroke saved twice. Production builds
+      were unaffected either way, but the updater call was also always
+      redundant: `onMove` already lands the in-progress stroke's every point
+      in `strokes` state via its own `setStrokes`, so by the time a pointer
+      goes up, `strokes` already *is* the finished stroke — there is nothing
+      left to compute. `onUp` now just reads the `strokes` closed over from
+      this render and calls `onSave(todayKey, strokes)` directly, no updater
+      involved, so there's no double-fire under StrictMode to begin with.
+    - Deferred Defect #5. App.jsx passed a `members` prop this component
+      never destructured. Dead on both sides; deleted from both.
 
   Drag maths worth understanding before touching it: the window is positioned
   in canvas coordinates, but pointer events arrive in viewport pixels, and
@@ -94,10 +98,7 @@ export function NoteWindow({ notes, todayKey, now, onSave, onClose }) {
     if (!drawing.current) return;
     drawing.current = false;
     current.current = null;
-    setStrokes((s) => {
-      if (editable) onSave(todayKey, s);
-      return s;
-    });
+    if (editable) onSave(todayKey, strokes);
   };
 
   /* Drag the window by its header, clamped to the board. */
@@ -179,10 +180,11 @@ export function NoteWindow({ notes, todayKey, now, onSave, onClose }) {
                 <button
                   key={c}
                   className={`fb-pen${pen === c ? " is-on" : ""}`}
-                  style={{ background: c }}
                   onClick={() => setPen(c)}
                   aria-label="Pen color"
-                />
+                >
+                  <span className="fb-penswatch" style={{ background: c }} />
+                </button>
               ))}
             </div>
             <div className="fb-widths">

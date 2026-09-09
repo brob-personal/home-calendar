@@ -1,10 +1,8 @@
 /*
   Header — 92px.
 
-  .fb-icon at 42px is one of the six selectors on R12's 44pt list (backlog
-  item 1). Left at 42px here: raising it is R12's job. See
-  tap-target-audit.md for the full list against the --tap-min tokens.js
-  publishes.
+  .fb-icon was 42px, one of the six selectors on R12's 44pt list (backlog
+  item 1) — raised to --tap-min. See tap-target-audit.md for the full list.
 */
 export default `
 /* Header — 92px */
@@ -22,7 +20,7 @@ export default `
   background: var(--surface); border-radius: 999px; color: var(--mute);
 }
 .fb-icon {
-  display: grid; place-items: center; width: 42px; height: 42px;
+  display: grid; place-items: center; width: var(--tap-min); height: var(--tap-min);
   border-radius: 11px; color: var(--mute); background: var(--surface);
 }
 `;

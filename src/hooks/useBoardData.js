@@ -47,10 +47,23 @@ import { DEFAULT_MEMBERS, DEFAULT_SETTINGS } from "../contracts/defaults.js";
   second, right after useNow, so the interval effect still registers ahead of
   these.
 
-  One hazard still handed on untouched: `source.list()` has no try/catch, so a
-  401 or a dead network rejects into an unhandled promise. That is Deferred
-  Defect #7, R12's, and it is deliberately still open — what R3 changed is only
-  that the board now has cached events to keep showing while it happens.
+  Deferred Defect #7 is fixed here: `source.list()` is now awaited inside a
+  try/catch, so a rejection — a source less disciplined than R8's, which
+  already degrades internally rather than throwing — can't escape as an
+  unhandled promise and leaves the cached events from `migrate()` on screen
+  instead of blanking the board. `degraded` in the returned bundle covers
+  both paths: R8's google.js sets a non-contract `.degraded` flag on the
+  array it resolves with on a fallback-to-cache; this hook also sets it on an
+  outright rejection, so R12's failure UI has one flag to read regardless of
+  which source is active.
+
+  One gap left for whoever next touches this seam: google.js's `subscribe`
+  broadcasts a plain snapshot array with no `.degraded` flag on it (its
+  `notify()` only ever forwards `[...cache]`), so a poll that fails *after*
+  a successful initial load never surfaces here — only the awaited `list()`
+  call above can set `degraded`. Recovery has the same gap: a background
+  poll that reconnects never clears it either. Extending that is a google.js
+  change, R8's file, not made here.
 */
 export function useBoardData(now) {
   const source = useMemo(() => createSource(), []);
@@ -67,6 +80,7 @@ export function useBoardData(now) {
   const [routines, setRoutines] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [storageErrors, setStorageErrors] = useState([]);
+  const [degraded, setDegraded] = useState(false);
 
   /*
     One entry per (operation, key) pair. A write-through effect that keeps
@@ -128,9 +142,19 @@ export function useBoardData(now) {
       */
       if (board.events.length) setEvents(board.events);
 
-      const list = await source.list();
+      try {
+        const list = await source.list();
+        if (!alive) return;
+        setEvents(list);
+        setDegraded(Boolean(list.degraded));
+      } catch (err) {
+        if (!alive) return;
+        console.error(`[board] source.list() failed: ${err.message}`);
+        // Cached events from migrate() above are left in place — a stale
+        // board beats a blank one.
+        setDegraded(true);
+      }
       if (!alive) return;
-      setEvents(list);
       setLoaded(true);
     })();
     return () => {
@@ -310,6 +334,7 @@ export function useBoardData(now) {
     */
     storageErrors,
     storageError: storageErrors[0] ?? null,
+    degraded,
   };
 }
 

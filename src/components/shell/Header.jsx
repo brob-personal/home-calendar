@@ -19,8 +19,14 @@ import { WeatherWidget } from "../weather/WeatherWidget.jsx";
   R6 landed here: <WeatherWidget> is one line, self-contained, and renders
   nothing until settings.weather has a location — see
   ../weather/WeatherWidget.jsx.
+
+  R12 item 4: `degraded` is one boolean covering both of useBoardData's
+  failure signals — a source that fell back to cached events, or a storage
+  write that failed — so the board says so quietly instead of pretending
+  everything is fine. Reuses `.fb-chip`, the same pill "Back to today"
+  already uses, rather than introducing a second visual language for status.
 */
-export function Header({ now, anchor, events, onToday, onSettings }) {
+export function Header({ now, anchor, events, degraded, onToday, onSettings }) {
   const isToday = sameDay(anchor, now);
   const todayCount = events.filter((e) => !e.allDay && sameDay(e.start, now)).length;
 
@@ -41,6 +47,11 @@ export function Header({ now, anchor, events, onToday, onSettings }) {
       <div className="fb-headright">
         <WeatherWidget now={now} />
         <div className="fb-clock">{fmtClock(now)}</div>
+        {degraded && (
+          <span className="fb-chip" title="Showing the last saved events and settings">
+            Offline
+          </span>
+        )}
         {!isToday && (
           <button className="fb-chip" onClick={onToday}>
             Back to today

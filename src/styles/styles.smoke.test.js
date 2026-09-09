@@ -59,6 +59,19 @@ describe("board stylesheet", () => {
     expect(BOARD_CSS).toContain("--tap-min: 44px");
   });
 
+  it("raises every selector on R12's 44pt audit to --tap-min", () => {
+    // tap-target-audit.md's six gaps: .fb-pen, .fb-width, .fb-notenav /
+    // .fb-noteclose, .fb-shade, .fb-icon. Each now reaches --tap-min in the
+    // dimension(s) that were short.
+    expect(notes).toContain(".fb-pen { display: grid; place-items: center; width: var(--tap-min); height: var(--tap-min);");
+    expect(notes).toContain(".fb-width { display: grid; place-items: center; width: var(--tap-min); height: var(--tap-min);");
+    expect(notes).toContain(".fb-notenav, .fb-noteclose {");
+    expect(notes).toMatch(/\.fb-notenav, \.fb-noteclose \{\s*display: grid; place-items: center; width: var\(--tap-min\); height: var\(--tap-min\);/);
+    expect(sheet).toContain(".fb-shade { width: 48px; height: var(--tap-min);");
+    expect(header).toContain(".fb-icon {");
+    expect(header).toMatch(/\.fb-icon \{\s*display: grid; place-items: center; width: var\(--tap-min\); height: var\(--tap-min\);/);
+  });
+
   it("keeps EventDetailSheet's danger colours as their own tokens, not aliases of --now", () => {
     expect(BOARD_CSS).toContain("--danger-bg:");
     expect(BOARD_CSS).toContain("--danger-ink:");

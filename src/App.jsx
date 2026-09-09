@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect } from "react";
 
-import { startOfDay, daysUntil } from "./lib/date.js";
+import { startOfDay, daysUntil, stepAnchor } from "./lib/date.js";
 import { ACCENT_NOW, MONTH_ART } from "./lib/theme.js";
 
 import { useNow } from "./hooks/useNow.js";
 import { useBoardData } from "./hooks/useBoardData.js";
 import { useMemberFilter } from "./hooks/useMemberFilter.js";
 import { useSleep } from "./hooks/useSleep.js";
+import { useSwipePage } from "./hooks/useSwipePage.js";
 import { useDrivePhotos } from "./data/drive.js";
 import { PaletteContext, useBoardPalette } from "./state/PaletteContext.js";
 import { BoardContext } from "./state/BoardContext.js";
@@ -122,6 +123,14 @@ export default function App() {
   const { dimmed, showSaver, wake } = useSleep(now, settings, Boolean(panel) || noteOpen);
 
   /*
+    R12 item 2: pointer-event swipe paging, gated to day/week per the spec.
+    `stepAnchor` is the same pure step Footer's chevrons call, so swiping and
+    tapping a chevron always land on the same next anchor.
+  */
+  const swipe = useSwipePage((dir) => setAnchor(stepAnchor(view, anchor, dir)));
+  const swipeHandlers = view === "day" || view === "week" ? swipe : {};
+
+  /*
     R9, disclosed per PLAN.md §5 rule 3: one line reaching outside its own
     owned paths (src/data/drive.js, api/drive/**, Settings.jsx), the same
     exception R6 recorded for wiring WeatherWidget into Header.jsx. App.jsx
@@ -134,6 +143,17 @@ export default function App() {
   useDrivePhotos(settings, data.setSettings);
 
   const monthArt = MONTH_ART[now.getMonth()];
+
+  /*
+    R12 item 4 / Deferred Defect #14: nothing used to distinguish "still
+    loading" from "loaded and legitimately empty," so a cold board with no
+    cache painted every view's own empty state — "Nothing scheduled",
+    "Everyone is hidden" — during ordinary startup. `loaded` already existed
+    but was read only by the persistence effects. Cached events from
+    migrate() (R3) mean this only shows on a genuinely first-ever run, or
+    after clearing storage; a warm reload has events before `loaded` flips.
+  */
+  const showLoading = !data.loaded && data.events.length === 0;
 
   const milestones = useMemo(
     () =>
@@ -174,146 +194,160 @@ export default function App() {
           src/state/ModeContext.js for why.
         */}
         <ModeContext.Provider value={modeState}>
-        <PaletteContext.Provider value={paletteBundle}>
-          <div className="fb-root" style={cssVars}>
-            {settings.monthArt && (
-              <div
-                className="fb-art"
-                style={{ backgroundImage: monthArt.art }}
-                aria-hidden="true"
+          <PaletteContext.Provider value={paletteBundle}>
+            <div className="fb-root" style={cssVars}>
+              {settings.monthArt && (
+                <div
+                  className="fb-art"
+                  style={{ backgroundImage: monthArt.art }}
+                  aria-hidden="true"
+                />
+              )}
+
+              <div className="fb-board">
+                <Header
+                  now={now}
+                  anchor={anchor}
+                  events={filtered}
+                  degraded={data.degraded || Boolean(data.storageError)}
+                  onToday={() => setAnchor(startOfDay(new Date()))}
+                  onSettings={() => setPanel("settings")}
+                />
+
+                {milestones.length > 0 && <Countdowns items={milestones} now={now} />}
+
+                <main className="fb-stage" {...swipeHandlers}>
+                  {showLoading ? (
+                    <div className="fb-empty">Loading your board…</div>
+                  ) : (
+                    <>
+                      {view === "day" && (
+                        <DayView
+                          date={anchor}
+                          now={now}
+                          events={filtered}
+                          members={shownMembers}
+                          settings={settings}
+                          onSelect={setSelectedEvent}
+                        />
+                      )}
+                      {view === "week" && (
+                        <WeekView
+                          date={anchor}
+                          now={now}
+                          events={filtered}
+                          settings={settings}
+                          onSelect={setSelectedEvent}
+                        />
+                      )}
+                      {view === "month" && (
+                        <MonthView
+                          date={anchor}
+                          now={now}
+                          events={filtered}
+                          onPick={(d) => {
+                            setAnchor(d);
+                            setView("day");
+                          }}
+                          onSelect={setSelectedEvent}
+                        />
+                      )}
+                      {/* Deferred Defect #2, fixed: `shownMembers`, matching DayView,
+                    so a filtered-out person's avatar doesn't reappear here. */}
+                      {view === "agenda" && (
+                        <AgendaView
+                          date={anchor}
+                          now={now}
+                          events={filtered}
+                          members={shownMembers}
+                          onSelect={setSelectedEvent}
+                        />
+                      )}
+                      {/* R11's chores tab. No props: it reads members/tasks/routines
+                          off BoardContext and roster/mode off ModeContext, neither
+                          reachable more directly from here than a context read. */}
+                      {view === "todo" && isRoommate && <ChoresView />}
+                    </>
+                  )}
+                </main>
+
+                <Footer
+                  view={view}
+                  setView={setView}
+                  views={views}
+                  anchor={anchor}
+                  setAnchor={setAnchor}
+                  members={roster}
+                  isShown={isShown}
+                  onToggleMember={toggleMember}
+                  showReset={filterTouched}
+                  onReset={resetFilter}
+                  onCompose={() => setPanel("compose")}
+                />
+              </div>
+
+              <NoteDock
+                note={data.todayNote}
+                onOpen={() => setNoteOpen(true)}
+                hidden={noteOpen || Boolean(panel)}
               />
-            )}
 
-            <div className="fb-board">
-              <Header
-                now={now}
-                anchor={anchor}
-                events={filtered}
-                onToday={() => setAnchor(startOfDay(new Date()))}
-                onSettings={() => setPanel("settings")}
-              />
+              {/* Deferred Defect #5, fixed: the dead `members` prop is gone. */}
+              {noteOpen && (
+                <NoteWindow
+                  notes={data.notes}
+                  todayKey={data.todayKey}
+                  now={now}
+                  onSave={data.saveStrokes}
+                  onClose={() => setNoteOpen(false)}
+                />
+              )}
 
-              {milestones.length > 0 && <Countdowns items={milestones} now={now} />}
+              {panel === "compose" && (
+                <Composer
+                  members={roster}
+                  date={anchor}
+                  settings={settings}
+                  onSave={addEvent}
+                  onClose={() => setPanel(null)}
+                />
+              )}
+              {selectedEvent && (
+                <EventDetailSheet
+                  event={selectedEvent}
+                  members={roster}
+                  settings={settings}
+                  onSave={(patch) =>
+                    data.updateEvent(selectedEvent.id, patch).then(() => setSelectedEvent(null))
+                  }
+                  onDelete={() =>
+                    data.deleteEvent(selectedEvent.id).then(() => setSelectedEvent(null))
+                  }
+                  onClose={() => setSelectedEvent(null)}
+                />
+              )}
+              {panel === "settings" && (
+                <Settings
+                  settings={settings}
+                  setSettings={data.setSettings}
+                  members={members}
+                  setMembers={data.setMembers}
+                  onClose={() => setPanel(null)}
+                />
+              )}
 
-              <main className="fb-stage">
-                {view === "day" && (
-                  <DayView
-                    date={anchor}
-                    now={now}
-                    events={filtered}
-                    members={shownMembers}
-                    settings={settings}
-                    onSelect={setSelectedEvent}
-                  />
-                )}
-                {view === "week" && (
-                  <WeekView
-                    date={anchor}
-                    now={now}
-                    events={filtered}
-                    settings={settings}
-                    onSelect={setSelectedEvent}
-                  />
-                )}
-                {view === "month" && (
-                  <MonthView
-                    date={anchor}
-                    now={now}
-                    events={filtered}
-                    onPick={(d) => {
-                      setAnchor(d);
-                      setView("day");
-                    }}
-                    onSelect={setSelectedEvent}
-                  />
-                )}
-                {/* `roster`, not `shownMembers` — Deferred Defect #2, R12's to fix. */}
-                {view === "agenda" && (
-                  <AgendaView
-                    date={anchor}
-                    now={now}
-                    events={filtered}
-                    members={roster}
-                    onSelect={setSelectedEvent}
-                  />
-                )}
-                {/* R11's chores tab. No props: it reads members/tasks/routines
-                    off BoardContext and roster/mode off ModeContext, neither
-                    reachable more directly from here than a context read. */}
-                {view === "todo" && isRoommate && <ChoresView />}
-              </main>
-
-              <Footer
-                view={view}
-                setView={setView}
-                views={views}
-                anchor={anchor}
-                setAnchor={setAnchor}
-                members={roster}
-                isShown={isShown}
-                onToggleMember={toggleMember}
-                showReset={filterTouched}
-                onReset={resetFilter}
-                onCompose={() => setPanel("compose")}
-              />
+              {showSaver && (
+                <Screensaver now={now} art={monthArt} photos={settings.photos} events={filtered} />
+              )}
+              {dimmed && (
+                <SleepVeil
+                  now={now}
+                  opacity={settings.sleepStyle === "black" ? 0 : settings.sleepDim}
+                  onWake={wake}
+                />
+              )}
             </div>
-
-            <NoteDock
-              note={data.todayNote}
-              onOpen={() => setNoteOpen(true)}
-              hidden={noteOpen || Boolean(panel)}
-            />
-
-            {/* `members` is dead on arrival here — Deferred Defect #5, R12's. */}
-            {noteOpen && (
-              <NoteWindow
-                notes={data.notes}
-                todayKey={data.todayKey}
-                now={now}
-                members={members}
-                onSave={data.saveStrokes}
-                onClose={() => setNoteOpen(false)}
-              />
-            )}
-
-            {panel === "compose" && (
-              <Composer
-                members={roster}
-                date={anchor}
-                onSave={addEvent}
-                onClose={() => setPanel(null)}
-              />
-            )}
-            {selectedEvent && (
-              <EventDetailSheet
-                event={selectedEvent}
-                members={roster}
-                settings={settings}
-                onSave={(patch) =>
-                  data.updateEvent(selectedEvent.id, patch).then(() => setSelectedEvent(null))
-                }
-                onDelete={() =>
-                  data.deleteEvent(selectedEvent.id).then(() => setSelectedEvent(null))
-                }
-                onClose={() => setSelectedEvent(null)}
-              />
-            )}
-            {panel === "settings" && (
-              <Settings
-                settings={settings}
-                setSettings={data.setSettings}
-                members={members}
-                setMembers={data.setMembers}
-                onClose={() => setPanel(null)}
-              />
-            )}
-
-            {showSaver && (
-              <Screensaver now={now} art={monthArt} photos={settings.photos} events={filtered} />
-            )}
-            {dimmed && <SleepVeil now={now} opacity={settings.sleepDim} onWake={wake} />}
-          </div>
-        </PaletteContext.Provider>
+          </PaletteContext.Provider>
         </ModeContext.Provider>
       </BoardContext.Provider>
     </Fit>

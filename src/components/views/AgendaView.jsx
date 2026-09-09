@@ -8,14 +8,11 @@ import { usePalette } from "../../state/PaletteContext.js";
   One change, per PLAN.md §R2 item 5: `fill` was a prop and is now read from
   PaletteContext.
 
-  `members` is still a prop, and it is still the *unfiltered* roster. That is
-  Deferred Defect #2, assigned to R12: DayView is handed `shownMembers` while
-  this view is handed `members`, so filtering a person out removes their
-  events from the list — `events` is already filtered upstream — but `who()`
-  will still happily render an avatar for a hidden person on a shared event.
-  Fixing it is a one-word change at the call site in App.jsx and R2 may not
-  make it. Kept as a prop rather than pulled from context so the leak stays
-  visible at that call site instead of disappearing into a provider.
+  `members` is still a prop, kept rather than pulled from context so its
+  source stays visible at the call site instead of disappearing into a
+  provider. Deferred Defect #2 is fixed: App.jsx now passes `shownMembers`,
+  matching DayView, so filtering a person out also stops `who()` from
+  rendering their avatar on a shared event.
 
   The grouping loop below relies on `upcoming` being sorted, which it is: the
   sort happens two lines earlier. It compares each event against only the last

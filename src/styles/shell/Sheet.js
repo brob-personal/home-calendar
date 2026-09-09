@@ -2,8 +2,13 @@
   Sheets and every form control inside them — the shared vocabulary for the
   composer and the settings panel.
 
-  .fb-shade at 40x28 is the last of the six selectors on R12's 44pt list;
-  see tap-target-audit.md.
+  .fb-shade was 40x28, the last of the six selectors on R12's 44pt list; see
+  tap-target-audit.md. Raised to 48x44 — kept rectangular rather than
+  squared off to --tap-min on both axes, so it still reads as a distinct
+  shape from the circular avatar/pen swatches. `.fb-ramp`'s flex-wrap
+  absorbs the extra width; nothing needed to change at the sheet level.
+  `.fb-ramp-sm .fb-shade` is untouched — that variant renders as a `<span>`
+  in Settings.jsx, not a `<button>`, so it was never a tap target.
 
   .fb-scrim is the click-to-close backdrop. Sheet closes on scrim click
   only, with no focus trap and no Escape handling — R12's backlog item 6.
@@ -58,7 +63,7 @@ export default `
 }
 .fb-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
 .fb-ramp { display: flex; gap: 6px; flex-wrap: wrap; }
-.fb-shade { width: 40px; height: 28px; border-radius: 7px; display: block; }
+.fb-shade { width: 48px; height: var(--tap-min); border-radius: 8px; display: block; }
 .fb-ramp-sm .fb-shade { width: 22px; height: 16px; border-radius: 4px; }
 button.fb-shade { border: 2px solid transparent; }
 button.fb-shade.is-on { border-color: var(--ink); }
