@@ -2,24 +2,24 @@
   Sheets and every form control inside them — the shared vocabulary for the
   composer and the settings panel.
 
-  `.fb-shade` at 40x28 is the last of the six selectors on R12's 44pt list.
+  .fb-shade at 40x28 is the last of the six selectors on R12's 44pt list;
+  see tap-target-audit.md.
 
-  `.fb-scrim` is the click-to-close backdrop, and Deferred Defect (R7/R12
-  territory) applies: Sheet closes on scrim click only, with no focus trap and
-  no Escape handling. R12's backlog item 6 owns that.
+  .fb-scrim is the click-to-close backdrop. Sheet closes on scrim click
+  only, with no focus trap and no Escape handling — R12's backlog item 6.
 */
 export default `
 /* Sheets */
 .fb-scrim {
   position: absolute; inset: 0; z-index: 40;
-  background: rgba(28,32,40,.32); backdrop-filter: blur(3px);
+  background: var(--scrim); backdrop-filter: blur(3px);
   display: grid; place-items: center; padding: 26px;
 }
 .fb-sheet {
   width: 560px; max-height: 100%;
   background: var(--paper); border-radius: 18px;
   display: flex; flex-direction: column; overflow: hidden;
-  box-shadow: 0 20px 60px rgba(24,28,36,.24);
+  box-shadow: 0 20px 60px var(--shadow-sheet);
 }
 .fb-sheet.is-wide { width: 900px; }
 .fb-sheethead {
@@ -30,7 +30,7 @@ export default `
 .fb-sheetbody { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
 .fb-sheetfoot { display: flex; justify-content: flex-end; gap: 10px; padding-top: 2px; }
 
-.fb-preview { border-radius: 10px; padding: 16px 18px; font-size: 17px; font-weight: 700; color: #24262B; }
+.fb-preview { border-radius: 10px; padding: 16px 18px; font-size: 17px; font-weight: 700; color: var(--ink-on-color); }
 .fb-field { display: flex; flex-direction: column; gap: 9px; }
 .fb-fieldlabel { font-size: 12px; font-weight: 700; color: var(--mute); }
 .fb-input {
@@ -71,8 +71,8 @@ button.fb-shade.is-on { border-color: var(--ink); }
 /* R7: EventDetailSheet's delete path. Trigger stays a quiet ghost button so
    opening the sheet doesn't read as an ultimatum; the confirm step is the one
    filled in danger red. */
-.fb-textdanger { color: #C43A33; }
-.fb-danger { background: #E0574F; color: #fff; }
+.fb-textdanger { color: var(--danger-ink); }
+.fb-danger { background: var(--danger-bg); color: var(--ink-on-dark); }
 .fb-deleteprompt { margin-right: auto; color: var(--ink); font-weight: 600; }
 .fb-check { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
 .fb-check-sm { font-size: 13px; color: var(--mute); }

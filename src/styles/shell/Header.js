@@ -1,9 +1,10 @@
 /*
   Header — 92px.
 
-  `.fb-icon` at 42px is one of the six selectors on R12's 44pt list (backlog
-  item 1). Left at 42px here: raising it is R12's job, and R5 owes it the
-  audit plus a published --tap-min.
+  .fb-icon at 42px is one of the six selectors on R12's 44pt list (backlog
+  item 1). Left at 42px here: raising it is R12's job. See
+  tap-target-audit.md for the full list against the --tap-min tokens.js
+  publishes.
 */
 export default `
 /* Header — 92px */

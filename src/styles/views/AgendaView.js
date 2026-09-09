@@ -1,10 +1,9 @@
 /*
-  Agenda, plus `.fb-empty`.
+  Agenda, plus .fb-empty.
 
-  `.fb-empty` is shared: Agenda uses it for "nothing scheduled from here on",
+  .fb-empty is shared: Agenda uses it for "nothing scheduled from here on",
   and Day uses it for the everyone-is-hidden state. It stays in this chunk
-  because that is where the prototype declared it, and cascade order is what
-  makes this split provably identical to the string it came from.
+  because that is where the prototype declared it.
 */
 export default `
 /* Agenda */

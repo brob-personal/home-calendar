@@ -568,3 +568,30 @@ made silently:
 No other role's owned files were touched. `src/styles/sheet.js` gained three small
 shared classes (`.fb-danger`, `.fb-textdanger`, `.fb-deleteprompt`) for the new sheet's
 delete control — additive, no existing rule changed.
+
+**R5 note on reconciling with R7.** R5's design-system pass and R7's DayView rebuild
+were both branched off R2's baseline and landed back to back, conflicting in three
+files. Resolved keeping both roles' work, not diminishing either:
+
+- `src/styles/*.js` moved into `shell/`, `views/`, `notes/`, `idle/` (mirroring §2's
+  component tree) in the same commit every literal became a `tokens.js` custom
+  property. Any note above naming a flat path like `src/styles/day.js` or
+  `src/styles/sheet.js` now means `src/styles/views/DayView.js` /
+  `src/styles/shell/Sheet.js` respectively — content, not intent, moved.
+- R7's DayView rotation is kept exactly as landed; R5 only replaced its one
+  remaining literal (`.fb-dblock`'s `#24262B`) with the same `--ink-on-color`
+  token every other event block already reads. R7's rewrite eliminated `.fb-lane`/
+  `.fb-lanename`/`.fb-axis`/`.fb-tick` and the lane-name column they measured, which
+  retires R5's `--lane-name-w`/`--lane-gap`/`--axis-margin` derivation along with
+  them — there is no rule left to derive a margin for. `--dock-bottom` (the other
+  half of R5's magic-number item) is untouched and still load-bearing.
+- R7's three additive `.fb-danger`/`.fb-textdanger`/`.fb-deleteprompt` classes in
+  the sheet stylesheet are tokenized (`--danger-bg`, `--danger-ink`) rather than
+  aliased to `--now`, even though they share a hex today — `--now` stays reserved
+  for the now-line alone, per its own contract.
+- Both roles independently retired `styles.contract.test.js`'s byte-identical
+  assertion in favour of the same four structural checks (R7's note above explains
+  why). R5's replacement, `styles.smoke.test.js`, is kept as the single test file:
+  it's a strict superset, adding token-contract coverage on top of R7's four checks.
+  `src/test/fixtures/prototype-css.txt` and `scripts/extract-prototype-css.mjs` are
+  now unused by any test; left in place as R0/R13's call, not deleted mid-merge.

@@ -1,7 +1,7 @@
 /*
   Week.
 
-  `.fb-gutter` at 56px is the hour column R7's backlog item 2 wants Day to
+  .fb-gutter at 56px is the hour column R7's backlog item 2 wants Day to
   reuse, so that Day and Week read as one system. If that becomes a shared
   TimeGutter component, this rule is the one that moves — coordinate through
   R0, because extracting it means touching WeekView.
@@ -41,7 +41,7 @@ export default `
 .fb-wblock {
   position: absolute; left: 2px; right: 2px; z-index: 2;
   border-radius: 6px; padding: 3px 6px; overflow: hidden;
-  display: flex; flex-direction: column; color: #24262B;
+  display: flex; flex-direction: column; color: var(--ink-on-color);
 }
 .fb-wbtitle {
   font-size: 12px; font-weight: 700; letter-spacing: -.012em; line-height: 1.15;

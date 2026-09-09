@@ -1,13 +1,23 @@
 /*
-  Day — rebuilt by R7 (PLAN.md §R7 item 1). The old rules laid out a
-  horizontal transpose: `.fb-lane` was a row, `.fb-lanetrack` ran left-to-right,
-  `.fb-axis` sat underneath as a strip. These replace that with the same
-  vertical grid WeekView uses — `.fb-hourline`, `.fb-nowrow`/`.fb-nowdot`,
-  `.fb-gutter`/`.fb-hours`/`.fb-hour` are all declared once, in week.js, and
-  reused here unchanged so Day and Week read as one system (item 2). Only the
-  column head (`.fb-dhead`, people instead of days) and the block/track rules
-  below (`.fb-dcol`, `.fb-dblock` — member-tinted, not shared-fill) are Day's
-  own.
+  Day — rebuilt by R7 (PLAN.md §R7 item 1), reconciled with R5's token pass
+  when the two branches landed back to back.
+
+  R7 rotated the view to spec: `.fb-lane`/`.fb-lanetrack`/`.fb-axis` (a row
+  per person, time left-to-right, an hour strip underneath) are gone,
+  replaced by the same vertical grid WeekView uses — `.fb-gutter`/`.fb-hours`/
+  `.fb-hour` via the shared `<TimeGutter>`, plus `.fb-hourline` and
+  `.fb-nowrow`/`.fb-nowdot`, all still declared once in week.js and reused
+  here unchanged (item 2). Only the column head (`.fb-dayhead`/`.fb-dhead`/
+  `.fb-dname`, people instead of days) and the block/track rules below
+  (`.fb-daybody`/`.fb-daygrid`/`.fb-dcol`, `.fb-dblock` — member-tinted, not
+  shared-fill) are Day's own.
+
+  That rewrite retired R5's magic-number derivation for this file: `.fb-axis`
+  no longer exists, so tokens.js no longer carries --lane-name-w/--lane-gap/
+  --axis-margin — there is nothing left to keep in sync. R5's other
+  contribution survives: `.fb-dblock`'s text colour reads var(--ink-on-color)
+  rather than the #24262B literal R7's version hardcoded, same as every
+  other event block across Day/Week/Month.
 */
 export default `
 /* Day */
@@ -35,7 +45,7 @@ export default `
   position: absolute; left: 6px; right: 6px; z-index: 2;
   border-radius: 8px; padding: 5px 11px;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
-  color: #24262B; overflow: hidden; text-align: left;
+  color: var(--ink-on-color); overflow: hidden; text-align: left;
 }
 .fb-blocktitle {
   font-size: 14px; font-weight: 700; letter-spacing: -.015em;

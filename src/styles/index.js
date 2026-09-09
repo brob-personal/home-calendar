@@ -1,64 +1,49 @@
-import fit from "./fit.js";
-import root from "./root.js";
-import header from "./header.js";
-import countdowns from "./countdowns.js";
-import day from "./day.js";
-import week from "./week.js";
-import month from "./month.js";
-import agenda from "./agenda.js";
-import footer from "./footer.js";
-import avatar from "./avatar.js";
-import notes from "./notes.js";
-import sheet from "./sheet.js";
-import sleep from "./sleep.js";
-import screensaver from "./screensaver.js";
+import fit from "./shell/Fit.js";
+import tokens from "./tokens.js";
+import root from "./shell/Root.js";
+import header from "./shell/Header.js";
+import countdowns from "./shell/Countdowns.js";
+import day from "./views/DayView.js";
+import week from "./views/WeekView.js";
+import month from "./views/MonthView.js";
+import agenda from "./views/AgendaView.js";
+import footer from "./shell/Footer.js";
+import avatar from "./shell/Avatar.js";
+import notes from "./notes/Notes.js";
+import sheet from "./shell/Sheet.js";
+import sleep from "./idle/SleepVeil.js";
+import screensaver from "./idle/Screensaver.js";
 import motion from "./motion.js";
 
 /*
-  PLAN.md §R2 item 4: split the 378-line CSS string
-  (family-board.jsx:1729-2106) into per-component stylesheets.
+  R5: reorganizes R2's fifteen JS template-literal chunks to mirror the
+  component tree in PLAN.md §2 (shell/, views/, notes/, idle/) plus
+  tokens.js and motion.js, which don't belong to a single component, and
+  replaces every hardcoded colour/shadow/layout literal with a var()
+  pointing at tokens.js.
 
-  Order is the contract. CSS cascades, so concatenating these fifteen chunks
-  in this sequence — the sequence the prototype declared them in — is what
-  makes the split provably behaviour-neutral. `styles.contract.test.js`
-  asserts the join is byte-identical to the original string, so a reviewer
-  does not have to take that on faith, and R5 inherits a regression guard
-  rather than a promise.
+  Stays JS templates, not real .css files loaded with Vite's `?raw`: R5
+  tried that conversion first and confirmed vitest.config.js's `css: false`
+  (R1-owned) stubs *any* .css import, `?raw` suffix or not, to an empty
+  string under test — the same wall R2's original comment here warned
+  about before deciding against real .css files. Rather than touch a file
+  R1 owns to work around it, R5 kept the mechanism and moved the value.
 
-  Two positions are load-bearing beyond mere cascade:
+  Order is still the contract, for two reasons:
     - `fit` must lead, because its Google Fonts @import must precede every
-      rule in the sheet or the browser drops it.
+      rule in the sheet or the browser drops it. tokens.js's custom
+      properties resolve at used-value time, not parse order, so having
+      Fit's rules reference tokens defined later in the same sheet is safe.
     - `motion` must trail, because prefers-reduced-motion overrides
       transition and animation durations declared above it.
 
-  Why strings and not .css files. Three reasons, all of which R5 should weigh
-  before converting:
-    1. Cascade order stays explicit here. With fifteen `import "./x.css"`
-       statements the order becomes a property of the module graph, which is
-       exactly the kind of invisible coupling this refactor is meant to
-       remove.
-    2. `vitest.config.js` sets `css: false`, so Vite stubs CSS imports under
-       test. R1's smoke test asserts the sheet contains "1080px" and "810px";
-       real .css files would make that assertion unverifiable in jsdom.
-    3. fit.js interpolates CANVAS_W / CANVAS_H from src/lib/canvas.js instead
-       of restating 1080 and 810 — the duplication R5's item 3 is about.
+  `styles.contract.test.js` used to assert this join was byte-identical to
+  family-board.jsx's original CSS string — R2's regression guard for a
+  mechanical split that changed no values. That guard stops being
+  meaningful once literals are replaced by tokens, so it's deleted in the
+  same commit as this file; `styles.smoke.test.js` replaces it with the
+  invariants that still apply.
 */
-const chunks = [
-  fit,
-  root,
-  header,
-  countdowns,
-  day,
-  week,
-  month,
-  agenda,
-  footer,
-  avatar,
-  notes,
-  sheet,
-  sleep,
-  screensaver,
-  motion,
-];
+const chunks = [fit, tokens, root, header, countdowns, day, week, month, agenda, footer, avatar, notes, sheet, sleep, screensaver, motion];
 
 export const BOARD_CSS = chunks.join("");
