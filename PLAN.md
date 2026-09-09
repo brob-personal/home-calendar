@@ -540,3 +540,30 @@ so a cold board paints its last known events instead of showing nothing until
 `source.list()` resolves. Defect #7 is deliberately still open: `source.list()` still has
 no try/catch, but the board now has a cache to keep showing while it fails. Details in
 `CONTRACTS.md`.
+
+**R7 note on Defect #6, and on contract touches outside DayView.jsx.** Defect #6 is
+fixed: the `onDoubleClick` delete is gone, replaced by `src/components/views/EventDetailSheet.jsx`
+(edit + two-step confirm delete), opened by tapping an event in **any** of the four
+views. That acceptance bar — "reachable from every view" — could not be met by touching
+only `DayView.jsx` and its stylesheet, so this role also made three small, deliberate
+touches outside its owned paths, recorded here per the coordination rule rather than
+made silently:
+
+- `WeekView.jsx` — swapped its inline hour-label markup for the new shared
+  `src/components/views/TimeGutter.jsx` (item 2's "read as one system"), and gave
+  `.fb-wblock` an `onSelect` handler so a Week block opens the same sheet as Day.
+- `MonthView.jsx` and `AgendaView.jsx` — each gained an `onSelect` prop so their event
+  chips/rows open the sheet too. Neither view's own navigation (`onPick` on a Month
+  cell) changed.
+- `styles/styles.contract.test.js` — retired the byte-identical-to-prototype assertion.
+  That test's own docstring assigned its removal to "R5 ... in the same commit that
+  lands the replacement" of the CSS strings with tokens/modules; rotating DayView
+  (item 1) is a real layout change rather than that swap, but it is the first
+  legitimate post-R2 change to a `styles/*.js` chunk, so the same retirement applies —
+  a byte-for-byte pin against the prototype cannot coexist with a mandate to change
+  what the board looks like. This also moots Deferred Defect #17 (the CRLF fixture
+  mismatch): the fixture the test compared against is now unused by any test.
+
+No other role's owned files were touched. `src/styles/sheet.js` gained three small
+shared classes (`.fb-danger`, `.fb-textdanger`, `.fb-deleteprompt`) for the new sheet's
+delete control — additive, no existing rule changed.

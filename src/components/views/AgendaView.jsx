@@ -19,9 +19,14 @@ import { usePalette } from "../../state/PaletteContext.js";
 
   The grouping loop below relies on `upcoming` being sorted, which it is: the
   sort happens two lines earlier. It compares each event against only the last
-  group, so an unsorted list would silently produce duplicate day headers.
+  group, so an unsorted list would silently produce duplicate group headers.
+
+  `onSelect` is R7's addition (PLAN.md §R7 item 5): each row is now a button
+  that opens the EventDetailSheet. Its children were already plain spans, so
+  turning the row itself into a button introduces no nested-interactive-element
+  problem.
 */
-export function AgendaView({ date, now, events, members }) {
+export function AgendaView({ date, now, events, members, onSelect }) {
   const { fillFor } = usePalette();
 
   const from = startOfDay(date);
@@ -58,7 +63,7 @@ export function AgendaView({ date, now, events, members }) {
           </div>
           <div className="fb-alist">
             {g.items.map((e) => (
-              <div className="fb-arow" key={e.id}>
+              <button className="fb-arow" key={e.id} onClick={() => onSelect(e)}>
                 <span className="fb-abar" style={{ background: fillFor(e) }} />
                 <span className="fb-atime">{e.allDay ? "All day" : fmtTime(e.start)}</span>
                 <span className="fb-atitle">{e.title}</span>
@@ -68,7 +73,7 @@ export function AgendaView({ date, now, events, members }) {
                     <Avatar key={m.id} member={m} size={26} />
                   ))}
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
