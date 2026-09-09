@@ -1,0 +1,55 @@
+# dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# build output
+dist/
+dist-ssr/
+build/
+*.local
+
+# environment — never commit real secrets (see .env.example for the shape)
+.env
+.env.*
+!.env.example
+
+# test + tooling caches
+coverage/
+.vitest/
+.eslintcache
+.cache/
+*.tsbuildinfo
+
+# hosting providers
+.vercel/
+.netlify/
+.fly/
+
+# logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# OS cruft
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini

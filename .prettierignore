@@ -1,0 +1,16 @@
+# The prototype is off limits to R1 and must stay byte-identical until R2
+# decomposes it. `npm run format` would otherwise rewrite all 2,106 lines and
+# make R2's "every moved line is the same line" review impossible.
+family-board.jsx
+
+# generated / vendored
+node_modules/
+dist/
+coverage/
+.vercel/
+package-lock.json
+
+# R0's and R14's prose — reflowing these churns the diff for no gain
+PLAN.md
+SCOPING.txt
+README

@@ -494,3 +494,9 @@ Roles append here when they find something outside their mandate. R0 assigns.
 | 8 | Survey | `:583` | `<style>` re-injected on every render | R2 |
 | 9 | Survey | `:936-937` | `MonthView`'s `cut` logic is subtle and uncommented | R13 (test it) |
 | 10 | Survey | `:1730` | Google Fonts `@import` is a runtime network dependency — a cold board with no network loses its typeface | R14 |
+| 11 | R1 | `:1733` | `.fb-fit { height: 100vh }`. On iOS Safari outside standalone mode `100vh` counts browser chrome, so the scaled canvas is taller than the visible viewport and the footer view-switcher is clipped — the one control needed to change views. Correct in Guided Access / home-screen install, broken in plain Safari. Fix is `100dvh` with a `100vh` fallback | R5 (owns styles), verify R12 |
+
+**R1 note on Defect #1.** `src/main.jsx` mounts the board inside `React.StrictMode`, so
+that defect is now live in dev: note strokes save twice. Kept on deliberately — the
+alternative is hiding it until the board is on the wall. Production builds are
+unaffected. One-line toggle in `src/main.jsx` if it obstructs R2.

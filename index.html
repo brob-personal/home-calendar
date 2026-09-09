@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!--
+      Viewport for a pinned, full-screen iPad web app.
+
+      The board is a fixed 1080x810 landscape canvas that <Fit> scales to the
+      viewport, so the page itself must never zoom, never scroll and never
+      rubber-band. maximum-scale + user-scalable=no kill pinch and double-tap
+      zoom; viewport-fit=cover lets the canvas run under the status bar in
+      standalone mode.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+
+    <!-- Home-screen install: run chromeless, no Safari UI. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Family Board" />
+    <meta name="format-detection" content="telephone=no,date=no,address=no,email=no" />
+
+    <!-- Matches .fb-fit's bezel grey so there is no flash before React mounts. -->
+    <meta name="theme-color" content="#D9DBE0" />
+
+    <!--
+      The prototype's stylesheet @imports Archivo from Google Fonts at runtime.
+      Preconnecting shaves the round trip. Self-hosting the font is Deferred
+      Defect #10, owned by R14 — a cold board with no network loses its
+      typeface until then.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <title>Family Board</title>
+
+    <style>
+      /*
+        Minimal page reset only. All board styling lives in the prototype's own
+        stylesheet (R5 will own it as src/styles/). Nothing here may restyle
+        .fb-* — this exists purely so .fb-fit's `width:100%; height:100vh`
+        resolves to the real viewport with no margin, scrollbar or bounce.
+      */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #d9dbe0;
+        overflow: hidden;
+        overscroll-behavior: none;
+        -webkit-text-size-adjust: 100%;
+      }
+
+      #root {
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
