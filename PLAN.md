@@ -496,7 +496,34 @@ Roles append here when they find something outside their mandate. R0 assigns.
 | 10 | Survey | `:1730` | Google Fonts `@import` is a runtime network dependency — a cold board with no network loses its typeface | R14 |
 | 11 | R1 | `:1733` | `.fb-fit { height: 100vh }`. On iOS Safari outside standalone mode `100vh` counts browser chrome, so the scaled canvas is taller than the visible viewport and the footer view-switcher is clipped — the one control needed to change views. Correct in Guided Access / home-screen install, broken in plain Safari. Fix is `100dvh` with a `100vh` fallback | R5 (owns styles), verify R12 |
 
+| 12 | R2 | `settings/Settings.jsx` "Board color" | `THEMES[settings.theme].paper` is read with no fallback, while every other consumer writes `THEMES[settings.theme] \|\| THEMES.paper`. If a persisted blob names a theme this build lacks — a rename, a downgrade, a partial migration — and `customPaper` is empty, so the `\|\|` does not short-circuit past it, opening Settings throws. That is the one panel you would fix the bad theme from | R3 (`migrate()`) |
+| 13 | R2 | `hooks/useBoardData.js` | `store.set` JSON-stringifies whatever it is handed, and `notes` survives that only because strokes are plain numbers. Events are not persisted at all, so a cold board shows nothing until `source.list()` resolves. Both are blocked on the Date serializer | R3 (items 2, 3) |
+| 14 | R2 | `hooks/useBoardData.js` load effect | The three `store.get` calls are awaited together, then `source.list()` is awaited, then `setLoaded(true)`. Nothing distinguishes "still loading" from "loaded and empty", so the board renders a fully-populated empty state during startup. `loaded` exists but is only used to gate persistence | R12 (item 4, loading UI) |
+| 15 | R2 | `components/settings/Composer.jsx` | Creating an event ignores `end` when `milestone` is ticked: `allDay: milestone` is set but `end` is still `start + dur`, so an all-day milestone carries a stale 60-minute duration. Harmless today because no view reads `end` for all-day events; a landmine for R8's write-back, which will POST it to Google | R8 |
+
 **R1 note on Defect #1.** `src/main.jsx` mounts the board inside `React.StrictMode`, so
 that defect is now live in dev: note strokes save twice. Kept on deliberately — the
 alternative is hiding it until the board is on the wall. Production builds are
 unaffected. One-line toggle in `src/main.jsx` if it obstructs R2.
+
+**R2 note on Defects #1–#11.** All eleven were carried through the decomposition
+unchanged and each now has a comment at its new location naming its number and its
+assigned role, so the fixer does not have to re-derive the problem. Only Defect #8
+(`<style>` re-injected on every render) was R2's to fix, and it is fixed —
+`src/components/shell/BoardStyles.jsx` is a `memo()` boundary over a module-constant
+stylesheet, so it renders once per mount instead of on every clock tick. The line
+numbers in rows 1–11 refer to the deleted `family-board.jsx`; their new homes are:
+
+| # | Was | Now |
+|---|---|---|
+| 1 | `:1191` | `src/components/notes/NoteWindow.jsx` — `onUp` |
+| 2 | `:627` vs `:606` | `src/App.jsx` — the `AgendaView` call site, commented |
+| 3 | `:384-392` | `src/hooks/useIdle.js` |
+| 4 | `:1396` | `src/components/settings/Composer.jsx` — the "Starts" field |
+| 5 | `:656` | `src/App.jsx` — the `NoteWindow` call site, commented |
+| 6 | `:821` | `src/components/views/DayView.jsx` — `onDoubleClick` |
+| 7 | `:451` | `src/hooks/useBoardData.js` — the load effect |
+| 8 | `:583` | **fixed** — `src/components/shell/BoardStyles.jsx` |
+| 9 | `:936-937` | `src/components/views/MonthView.jsx` — now documented in place for R13 |
+| 10 | `:1730` | `src/styles/fit.js` — the `@import` leads the sheet |
+| 11 | `:1733` | `src/styles/fit.js` — `.fb-fit { height: 100vh }` |
