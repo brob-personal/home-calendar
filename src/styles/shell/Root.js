@@ -26,7 +26,10 @@ export default `
   outline: 2px solid var(--ink); outline-offset: 2px;
 }
 
-.fb-art { position: absolute; inset: 0; opacity: .5; pointer-events: none; }
+/* .85, not a fainter wash: this needs to visibly outweigh .fb-stage's own
+   ::before (Countdowns.js, .22) so the calendar card reads as a distinct
+   lighter surface rather than a continuation of the page behind it. */
+.fb-art { position: absolute; inset: 0; opacity: .85; pointer-events: none; }
 
 .fb-board {
   position: relative; display: flex; flex-direction: column;

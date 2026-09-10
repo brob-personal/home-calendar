@@ -34,6 +34,14 @@
   negative-z-index-escapes-an-unrooted-ancestor trap) so the tint stays
   behind this card's own content, not some further-out ancestor's.
 
+  This card's ::before sits at .22 opacity, well under .fb-art's .85
+  (Root.js) — the board background and the card used to wash the same
+  gradient at close to the same strength, so the card's rounded corner
+  was the only thing marking where the calendar started. Making the
+  board wash strong and the card wash faint keeps the card reading as
+  its own lighter surface instead of a continuation of the page behind
+  it.
+
   MonthView's `.fb-cell`, WeekView's `.fb-wcol.is-today`, DayView's
   `.fb-alldaychip`, and MonthView's `.fb-monthweather` all stay on flat
   --paper (not the tinted card background) so they still read as
@@ -56,6 +64,6 @@ export default `
 }
 .fb-stage::before {
   content: ""; position: absolute; inset: 0; z-index: -1;
-  background-image: var(--stage-art); opacity: .6; pointer-events: none;
+  background-image: var(--stage-art); opacity: .22; pointer-events: none;
 }
 `;
