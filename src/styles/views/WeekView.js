@@ -40,7 +40,7 @@ export default `
 }
 .fb-wcol { position: relative; flex: 1; border-left: 1px solid var(--line); }
 .fb-wcol:last-child { border-right: 1px solid var(--line); }
-.fb-wcol.is-today { background: var(--surface); }
+.fb-wcol.is-today { background: var(--paper); }
 .fb-hourline { border-bottom: 1px solid var(--line); }
 .fb-nowrow {
   position: absolute; left: 0; right: 0; height: 2px;
