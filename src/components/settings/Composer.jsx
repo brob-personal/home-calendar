@@ -2,9 +2,24 @@ import { useState } from "react";
 
 import { startOfDay, addDays, fmtTime, DOW } from "../../lib/date.js";
 import { tint, splitFill, variantColor, VARIATION_COUNT } from "../../lib/color.js";
+import { useMode } from "../../state/ModeContext.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { Sheet } from "../shell/Sheet.jsx";
 import { Field } from "../shell/Field.jsx";
+
+/*
+  A member's own calendar — the CalendarLink whose only owner is them, same
+  definition google.js's write path and Settings.jsx's memberCalendarId()
+  both use. Absent, or anything short of writer/owner, means create() will
+  skip that member entirely; this is what lets Composer say so before save
+  instead of after.
+*/
+function wontSyncReason(calendars, memberId) {
+  const cal = calendars.find((c) => c.memberIds.length === 1 && c.memberIds[0] === memberId);
+  if (!cal) return "no calendar linked";
+  if (cal.accessRole !== "writer" && cal.accessRole !== "owner") return "you only have view access";
+  return null;
+}
 
 /*
   New-event composer. Moved verbatim from family-board.jsx:1300-1436.
@@ -32,6 +47,7 @@ import { Field } from "../shell/Field.jsx";
   the detail sheet that would use it.
 */
 export function Composer({ members, date, settings, onSave, onClose }) {
+  const { calendars } = useMode();
   const dayStart = settings.dayStart;
   const dayEnd = settings.dayEnd;
   const hours = [];
@@ -53,6 +69,9 @@ export function Composer({ members, date, settings, onSave, onClose }) {
 
   const toggle = (id) => setWho((w) => (w.includes(id) ? w.filter((x) => x !== id) : [...w, id]));
   const chosen = who.map((id) => members.find((m) => m.id === id)).filter(Boolean);
+  const unsynced = chosen
+    .map((m) => ({ member: m, reason: wontSyncReason(calendars, m.id) }))
+    .filter((x) => x.reason);
   const preview = splitFill(
     chosen.map((m) => variantColor(m.color, variant)),
     "var(--surface)",
@@ -74,23 +93,41 @@ export function Composer({ members, date, settings, onSave, onClose }) {
 
       <Field label="Who">
         <div className="fb-pills">
-          {members.map((m) => (
-            <button
-              key={m.id}
-              className={`fb-avpill${who.includes(m.id) ? " is-on" : ""}`}
-              style={
-                who.includes(m.id)
-                  ? { background: tint(m.color, 0.74), borderColor: m.color }
-                  : undefined
-              }
-              onClick={() => toggle(m.id)}
-            >
-              <Avatar member={m} size={28} />
-              {m.name}
-            </button>
-          ))}
+          {members.map((m) => {
+            const reason = who.includes(m.id) ? wontSyncReason(calendars, m.id) : null;
+            return (
+              <button
+                key={m.id}
+                className={`fb-avpill${who.includes(m.id) ? " is-on" : ""}`}
+                style={
+                  who.includes(m.id)
+                    ? { background: tint(m.color, 0.74), borderColor: m.color }
+                    : undefined
+                }
+                onClick={() => toggle(m.id)}
+              >
+                <span className="fb-avpill-avatar">
+                  <Avatar member={m} size={28} />
+                  {reason && (
+                    <span className="fb-avpill-warn" title={`Won't sync — ${reason}`} aria-hidden="true">
+                      !
+                    </span>
+                  )}
+                </span>
+                {m.name}
+              </button>
+            );
+          })}
         </div>
       </Field>
+
+      {unsynced.length > 0 && (
+        <p className="fb-note fb-textwarn">
+          {unsynced
+            .map(({ member, reason }) => `Won't be added to ${member.name}'s calendar — ${reason}.`)
+            .join(" ")}
+        </p>
+      )}
 
       {chosen.length > 0 && (
         <Field label="Shade">

@@ -32,4 +32,13 @@ export default `
   position: relative; display: flex; flex-direction: column;
   height: 100%; padding: 22px 24px var(--board-pad-b); gap: var(--board-gap);
 }
+
+/* Composer's post-save partial-failure report — one member's calendar write
+   failed but the event still saved for the others; see App.jsx's addEvent. */
+.fb-writewarn {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 10px;
+  background: var(--warn-bg); color: var(--ink-on-dark); font-size: 13px; font-weight: 600;
+}
+.fb-writewarn button { color: var(--ink-on-dark); text-decoration: underline; font-weight: 700; }
 `;
