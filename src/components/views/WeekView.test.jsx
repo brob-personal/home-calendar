@@ -1,0 +1,74 @@
+import { describe, it, expect } from "vitest";
+import { render, screen } from "@testing-library/react";
+
+import { WeekView } from "./WeekView.jsx";
+import { PaletteContext } from "../../state/PaletteContext.js";
+
+const SETTINGS = { dayStart: 7, dayEnd: 21 };
+// A Sunday, so startOfWeek(DATE) === DATE and the events below land in "today"'s column.
+const DATE = new Date(2026, 2, 15);
+const NOW = DATE;
+
+const palette = { fillFor: () => "#fff", firstColor: () => "#fff", byId: {}, palette: {} };
+
+function ev(id, title, startH, startM, endH, endM) {
+  return {
+    id,
+    title,
+    start: new Date(2026, 2, 15, startH, startM),
+    end: new Date(2026, 2, 15, endH, endM),
+    allDay: false,
+    memberIds: ["brian"],
+    variant: 0,
+  };
+}
+
+function renderWeek(events) {
+  return render(
+    <PaletteContext.Provider value={palette}>
+      <WeekView date={DATE} now={NOW} events={events} settings={SETTINGS} onSelect={() => {}} />
+    </PaletteContext.Provider>,
+  );
+}
+
+function pct(style) {
+  return Number(style.match(/calc\(([-\d.]+)% [+-] \d+px\)/)[1]);
+}
+
+/*
+  Same overlap-layout coverage as DayView.test.jsx, but through WeekView's
+  per-day columns (`.fb-wblock`) rather than DayView's per-member ones —
+  both share layoutOverlaps from src/lib/layout.js.
+*/
+describe("WeekView overlap layout", () => {
+  it("splits two overlapping events side by side", () => {
+    renderWeek([ev("a", "Standup", 9, 0, 10, 0), ev("b", "Sync", 9, 30, 10, 30)]);
+    expect(pct(screen.getByRole("button", { name: /Standup/ }).style.left)).toBe(0);
+    expect(pct(screen.getByRole("button", { name: /Standup/ }).style.width)).toBeCloseTo(50);
+    expect(pct(screen.getByRole("button", { name: /Sync/ }).style.left)).toBeCloseTo(50);
+    expect(pct(screen.getByRole("button", { name: /Sync/ }).style.width)).toBeCloseTo(50);
+  });
+
+  it("splits three mutually-overlapping events into three lanes", () => {
+    renderWeek([
+      ev("a", "One", 9, 0, 10, 0),
+      ev("b", "Two", 9, 0, 10, 0),
+      ev("c", "Three", 9, 0, 10, 0),
+    ]);
+    for (const name of ["One", "Two", "Three"]) {
+      expect(pct(screen.getByRole("button", { name: new RegExp(name) }).style.width)).toBeCloseTo(100 / 3);
+    }
+  });
+
+  it("renders a non-overlapping pair at full width", () => {
+    renderWeek([ev("a", "Morning", 9, 0, 10, 0), ev("b", "Afternoon", 14, 0, 15, 0)]);
+    expect(pct(screen.getByRole("button", { name: /Morning/ }).style.width)).toBe(100);
+    expect(pct(screen.getByRole("button", { name: /Afternoon/ }).style.width)).toBe(100);
+  });
+
+  it("does not split events that only touch (one ends when the next starts)", () => {
+    renderWeek([ev("a", "Before", 9, 0, 10, 0), ev("b", "After", 10, 0, 11, 0)]);
+    expect(pct(screen.getByRole("button", { name: /Before/ }).style.width)).toBe(100);
+    expect(pct(screen.getByRole("button", { name: /After/ }).style.width)).toBe(100);
+  });
+});

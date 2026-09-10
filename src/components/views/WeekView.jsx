@@ -1,5 +1,6 @@
 import { addDays, sameDay, startOfWeek, minutesInto, fmtTime, DOW } from "../../lib/date.js";
 import { usePalette } from "../../state/PaletteContext.js";
+import { layoutOverlaps } from "../../lib/layout.js";
 import { TimeGutter } from "./TimeGutter.jsx";
 
 /*
@@ -22,6 +23,13 @@ import { TimeGutter } from "./TimeGutter.jsx";
   every view, not just Day, so a block tap opens the same EventDetailSheet
   App.jsx wires up for Day. `.fb-wblock` becomes a button for it; the global
   button reset in root.js means that costs no visual diff.
+
+  Overlap layout: two events on the same day at overlapping times used to
+  stack directly on top of each other. `layoutOverlaps` (src/lib/layout.js,
+  shared with DayView) now splits each day column's width evenly across
+  whatever is overlapping at that moment, Google-Calendar style, purely as a
+  left/width on top of the existing top/height positioning — `fillFor`'s
+  diagonal split-fill colouring is untouched.
 */
 const HOUR_H = 34;
 
@@ -58,6 +66,7 @@ export function WeekView({ date, now, events, settings, onSelect }) {
           {days.map((d, i) => {
             const today = sameDay(d, now);
             const list = events.filter((e) => sameDay(e.start, d) && !e.allDay);
+            const cols = layoutOverlaps(list);
             return (
               <div className={`fb-wcol${today ? " is-today" : ""}`} key={i}>
                 {hours.map((h) => (
@@ -71,6 +80,7 @@ export function WeekView({ date, now, events, settings, onSelect }) {
                 {list.map((e) => {
                   const s = Math.max(minutesInto(e.start), spanStart);
                   const en = Math.min(minutesInto(e.end), spanEnd);
+                  const { left, width } = cols.get(e);
                   return (
                     <button
                       key={e.id}
@@ -78,6 +88,9 @@ export function WeekView({ date, now, events, settings, onSelect }) {
                       style={{
                         top: ((s - spanStart) / 60) * HOUR_H,
                         height: Math.max(((en - s) / 60) * HOUR_H - 2, 18),
+                        left: `calc(${left}% + 2px)`,
+                        width: `calc(${width}% - 4px)`,
+                        right: "auto",
                         background: fillFor(e),
                       }}
                       onClick={() => onSelect(e)}

@@ -1,5 +1,6 @@
 import { sameDay, minutesInto, fmtTime } from "../../lib/date.js";
 import { tint, variantColor } from "../../lib/color.js";
+import { layoutOverlaps } from "../../lib/layout.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { TimeGutter } from "./TimeGutter.jsx";
 
@@ -35,6 +36,13 @@ import { TimeGutter } from "./TimeGutter.jsx";
   which App.jsx wires to the new EventDetailSheet — the app's first edit path,
   and a delete path that requires a confirm step and is reachable from every
   view instead of only this one.
+
+  Overlap layout: two events for the same member at overlapping times used to
+  stack directly on top of each other. `layoutOverlaps` (src/lib/layout.js,
+  shared with WeekView) now splits each lane's column width evenly across
+  whatever is overlapping at that moment, Google-Calendar style, purely as a
+  left/width on top of the existing top/height positioning — colouring and
+  content are untouched.
 */
 const HOUR_H = 34;
 
@@ -86,6 +94,7 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
 
           {members.map((m) => {
             const mine = timed.filter((e) => e.memberIds?.includes(m.id));
+            const cols = layoutOverlaps(mine);
             return (
               <div className="fb-dcol" key={m.id} style={{ background: tint(m.color, 0.88) }}>
                 {hours.map((h) => (
@@ -101,6 +110,7 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
                   const s = Math.max(minutesInto(e.start), spanStart);
                   const en = Math.min(minutesInto(e.end), spanEnd);
                   const shared = (e.memberIds || []).length > 1;
+                  const { left, width } = cols.get(e);
                   return (
                     <button
                       key={e.id}
@@ -108,6 +118,9 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
                       style={{
                         top: ((s - spanStart) / 60) * HOUR_H,
                         height: Math.max(((en - s) / 60) * HOUR_H, 22),
+                        left: `calc(${left}% + 6px)`,
+                        width: `calc(${width}% - 12px)`,
+                        right: "auto",
                         background: variantColor(m.color, e.variant),
                       }}
                       onClick={() => onSelect(e)}
