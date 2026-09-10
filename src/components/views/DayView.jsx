@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { sameDay, spansDay, minutesInto, fmtTime, fmtRange } from "../../lib/date.js";
-import { tint, variantColor } from "../../lib/color.js";
+import { variantColor } from "../../lib/color.js";
 import { layoutOverlaps } from "../../lib/layout.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { PersonProgress } from "../shell/PersonProgress.jsx";
@@ -158,7 +158,7 @@ export function DayView({
             const mine = timed.filter((e) => e.memberIds?.includes(m.id));
             const cols = layoutOverlaps(mine);
             return (
-              <div className="fb-dcol" key={m.id} style={{ background: tint(m.color, 0.88) }}>
+              <div className="fb-dcol" key={m.id}>
                 {hours.map((h) => (
                   <div className="fb-hourline" style={{ height: HOUR_H }} key={h} />
                 ))}

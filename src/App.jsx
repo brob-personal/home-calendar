@@ -206,6 +206,7 @@ export default function App() {
     "--ink": palette.ink,
     "--mute": palette.mute,
     "--now": ACCENT_NOW,
+    "--stage-art": settings.monthArt ? monthArt.art : "none",
   };
 
   return (
