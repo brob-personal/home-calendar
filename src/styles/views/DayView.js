@@ -25,7 +25,7 @@ export default `
 .fb-allday { display: flex; gap: 8px; flex-wrap: wrap; flex: none; }
 .fb-alldaychip {
   font-size: 13px; font-weight: 600; padding: 6px 12px;
-  background: var(--surface); border-radius: 8px; color: var(--mute);
+  background: var(--paper); border-radius: 8px; color: var(--mute);
 }
 .fb-dayhead { display: flex; flex: none; padding-right: 6px; }
 .fb-dhead {

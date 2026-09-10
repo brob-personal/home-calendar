@@ -6,7 +6,7 @@ export default `
 .fb-monthweather {
   width: var(--tap-min); height: var(--tap-min);
   display: grid; place-items: center; border-radius: 999px; border: none;
-  background: var(--surface); color: var(--ink);
+  background: var(--paper); color: var(--ink);
 }
 .fb-monthweather[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--now); }
 .fb-monthhead {
@@ -15,7 +15,7 @@ export default `
 }
 .fb-grid { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; min-height: 0; }
 .fb-cell {
-  background: var(--surface); border-radius: 9px;
+  background: var(--paper); border-radius: 9px;
   padding: 6px 7px; display: flex; flex-direction: column; gap: 4px;
   text-align: left; overflow: hidden;
 }
