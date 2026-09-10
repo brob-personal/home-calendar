@@ -508,4 +508,61 @@ describe("write-back", () => {
     expect(created.milestone).toBe(true);
     expect(created.allDay).toBe(true);
   });
+
+  it("converts a multi-day all-day event's inclusive end to Google's exclusive end.date on write", async () => {
+    await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true }]);
+    let posted;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url, init) => {
+        if (init?.method === "POST") {
+          posted = JSON.parse(init.body);
+          return respond(200, { ok: true, item: { ...posted.event, id: "evt-1", etag: '"e1"' } });
+        }
+        return respond(200, { ok: true, items: [] });
+      }),
+    );
+
+    const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
+    const created = await source.create({
+      title: "Kauai",
+      start: new Date("2026-10-01T00:00:00Z"),
+      end: new Date("2026-10-09T00:00:00Z"), // last day, inclusive — this app's own contract
+      allDay: true,
+      memberIds: ["brian"],
+    });
+
+    /* Google's end.date is exclusive (the day after the last day), so the
+       9th we send must arrive as the 10th. */
+    expect(posted.event.end).toEqual({ date: "2026-10-10" });
+    /* Reading the created item back through mapGoogleEvent must undo that
+       shift, or every multi-day event would grow a day on each round trip. */
+    expect(created.end.toISOString().slice(0, 10)).toBe("2026-10-09");
+  });
+
+  it("converts Google's exclusive end.date back to an inclusive end when reading a synced event", async () => {
+    await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true }]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        respond(200, {
+          ok: true,
+          items: [
+            {
+              id: "evt-1",
+              summary: "Thanksgiving in Ohio",
+              start: { date: "2026-11-26" },
+              end: { date: "2026-11-30" }, // Google: exclusive — spans the 26th-29th
+            },
+          ],
+        }),
+      ),
+    );
+
+    const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
+    const [event] = await source.list();
+
+    expect(event.allDay).toBe(true);
+    expect(event.end.toISOString().slice(0, 10)).toBe("2026-11-29");
+  });
 });
