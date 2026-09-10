@@ -108,7 +108,12 @@ export function WeekView({ date, now, events, members, settings, onSelect }) {
             {events
               .filter((e) => e.allDay && spansDay(e, d))
               .map((e) => (
-                <button key={e.id} className="fb-alldaychip" onClick={() => onSelect(e)}>
+                <button
+                  key={e.id}
+                  className="fb-alldaychip"
+                  style={{ background: fillFor(e) }}
+                  onClick={() => onSelect(e)}
+                >
                   {e.title}
                 </button>
               ))}
