@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { stepAnchor, spansDay } from "./date.js";
+import { stepAnchor, spansDay, fmtTime, fmtClock, fmtRange, fmtFullDate } from "./date.js";
 
 /*
   R12 item 2: stepAnchor is the paging step shared by Footer's chevrons and
@@ -55,5 +55,44 @@ describe("spansDay", () => {
   it("ignores time of day, comparing calendar days only", () => {
     const e = event(2026, 2, 15, 2026, 2, 15);
     expect(spansDay(e, new Date(2026, 2, 15, 23, 59))).toBe(true);
+  });
+});
+
+describe("fmtTime", () => {
+  it("defaults to 12-hour with a lowercase am/pm suffix", () => {
+    expect(fmtTime(new Date(2000, 0, 1, 8, 0))).toBe("8a");
+    expect(fmtTime(new Date(2000, 0, 1, 20, 15))).toBe("8:15p");
+  });
+
+  it("renders 24-hour with no suffix when asked", () => {
+    expect(fmtTime(new Date(2000, 0, 1, 8, 0), "24")).toBe("8:00");
+    expect(fmtTime(new Date(2000, 0, 1, 20, 15), "24")).toBe("20:15");
+    expect(fmtTime(new Date(2000, 0, 1, 0, 5), "24")).toBe("0:05");
+  });
+});
+
+describe("fmtClock", () => {
+  it("defaults to 12-hour, no am/pm suffix (today's clock behavior)", () => {
+    expect(fmtClock(new Date(2000, 0, 1, 15, 5))).toBe("3:05");
+    expect(fmtClock(new Date(2000, 0, 1, 0, 5))).toBe("12:05");
+  });
+
+  it("renders 24-hour when asked", () => {
+    expect(fmtClock(new Date(2000, 0, 1, 15, 5), "24")).toBe("15:05");
+    expect(fmtClock(new Date(2000, 0, 1, 0, 5), "24")).toBe("00:05");
+  });
+});
+
+describe("fmtRange", () => {
+  it("passes the format through to both ends", () => {
+    const start = new Date(2000, 0, 1, 8, 0);
+    const end = new Date(2000, 0, 1, 9, 30);
+    expect(fmtRange(start, end, "24")).toBe("08:00 - 09:30");
+  });
+});
+
+describe("fmtFullDate", () => {
+  it("renders the full weekday and month name", () => {
+    expect(fmtFullDate(new Date(2026, 8, 9))).toBe("Wednesday, September 9");
   });
 });

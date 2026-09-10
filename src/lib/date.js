@@ -71,16 +71,27 @@ export function dayKey(d) {
   ).padStart(2, "0")}`;
 }
 
-export function fmtTime(d) {
-  let h = d.getHours();
+export function fmtTime(d, format = "12") {
+  const h = d.getHours();
   const m = d.getMinutes();
+  if (format === "24") {
+    return `${h}:${String(m).padStart(2, "0")}`;
+  }
   const ap = h >= 12 ? "p" : "a";
-  h = h % 12 || 12;
-  return m ? `${h}:${String(m).padStart(2, "0")}${ap}` : `${h}${ap}`;
+  const h12 = h % 12 || 12;
+  return m ? `${h12}:${String(m).padStart(2, "0")}${ap}` : `${h12}${ap}`;
 }
 
-export function fmtRange(start, end) {
-  return `${fmtTime(start)} - ${fmtTime(end)}`;
+export function fmtRange(start, end, format = "12") {
+  if (format === "24") {
+    const fmt = (d) => {
+      const h = String(d.getHours()).padStart(2, "0");
+      const m = String(d.getMinutes()).padStart(2, "0");
+      return `${h}:${m}`;
+    };
+    return `${fmt(start)} - ${fmt(end)}`;
+  }
+  return `${fmtTime(start, format)} - ${fmtTime(end, format)}`;
 }
 
 /* "Tue, Sep 15" — the WeatherDaySheet title, using DOW/MONTH_SHORT below
@@ -90,11 +101,21 @@ export function fmtLongDate(d) {
   return `${DOW[d.getDay()]}, ${MONTH_SHORT[d.getMonth()]} ${d.getDate()}`;
 }
 
-export function fmtClock(d) {
-  let h = d.getHours();
+/* "Wednesday, September 9" — the event-form date field, using the long
+   weekday/month tables since the abbreviated fmtLongDate above reads too
+   terse for a field the user edits directly rather than skims. */
+export function fmtFullDate(d) {
+  return `${DOW_LONG[d.getDay()]}, ${MONTH_LONG[d.getMonth()]} ${d.getDate()}`;
+}
+
+export function fmtClock(d, format = "12") {
+  const h = d.getHours();
   const m = String(d.getMinutes()).padStart(2, "0");
-  h = h % 12 || 12;
-  return `${h}:${m}`;
+  if (format === "24") {
+    return `${String(h).padStart(2, "0")}:${m}`;
+  }
+  const h12 = h % 12 || 12;
+  return `${h12}:${m}`;
 }
 
 export const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -122,4 +143,19 @@ export const MONTH_SHORT = [
   "Oct",
   "Nov",
   "Dec",
+];
+
+export const MONTH_LONG = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
