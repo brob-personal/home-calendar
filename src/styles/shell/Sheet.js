@@ -134,4 +134,10 @@ button.fb-shade.is-on { border-color: var(--ink); }
 .fb-timingrow { display: flex; align-items: center; gap: 10px; }
 .fb-timingdash { color: var(--mute); }
 .fb-timingend { display: flex; align-items: center; gap: 10px; padding-left: 30px; }
+
+.fb-timingblock { display: flex; flex-direction: column; gap: 10px; }
+.fb-iconrow { display: flex; align-items: center; gap: 12px; }
+.fb-iconrow-top { align-items: flex-start; padding-top: 2px; }
+.fb-iconrow svg { flex: none; color: var(--mute); }
+.fb-textarea { min-height: 72px; resize: vertical; font-family: inherit; }
 `;
