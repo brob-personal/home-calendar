@@ -117,6 +117,9 @@ export const DEFAULT_SETTINGS = {
   /** @type {"personal"|"roommate"} */
   mode: "personal",
 
+  /** @type {"12"|"24"} */
+  timeFormat: "12",
+
   calendars: DEFAULT_CALENDARS,
   weather: DEFAULT_WEATHER,
   drive: DEFAULT_DRIVE,

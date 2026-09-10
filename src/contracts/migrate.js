@@ -216,6 +216,7 @@ export function migrateSettings(raw) {
     photos: Array.isArray(s.photos) ? s.photos.filter((p) => typeof p === "string") : [],
 
     mode: MODES.includes(s.mode) ? s.mode : DEFAULT_SETTINGS.mode,
+    timeFormat: s.timeFormat === "24" ? "24" : DEFAULT_SETTINGS.timeFormat,
     calendars: migrateCalendars(s.calendars),
     weather: { ...DEFAULT_WEATHER, ...pickWeather(s.weather) },
     drive: { ...DEFAULT_DRIVE, ...pickDrive(s.drive) },

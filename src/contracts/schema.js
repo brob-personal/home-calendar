@@ -430,6 +430,7 @@ export function normalizeCondition(condition) {
  * @property {boolean} monthArt        Month artwork behind the board.
  * @property {string[]} photos         Screensaver image URLs. R9 fills these from Drive.
  * @property {"personal"|"roommate"} mode  Active mode. R10's ModeContext reads and writes it.
+ * @property {"12"|"24"} timeFormat  12-hour ("8:00 PM") or 24-hour ("20:00") display.
  * @property {Record<string, CalendarLink[]>} calendars  Per-mode calendar sets, keyed by mode.
  * @property {{label: string, lat: number|null, lon: number|null, units: "F"|"C"}} weather
  * @property {{folderId: string}} drive
