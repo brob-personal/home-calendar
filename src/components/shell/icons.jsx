@@ -48,6 +48,19 @@ export const Chevron = ({ dir }) => (
   </svg>
 );
 
+export const Plus = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="24"
+    height="24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+  >
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
 export const Pencil = () => (
   <svg
     viewBox="0 0 24 24"
