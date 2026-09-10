@@ -19,7 +19,7 @@ import { HeaderControls } from "./HeaderControls.jsx";
   big date reads from `anchor` (whatever day you have paged to) while the
   clock and the event count read from `now`. The count is "how many things are
   on today", not "on the day you are looking at" — so paging away leaves it
-  alone and surfaces the "Back to today" chip instead.
+  alone; the view dropdown surfaces a "Return to Today" option instead.
 
   MONTH_ART is imported for its twelve month *names*, not its gradients. That
   coupling came with the move; R5 may want to separate the two when the art
@@ -34,8 +34,8 @@ import { HeaderControls } from "./HeaderControls.jsx";
   R12 item 4: `degraded` is one boolean covering both of useBoardData's
   failure signals — a source that fell back to cached events, or a storage
   write that failed — so the board says so quietly instead of pretending
-  everything is fine. Reuses `.fb-chip`, the same pill "Back to today"
-  already uses, rather than introducing a second visual language for status.
+  everything is fine. Reuses `.fb-chip`, the same pill the Offline status
+  uses, rather than introducing a second visual language for status.
 */
 export function Header({
   now,

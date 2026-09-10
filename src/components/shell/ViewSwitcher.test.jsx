@@ -40,4 +40,23 @@ describe("ViewSwitcher", () => {
     expect(setView).toHaveBeenCalledWith("todo");
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
   });
+
+  it("omits Return to Today when already on today", () => {
+    render(
+      <ViewSwitcher view="day" setView={noop} views={["day", "week"]} isToday={true} onToday={noop} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Day/ }));
+    expect(screen.queryByRole("option", { name: "Return to Today" })).not.toBeInTheDocument();
+  });
+
+  it("offers Return to Today when paged away, calling onToday and closing the popover", () => {
+    const onToday = vi.fn();
+    render(
+      <ViewSwitcher view="day" setView={noop} views={["day", "week"]} isToday={false} onToday={onToday} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Day/ }));
+    fireEvent.click(screen.getByRole("option", { name: "Return to Today" }));
+    expect(onToday).toHaveBeenCalled();
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+  });
 });

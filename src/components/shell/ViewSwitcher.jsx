@@ -10,12 +10,17 @@ import { CaretDown } from "./icons.jsx";
 const VIEW_LABELS = { todo: "To-do" };
 const labelFor = (v) => VIEW_LABELS[v] || v[0].toUpperCase() + v.slice(1);
 
-export function ViewSwitcher({ view, setView, views }) {
+export function ViewSwitcher({ view, setView, views, isToday, onToday }) {
   const [open, setOpen] = useState(false);
   const others = views.filter((v) => v !== view);
 
   const pick = (v) => {
     setView(v);
+    setOpen(false);
+  };
+
+  const returnToToday = () => {
+    onToday();
     setOpen(false);
   };
 
@@ -39,6 +44,11 @@ export function ViewSwitcher({ view, setView, views }) {
                 {labelFor(v)}
               </button>
             ))}
+            {!isToday && (
+              <button className="fb-ddopt" onClick={returnToToday} role="option">
+                Return to Today
+              </button>
+            )}
           </div>
         </>
       )}
