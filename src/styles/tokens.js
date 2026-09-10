@@ -35,12 +35,12 @@
   now-line "and nothing else," and a future now-line recolour shouldn't drag
   the delete button's danger red along with it.
 
-  --footer-h / --board-gap / --board-pad-b feed --dock-bottom, the derived
-  value PLAN.md §R5 item 3 calls out: `.fb-dock`'s bottom offset has to clear
-  the footer plus the board's own padding and flex gap, and nothing enforced
-  that before. (Its sibling duplication, `.fb-axis`'s left margin against
-  Day's old lane-name column, was retired by R7's DayView rewrite along with
-  the column it measured — there is no --lane-name-w/--lane-gap here because
+  --stage-gap-b feeds --dock-bottom, the derived value `.fb-dock`'s bottom
+  offset needs to clear the reserved strip under the calendar (the header
+  redesign that removed the footer bar) plus the board's own bottom padding.
+  (Its sibling duplication, `.fb-axis`'s left margin against Day's old
+  lane-name column, was retired by R7's DayView rewrite along with the
+  column it measured — there is no --lane-name-w/--lane-gap here because
   nothing consumes them anymore.)
 */
 export default `
@@ -87,9 +87,9 @@ export default `
   --warn-bg: #E8A33D;
   --warn-ink: #8A5A16;
 
-  --footer-h: 60px;
+  --stage-gap-b: 56px;
   --board-gap: 14px;
   --board-pad-b: 18px;
-  --dock-bottom: calc(var(--footer-h) + var(--board-gap) + var(--board-pad-b));
+  --dock-bottom: calc(var(--board-pad-b) + 8px);
 }
 `;

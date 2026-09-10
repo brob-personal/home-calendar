@@ -23,10 +23,11 @@
   and neither dragging the window nor drawing a stroke works at all.
 
   .fb-dock's bottom used to hardcode 92px — R5's item 3 magic number, named
-  in PLAN.md: it has to clear the footer plus the board's bottom padding
-  and flex gap. --dock-bottom in tokens.js derives it from the same
-  --footer-h / --board-gap / --board-pad-b those two owners already
-  declare, so the three values can't drift apart.
+  in PLAN.md: it had to clear the old footer plus the board's bottom padding
+  and flex gap. The header redesign retired that footer row; --dock-bottom
+  in tokens.js now just clears --board-pad-b, and .fb-stage's own
+  margin-bottom (--stage-gap-b, styles/shell/Countdowns.js) is the reserved
+  strip the FAB floats in.
 
   .fb-fab used to open the note window directly. It's now a menu toggle:
   tap it to reveal .fb-fabopt (the old footer "New event" button and the

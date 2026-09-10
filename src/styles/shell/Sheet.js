@@ -81,6 +81,12 @@ button.fb-shade.is-on { border-color: var(--ink); }
   background: var(--surface); border-radius: 10px; color: var(--mute);
 }
 .fb-ghost-sm { font-size: 12px; padding: 8px 12px; }
+/* Shared with the old footer's "New event" button before the header
+   redesign retired Footer.jsx — now just the sheets' primary action. */
+.fb-primary {
+  font-size: 14px; font-weight: 700; padding: 12px 20px;
+  border-radius: 11px; background: var(--ink); color: var(--paper);
+}
 /* R7: EventDetailSheet's delete path. Trigger stays a quiet ghost button so
    opening the sheet doesn't read as an ultimatum; the confirm step is the one
    filled in danger red. */

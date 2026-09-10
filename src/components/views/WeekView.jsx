@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { addDays, sameDay, spansDay, startOfWeek, minutesInto, fmtTime, fmtRange, DOW } from "../../lib/date.js";
 import { usePalette } from "../../state/PaletteContext.js";
 import { layoutOverlaps } from "../../lib/layout.js";
+import { Avatar } from "../shell/Avatar.jsx";
+import { PersonProgress } from "../shell/PersonProgress.jsx";
 import { TimeGutter } from "./TimeGutter.jsx";
 import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
 
@@ -51,7 +53,7 @@ import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
 */
 const HOUR_H = 34;
 
-export function WeekView({ date, now, events, settings, onSelect }) {
+export function WeekView({ date, now, events, members, settings, onSelect }) {
   const { fillFor } = usePalette();
 
   const start = startOfWeek(date);
@@ -71,6 +73,24 @@ export function WeekView({ date, now, events, settings, onSelect }) {
 
   return (
     <div className="fb-week">
+      {/*
+        Week's columns are days, not people, so a per-column avatar (like
+        Day's) makes no sense here — this key row is the equivalent: one
+        avatar+colour+progress entry per shown member, read as a legend for
+        the colours inside the grid rather than a label on any one column.
+      */}
+      {members?.length > 0 && (
+        <div className="fb-weekkey">
+          {members.map((m) => (
+            <div className="fb-wkeyitem" key={m.id}>
+              <Avatar member={m} size={22} />
+              <span className="fb-wkeyname">{m.name}</span>
+              <PersonProgress member={m} events={events} now={now} />
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="fb-weekhead">
         <span className="fb-gutter" />
         {days.map((d, i) => (

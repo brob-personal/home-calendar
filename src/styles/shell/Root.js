@@ -1,7 +1,7 @@
 /*
   The board root: typography, the button and focus resets every component
   below relies on, the month-art wash, and the flex column that gives the
-  header, countdowns, stage and footer their fixed heights.
+  header, countdowns and stage their fixed heights.
 
   The five per-theme custom properties this file reads through .fb-root
   (--paper --surface --line --ink --mute) come from App.jsx's inline style;

@@ -74,3 +74,31 @@ export const Pencil = () => (
     <path d="M14.5 6.5l3 3" />
   </svg>
 );
+
+export const CaretDown = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="14"
+    height="14"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+  >
+    <path d="M5 9l7 7 7-7" />
+  </svg>
+);
+
+export const Home = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="22"
+    height="22"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+  >
+    <path d="M4 11.5 12 4l8 7.5" />
+    <path d="M6 10v9h12v-9" />
+    <path d="M10 19v-5h4v5" />
+  </svg>
+);
