@@ -117,4 +117,80 @@ describe("Settings' Calendars section", () => {
     expect(result.calendars.roommate).toEqual([{ id: "", memberIds: [], enabled: true }]);
     expect(result.calendars.personal).toEqual(existing.personal);
   });
+
+  it("a calendar with exactly one owner shows on that person's row, not in Joint calendars", () => {
+    const existing = {
+      personal: [{ id: "solo@x.com", memberIds: [DEFAULT_MEMBERS[0].id], enabled: true }],
+      roommate: [],
+    };
+    renderSettings({ calendars: existing });
+    const soloInput = screen.getByDisplayValue("solo@x.com");
+    expect(soloInput).toHaveAttribute("placeholder", "Calendar ID");
+    expect(soloInput.closest(".fb-memberrow")).not.toBeNull();
+    expect(
+      within(screen.getByText("Joint calendars").closest(".fb-field")).queryByDisplayValue(
+        "solo@x.com",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("a calendar shared by two or more people still shows under Joint calendars", () => {
+    const existing = {
+      personal: [
+        {
+          id: "shared@x.com",
+          memberIds: [DEFAULT_MEMBERS[0].id, DEFAULT_MEMBERS[1].id],
+          enabled: true,
+        },
+      ],
+      roommate: [],
+    };
+    renderSettings({ calendars: existing });
+    expect(
+      within(screen.getByText("Joint calendars").closest(".fb-field")).getByDisplayValue(
+        "shared@x.com",
+      ),
+    ).toBeInTheDocument();
+  });
+});
+
+/*
+  Each person's own calendar id now lives on their row in the Family
+  section, where the old per-person Photo URL field used to be — that field
+  is gone, since R9's Drive folder id already covers photos.
+*/
+describe("Settings' per-person calendar id field", () => {
+  it("has no Photo URL field left", () => {
+    renderSettings();
+    expect(screen.queryByPlaceholderText("Photo URL")).not.toBeInTheDocument();
+  });
+
+  it("typing a calendar id into a person's row creates a single-owner calendar entry", async () => {
+    const user = userEvent.setup();
+    const setSettings = renderSettings({ calendars: { personal: [], roommate: [] } });
+    const member = DEFAULT_MEMBERS[0];
+    const row = screen.getByDisplayValue(member.name).closest(".fb-memberrow");
+    const calInput = within(row).getByPlaceholderText("Calendar ID");
+    await user.type(calInput, "x");
+    const updater = setSettings.mock.calls.at(-1)[0];
+    const result = updater({ ...DEFAULT_SETTINGS, calendars: { personal: [], roommate: [] } });
+    expect(result.calendars.personal).toEqual([
+      { id: "x", memberIds: [member.id], enabled: true },
+    ]);
+  });
+
+  it("clearing a person's calendar id removes their calendar entry entirely", async () => {
+    const user = userEvent.setup();
+    const member = DEFAULT_MEMBERS[0];
+    const existing = {
+      personal: [{ id: "solo@x.com", memberIds: [member.id], enabled: true }],
+      roommate: [],
+    };
+    const setSettings = renderSettings({ calendars: existing });
+    const row = screen.getByDisplayValue(member.name).closest(".fb-memberrow");
+    const calInput = within(row).getByDisplayValue("solo@x.com");
+    await user.clear(calInput);
+    const updater = setSettings.mock.calls.at(-1)[0];
+    expect(updater({ ...DEFAULT_SETTINGS, calendars: existing }).calendars.personal).toEqual([]);
+  });
 });

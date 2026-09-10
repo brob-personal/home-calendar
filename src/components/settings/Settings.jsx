@@ -70,6 +70,34 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
     });
   };
 
+  /* A person's own calendar is just a CalendarLink whose only owner is them —
+     no new shape, so google.js's readActiveCalendars() picks it up the same
+     way it already picks up every other entry in settings.calendars[mode].
+     "Joint calendars" below is everything else: 0 owners (not yet assigned a
+     colour) or 2+ (a shared calendar two or more people split colour on). */
+  const memberCalendarIndex = (memberId) =>
+    calendarList.findIndex((c) => c.memberIds.length === 1 && c.memberIds[0] === memberId);
+  const memberCalendarId = (memberId) => {
+    const i = memberCalendarIndex(memberId);
+    return i === -1 ? "" : calendarList[i].id;
+  };
+  const setMemberCalendarId = (memberId, value) => {
+    const trimmed = value.trim();
+    const i = memberCalendarIndex(memberId);
+    if (i === -1) {
+      if (trimmed) setCalendars([...calendarList, { id: trimmed, memberIds: [memberId], enabled: true }]);
+      return;
+    }
+    if (!trimmed) {
+      removeCalendarAt(i);
+      return;
+    }
+    updateCalendarAt(i, { id: trimmed });
+  };
+  const jointCalendars = calendarList
+    .map((cal, i) => ({ cal, i }))
+    .filter(({ cal }) => cal.memberIds.length !== 1);
+
   /* A member with no mode at all is invisible everywhere — the same
      invariant normalizeModes() enforces on load. Unchecking a person's only
      remaining mode here is refused rather than silently producing that
@@ -134,9 +162,10 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
                 />
                 <input
                   className="fb-input fb-input-sm"
-                  value={m.photo}
-                  onChange={(e) => setMember(m.id, { photo: e.target.value })}
-                  placeholder="Photo URL"
+                  value={memberCalendarId(m.id)}
+                  onChange={(e) => setMemberCalendarId(m.id, e.target.value)}
+                  placeholder="Calendar ID"
+                  spellCheck="false"
                 />
                 {members.length > 1 && (
                   <button
@@ -198,15 +227,23 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           </button>
         </div>
         <p className="fb-note">
+          To add someone else&apos;s calendar: have them open Google Calendar, go to that
+          calendar&apos;s Settings and sharing, and share it with brianjrobinson03@gmail.com
+          (at least &ldquo;See all event details&rdquo;). Once shared, find the Calendar ID under
+          &ldquo;Integrate calendar&rdquo; in that same settings page &mdash; it&apos;s their email for a
+          primary calendar, or a long id ending in @group.calendar.google.com for a
+          secondary one &mdash; and paste it here next to their name.
+        </p>
+        <p className="fb-note">
           The strip beside each name is that person&apos;s eleven shades. Google&apos;s event colors
           1 to 11 land on these, so two of Brian&apos;s events can look different without either of
           them stopping looking like Brian.
         </p>
       </Field>
 
-      <Field label="Calendars">
+      <Field label="Joint calendars">
         <div className="fb-members">
-          {calendarList.map((cal, i) => (
+          {jointCalendars.map(({ cal, i }) => (
             <div className="fb-memberblock" key={`${mode}-${i}`}>
               <div className="fb-inline">
                 <input
@@ -250,9 +287,10 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           </button>
         </div>
         <p className="fb-note">
-          Which Google calendars sync in {MODE_LABELS[mode] || mode} mode, and which people&apos;s
-          color their events wear. Checking two or more people on the same calendar is what makes
-          a shared event show as a diagonal split. Only enabled calendars sync.
+          Calendars that aren&apos;t any one person&apos;s &mdash; a shared family calendar, for
+          example &mdash; go here instead of on a person&apos;s row above. Check every person whose
+          color its events should wear; checking two or more is what makes a shared event show as a
+          diagonal split. Only enabled calendars sync.
         </p>
       </Field>
 
