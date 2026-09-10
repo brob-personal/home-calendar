@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { WeatherWidget } from "./WeatherWidget.jsx";
@@ -7,14 +7,13 @@ import { WeatherWidget } from "./WeatherWidget.jsx";
   PLAN.md §R6 acceptance: "Header shows live conditions. Widget expands and
   collapses on tap within the 1080x810 canvas without overflowing."
 
-  ./useWeather.js has its own fetch/cache/poll behaviour and is covered by
-  ../../data/weather.test.js; mocking it here isolates what this file
-  actually owns — icon selection and the expand/collapse interaction — from
-  network timing.
+  `snapshot` is passed straight in as a prop rather than mocking
+  ./useWeather.js — App.jsx now owns the one `useWeather()` call (see
+  App.jsx and CONTRACTS.md §6), so this component only ever receives a
+  reading, and isolating it from that reading is a prop, not a mock.
+  ./useWeather.js's own fetch/cache/poll behaviour is covered by
+  ../../data/weather.test.js.
 */
-vi.mock("./useWeather.js", () => ({ useWeather: vi.fn() }));
-import { useWeather } from "./useWeather.js";
-
 const NOW = new Date("2026-09-09T14:05:00");
 
 function snapshot(overrides = {}) {
@@ -39,23 +38,20 @@ function snapshot(overrides = {}) {
 
 describe("WeatherWidget", () => {
   it("renders nothing while unconfigured or before the first reading", () => {
-    useWeather.mockReturnValue(null);
-    const { container } = render(<WeatherWidget now={NOW} />);
+    const { container } = render(<WeatherWidget now={NOW} snapshot={null} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("shows the collapsed icon and temperature in the configured units", () => {
-    useWeather.mockReturnValue(snapshot());
-    render(<WeatherWidget now={NOW} />);
+    render(<WeatherWidget now={NOW} snapshot={snapshot()} />);
     expect(screen.getByRole("button", { name: /expand weather/i })).toHaveTextContent("72°F");
   });
 
   it("expands on tap into hi/lo, hourly rows, sunrise, sunset and peak UV, then collapses", () => {
-    useWeather.mockReturnValue(snapshot());
     /* Before sunrise, so nothing in the fixture is filtered out by the
        "current hour onward" cutoff — see the dedicated cutoff test below. */
     const early = new Date("2026-09-09T05:05:00");
-    render(<WeatherWidget now={early} />);
+    render(<WeatherWidget now={early} snapshot={snapshot()} />);
 
     expect(screen.queryByRole("group")).not.toBeInTheDocument();
 
@@ -73,23 +69,26 @@ describe("WeatherWidget", () => {
   });
 
   it("drops hours before the current one, so a stale morning reading doesn't linger all day", () => {
-    useWeather.mockReturnValue(
-      snapshot({
-        hourly: [
-          { at: new Date("2026-09-09T09:00:00"), temp: 60, precipChance: 0 },
-          { at: new Date("2026-09-09T14:00:00"), temp: 74, precipChance: 40 },
-        ],
-      }),
+    render(
+      <WeatherWidget
+        now={NOW}
+        snapshot={snapshot({
+          hourly: [
+            { at: new Date("2026-09-09T09:00:00"), temp: 60, precipChance: 0 },
+            { at: new Date("2026-09-09T14:00:00"), temp: 74, precipChance: 40 },
+          ],
+        })}
+      />,
     );
-    render(<WeatherWidget now={NOW} />);
     fireEvent.click(screen.getByRole("button", { name: /expand weather/i }));
     expect(screen.queryByText("60°")).not.toBeInTheDocument();
     expect(screen.getByText("74°")).toBeInTheDocument();
   });
 
   it("falls back to the sunny icon for an unrecognized condition", () => {
-    useWeather.mockReturnValue(snapshot({ condition: "not-a-real-condition" }));
-    const { container } = render(<WeatherWidget now={NOW} />);
+    const { container } = render(
+      <WeatherWidget now={NOW} snapshot={snapshot({ condition: "not-a-real-condition" })} />,
+    );
     expect(container.querySelector("svg")).toBeInTheDocument();
   });
 });

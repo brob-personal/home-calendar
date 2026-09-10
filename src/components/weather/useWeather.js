@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { useBoard } from "../../state/BoardContext.js";
 import { getWeather } from "../../data/weather.js";
 
 /*
@@ -15,15 +14,18 @@ const POLL_MS = 15 * 60 * 1000;
  * The board's current weather reading, or null while unconfigured (no
  * lat/lon in settings) or before the first fetch has resolved.
  *
- * Reads settings.weather from BoardContext rather than a threaded prop —
- * CONTRACTS.md §6: "Read settings from useBoard() rather than threading a
- * prop." A location or unit change re-fetches immediately rather than waiting
- * out the poll interval.
+ * Takes `settings` as a direct argument rather than reading BoardContext
+ * (CONTRACTS.md §6's original "read settings from useBoard()" is superseded
+ * by this) — App.jsx now makes the one call for the whole board and hands
+ * the reading to both Header and MonthView, the same reason
+ * `useBoardPalette`/`useModeState` take `settings` explicitly: App cannot
+ * consume the context it is itself about to provide. A location or unit
+ * change re-fetches immediately rather than waiting out the poll interval.
  *
+ * @param {import("../../contracts/schema.js").Settings} settings
  * @returns {import("../../contracts/schema.js").WeatherSnapshot|null}
  */
-export function useWeather() {
-  const { settings } = useBoard();
+export function useWeather(settings) {
   const { label, lat, lon, units } = settings.weather;
   const [snapshot, setSnapshot] = useState(null);
 

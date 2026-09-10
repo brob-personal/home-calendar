@@ -16,9 +16,11 @@ import { WeatherWidget } from "../weather/WeatherWidget.jsx";
   coupling came with the move; R5 may want to separate the two when the art
   becomes a token.
 
-  R6 landed here: <WeatherWidget> is one line, self-contained, and renders
-  nothing until settings.weather has a location — see
-  ../weather/WeatherWidget.jsx.
+  R6 landed here: <WeatherWidget> renders nothing until settings.weather has
+  a location — see ../weather/WeatherWidget.jsx. `weather` itself is fetched
+  once in App.jsx and passed down as a prop, not read from a hook in here,
+  so MonthView's forecast can share the same reading instead of polling
+  Open-Meteo a second time.
 
   R12 item 4: `degraded` is one boolean covering both of useBoardData's
   failure signals — a source that fell back to cached events, or a storage
@@ -26,7 +28,7 @@ import { WeatherWidget } from "../weather/WeatherWidget.jsx";
   everything is fine. Reuses `.fb-chip`, the same pill "Back to today"
   already uses, rather than introducing a second visual language for status.
 */
-export function Header({ now, anchor, events, degraded, onToday, onSettings }) {
+export function Header({ now, anchor, events, weather, degraded, onToday, onSettings }) {
   const isToday = sameDay(anchor, now);
   const todayCount = events.filter((e) => !e.allDay && sameDay(e.start, now)).length;
 
@@ -45,7 +47,7 @@ export function Header({ now, anchor, events, degraded, onToday, onSettings }) {
         </div>
       </div>
       <div className="fb-headright">
-        <WeatherWidget now={now} />
+        <WeatherWidget now={now} snapshot={weather} />
         <div className="fb-clock">{fmtClock(now)}</div>
         {degraded && (
           <span className="fb-chip" title="Showing the last saved events and settings">
