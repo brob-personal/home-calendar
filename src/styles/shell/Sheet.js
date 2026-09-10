@@ -32,7 +32,11 @@ export default `
   padding: 18px 20px; border-bottom: 1px solid var(--line);
 }
 .fb-sheethead h2 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.025em; }
-.fb-sheetbody { padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+.fb-sheetbody {
+  padding: 20px; display: flex; flex-direction: column; gap: 18px;
+  overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none;
+}
+.fb-sheetbody::-webkit-scrollbar { display: none; }
 .fb-sheetfoot { display: flex; justify-content: flex-end; gap: 10px; padding-top: 2px; }
 
 .fb-preview { border-radius: 10px; padding: 16px 18px; font-size: 17px; font-weight: 700; color: var(--ink-on-color); }
