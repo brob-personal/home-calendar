@@ -61,6 +61,13 @@ const CSS = `
   from { transform: scale(.85); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+.fb-weatherpanel--closing {
+  animation: fb-weather-shrink .16s ease-in forwards;
+}
+@keyframes fb-weather-shrink {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(.85); opacity: 0; }
+}
 
 .fb-weatherhilo { display: flex; gap: 16px; font-size: 20px; font-weight: 700; flex: none; }
 .fb-weatherlo { color: var(--mute); }

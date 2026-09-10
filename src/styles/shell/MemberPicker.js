@@ -6,7 +6,7 @@ export default `
 .fb-homebtn-compact { padding: 6px 7px; gap: 4px; }
 .fb-homecount { font-size: 14px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
 .fb-homepop { min-width: 170px; }
-.fb-ddpop-left { left: 0; right: auto; }
+.fb-ddpop-left { left: 0; right: auto; transform-origin: top left; }
 .fb-homeopt {
   display: flex; align-items: center; gap: 9px;
   font-size: 14px; font-weight: 600; color: var(--ink); text-align: left;

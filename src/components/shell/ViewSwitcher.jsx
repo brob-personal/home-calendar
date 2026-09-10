@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useExpandable } from "../../hooks/useExpandable.js";
 import { CaretDown } from "./icons.jsx";
 
 /*
@@ -12,6 +13,7 @@ const labelFor = (v) => VIEW_LABELS[v] || v[0].toUpperCase() + v.slice(1);
 
 export function ViewSwitcher({ view, setView, views, isToday, onToday }) {
   const [open, setOpen] = useState(false);
+  const { mounted, closing } = useExpandable(open, 160);
   const others = views.filter((v) => v !== view);
 
   const pick = (v) => {
@@ -35,10 +37,10 @@ export function ViewSwitcher({ view, setView, views, isToday, onToday }) {
         {labelFor(view)}
         <CaretDown />
       </button>
-      {open && (
+      {mounted && (
         <>
           <div className="fb-ddscrim" onClick={() => setOpen(false)} />
-          <div className="fb-ddpop" role="listbox">
+          <div className={`fb-ddpop${closing ? " fb-ddpop--closing" : ""}`} role="listbox">
             {others.map((v) => (
               <button key={v} className="fb-ddopt" onClick={() => pick(v)} role="option">
                 {labelFor(v)}

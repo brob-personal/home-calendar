@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import { MemberPicker } from "./MemberPicker.jsx";
 
@@ -59,5 +59,19 @@ describe("MemberPicker", () => {
     fireEvent.click(screen.getByRole("button", { name: /Choose whose calendars/ }));
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     expect(onReset).toHaveBeenCalled();
+  });
+
+  it("plays a shrink animation before the popover unmounts, rather than vanishing instantly", () => {
+    vi.useFakeTimers();
+    renderPicker();
+    fireEvent.click(screen.getByRole("button", { name: /Choose whose calendars/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Choose whose calendars/ }));
+
+    expect(screen.getByRole("listbox")).toHaveClass("fb-ddpop--closing");
+    act(() => {
+      vi.advanceTimersByTime(160);
+    });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 });
