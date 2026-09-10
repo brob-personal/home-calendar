@@ -109,6 +109,7 @@ export const ACCESS_ROLES = ["owner", "writer", "reader", "freeBusyReader"];
  * @property {number}   variant    0-10, a shade inside the owner's hue. `(colorId - 1) % 11`.
  * @property {boolean}  milestone  Feeds the countdown ticker.
  * @property {string}   location   Free text. "" when absent.
+ * @property {string}   description Free text. "" when absent.
  * @property {string}   [calendarId] Source calendar. R8 sets it; the mock leaves it undefined.
  * @property {string}   [etag]     Google concurrency token, for R8's incremental sync.
  * @property {Record<string, string>} [googleEventIds] One entry per member calendar this
@@ -144,6 +145,7 @@ export function normalizeEvent(raw) {
     variant: clampVariant(e.variant),
     milestone: Boolean(e.milestone),
     location: typeof e.location === "string" ? e.location : "",
+    description: typeof e.description === "string" ? e.description : "",
   };
   /* Optional fields stay absent rather than arriving as "" — R8 compares
      etags for its incremental sync and an empty string is not a missing one. */

@@ -685,6 +685,34 @@ describe("write-back", () => {
     expect(created.googleEventIds).toEqual({ brian: "evt-1" });
   });
 
+  it("round-trips description through Google's native description field", async () => {
+    await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true, accessRole: "owner" }]);
+    let posted;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url, init) => {
+        if (init?.method === "POST") {
+          posted = JSON.parse(init.body);
+          return respond(200, { ok: true, item: { ...posted.event, id: "evt-1", etag: '"e1"' } });
+        }
+        return respond(200, { ok: true, items: [] });
+      }),
+    );
+
+    const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
+    const created = await source.create({
+      title: "Dentist",
+      start: new Date("2026-10-01T15:00:00Z"),
+      end: new Date("2026-10-01T15:30:00Z"),
+      allDay: false,
+      memberIds: ["brian"],
+      description: "Bring insurance card",
+    });
+
+    expect(posted.event.description).toBe("Bring insurance card");
+    expect(created.description).toBe("Bring insurance card");
+  });
+
   it("converts a multi-day all-day event's inclusive end to Google's exclusive end.date on write", async () => {
     await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true, accessRole: "owner" }]);
     let posted;
