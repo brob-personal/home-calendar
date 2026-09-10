@@ -25,6 +25,12 @@ import { HeaderControls } from "./HeaderControls.jsx";
   coupling came with the move; R5 may want to separate the two when the art
   becomes a token.
 
+  R6 landed here: <WeatherWidget> renders nothing until settings.weather has
+  a location — see ../weather/WeatherWidget.jsx. `weather` itself is fetched
+  once in App.jsx and passed down as a prop, not read from a hook in here,
+  so MonthView's forecast can share the same reading instead of polling
+  Open-Meteo a second time.
+
   R12 item 4: `degraded` is one boolean covering both of useBoardData's
   failure signals — a source that fell back to cached events, or a storage
   write that failed — so the board says so quietly instead of pretending
@@ -35,6 +41,7 @@ export function Header({
   now,
   anchor,
   events,
+  weather,
   degraded,
   onToday,
   onSettings,
@@ -65,7 +72,7 @@ export function Header({
           {todayCount === 0 ? "Nothing scheduled today" : `${todayCount} today`}
         </div>
         <div className="fb-headinfo">
-          <WeatherWidget now={now} />
+          <WeatherWidget now={now} snapshot={weather} />
           <span className="fb-clock">{fmtClock(now)}</span>
         </div>
       </div>

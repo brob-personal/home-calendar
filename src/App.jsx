@@ -9,6 +9,8 @@ import { useMemberFilter } from "./hooks/useMemberFilter.js";
 import { useSleep } from "./hooks/useSleep.js";
 import { useSwipePage } from "./hooks/useSwipePage.js";
 import { useDrivePhotos } from "./data/drive.js";
+import { useCalendarAccessSync } from "./data/google.js";
+import { useWeather } from "./components/weather/useWeather.js";
 import { PaletteContext, useBoardPalette } from "./state/PaletteContext.js";
 import { BoardContext } from "./state/BoardContext.js";
 import { ModeContext, useModeState } from "./state/ModeContext.js";
@@ -84,6 +86,17 @@ export default function App() {
   const modeState = useModeState(members, settings, data.setSettings);
   const { roster, views, isRoommate } = modeState;
 
+  /*
+    R6's forecast, extended for MonthView's per-day hi/lo: one `useWeather()`
+    call here rather than one each in Header and MonthView, so two consumers
+    of the same reading don't mean two independent 15-minute pollers against
+    Open-Meteo. Same reason `useModeState`/`useBoardPalette` take `settings`
+    directly instead of reading it off BoardContext — App is the one place
+    above both consumers, and cannot consume the context it is about to
+    provide to them.
+  */
+  const weather = useWeather(settings);
+
   /* The To-do tab only exists in Roommate mode (PLAN.md §R10 item 5). Without
      this, switching out of Roommate mode while it is open would leave `view`
      pointing at a tab Footer no longer renders — no button lit, an empty
@@ -141,6 +154,17 @@ export default function App() {
   */
   useDrivePhotos(settings, data.setSettings);
 
+  /*
+    R8's write path, disclosed the same way the line above already is: the
+    board account's access to a member's calendar can be revoked at any
+    time, so Composer's warning (src/components/settings/Composer.jsx) needs
+    a periodically re-checked CalendarLink.accessRole, not just the one
+    fetched when Settings.jsx saves a calendar id. This hook is a no-op in
+    mock/dev mode (no VITE_BOARD_DEVICE_SECRET) and never touches events —
+    see its own header comment in src/data/google.js.
+  */
+  useCalendarAccessSync(settings, data.setSettings);
+
   const monthArt = MONTH_ART[now.getMonth()];
 
   /*
@@ -163,9 +187,16 @@ export default function App() {
     [filtered, now],
   );
 
+  const [writeErrors, setWriteErrors] = useState([]);
   const addEvent = async (draft) => {
-    await data.createEvent(draft);
+    const created = await data.createEvent(draft);
     setPanel(null);
+    /* Non-contract, transient — google.js attaches this only when at least
+       one member's calendar write failed while the others (and the local
+       save) still succeeded. Composer already warned about read-only/
+       unlinked members before save; this is the harder-to-predict case, a
+       write that was expected to work and didn't. */
+    setWriteErrors(created.writeErrors || []);
   };
 
   const cssVars = {
@@ -208,6 +239,7 @@ export default function App() {
                   now={now}
                   anchor={anchor}
                   events={filtered}
+                  weather={weather}
                   degraded={data.degraded || Boolean(data.storageError)}
                   onToday={() => setAnchor(startOfDay(new Date()))}
                   onSettings={() => setPanel("settings")}
@@ -221,6 +253,19 @@ export default function App() {
                   filterTouched={filterTouched}
                   onReset={resetFilter}
                 />
+
+                {writeErrors.length > 0 && (
+                  <div className="fb-writewarn" role="status">
+                    <span>
+                      Saved, but couldn&apos;t add to{" "}
+                      {writeErrors
+                        .map((e) => members.find((m) => m.id === e.memberId)?.name || e.memberId)
+                        .join(", ")}
+                      &apos;s calendar.
+                    </span>
+                    <button onClick={() => setWriteErrors([])}>Dismiss</button>
+                  </div>
+                )}
 
                 {milestones.length > 0 && <Countdowns items={milestones} now={now} />}
 
@@ -254,6 +299,7 @@ export default function App() {
                           date={anchor}
                           now={now}
                           events={filtered}
+                          weather={weather}
                           onPick={(d) => {
                             setAnchor(d);
                             setView("day");

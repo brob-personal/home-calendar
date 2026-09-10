@@ -81,6 +81,12 @@ export default `
   --danger-bg: #E0574F;
   --danger-ink: #C43A33;
 
+  /* Composer's "won't sync to this calendar" indicator — a caution amber,
+     deliberately not --danger-*: nothing failed, saving still works, this
+     only says one copy won't be written. */
+  --warn-bg: #E8A33D;
+  --warn-ink: #8A5A16;
+
   --stage-gap-b: 56px;
   --board-gap: 14px;
   --board-pad-b: 18px;

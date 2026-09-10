@@ -24,9 +24,32 @@
        shade *within* the owner's hue, never a colour of its own. See
        mapGoogleEvent() below, which is the sketch's mapping unchanged.
 
-    3. WRITE-BACK.  create/update round-trip `memberIds` and `milestone`
-       through extendedProperties.private, so the board's own metadata
-       survives being edited from Google's own UI and read back.
+    3. WRITE-BACK.  update() still round-trips `memberIds` and `milestone`
+       through extendedProperties.private against the single calendar an
+       event was created on, so the board's own metadata survives being
+       edited from Google's own UI and read back.
+
+       create() is per-member instead of per-event: a shared family calendar
+       with everyone invited as an attendee was the old model, and this board
+       does not use Google attendees at all. Each selected member with a
+       `writer`/`owner` CalendarLink (Settings' "own calendar" row — a
+       CalendarLink whose only owner is them) gets its own events.insert, so
+       the event actually appears on that person's real calendar rather than
+       only as a diagonal split on the board's own display. A member with no
+       such calendar, or only `reader`/`freeBusyReader` access, is skipped —
+       not an error, since Composer already warns before save. One logical
+       event can therefore produce several Google event ids; they are kept as
+       Event.googleEventIds, `{ memberId: googleEventId }`, so a future edit
+       or delete can find every copy instead of orphaning one.
+
+       Known gap, deliberately not fixed here (PLAN.md §5 rule 3 territory,
+       not this change's): the next poll reads each member's personal
+       calendar back through the normal sync path unchanged, and each copy's
+       CalendarLink has only that one owner, so refreshAll's cache ends up
+       holding one board-local event (this file's own optimistic add, below)
+       plus one real event per member calendar — the same appointment shows
+       more than once until a read-path role teaches the merge in refreshAll
+       to recognise googleEventIds as one logical event.
 
     4. SYNC.  Each calendar gets its own incremental sync token (Google's, not
        a home-grown one), persisted so a reload resumes instead of re-pulling
@@ -49,10 +72,13 @@
        one.
   ============================================================================
 */
+import { useEffect, useRef } from "react";
+
 import { normalizeEvent, clampVariant, VARIATION_COUNT, STORE_KEYS } from "../contracts/schema.js";
 import { migrateSettings } from "../contracts/migrate.js";
 import { defineSource, inRange } from "../contracts/source.js";
 import { store } from "../lib/store.js";
+import { uid } from "../lib/uid.js";
 
 /* Persisted separately from the board's own slices — this is sync plumbing,
    not board data, and STORE_KEYS deliberately does not declare it. Mirrors
@@ -83,6 +109,15 @@ export function createGoogleSource(options = {}) {
   const listeners = new Set();
   /** @type {Map<string, import("../contracts/schema.js").CalendarLink>} */
   const eventCalendarMap = new Map();
+  /*
+    create()'s own bookkeeping for a per-member write: the board's local id
+    for such an event is never a Google event id (there can be more than
+    one), so it is not reachable through eventCalendarMap the way a plain
+    read-path event is. update()/remove() check here first; see create()'s
+    own comment for why only the first copy is kept live today.
+    @type {Map<string, Array<{ memberId: string, calendar: import("../contracts/schema.js").CalendarLink, googleEventId: string }>>}
+  */
+  const localEventCopies = new Map();
   /** @type {import("../contracts/schema.js").Event[]} */
   let cache = [];
   let pollHandle = null;
@@ -221,26 +256,19 @@ export function createGoogleSource(options = {}) {
     return d.toISOString().slice(0, 10);
   }
 
-  /* Which calendar a create() targets. Exact membership match first — a
-     two-person draft belongs on the calendar that produces exactly that
-     diagonal split, not just any calendar that happens to include both.
-     Falling back to a superset, then to whatever is first, means a draft
-     always lands somewhere rather than failing when Settings.calendars
-     doesn't yet have a perfect entry for it. */
-  function pickCalendar(calendars, memberIds) {
-    if (!calendars.length) {
-      throw new Error("No enabled Google calendar is configured for the active mode.");
-    }
-    const wanted = [...new Set(memberIds)].sort();
-    const exact = calendars.find((c) => sameMembers(c.memberIds, wanted));
-    if (exact) return exact;
-    const superset = calendars.find((c) => memberIds.every((m) => c.memberIds.includes(m)));
-    return superset || calendars[0];
+  /* A member's own calendar: the CalendarLink whose only owner is them — the
+     same "own calendar" row Settings.jsx's memberCalendarId() reads. A joint
+     calendar (0 or 2+ owners) is a read-side concept only; create() never
+     targets one. */
+  function ownCalendar(calendars, memberId) {
+    return calendars.find((c) => c.memberIds.length === 1 && c.memberIds[0] === memberId);
   }
 
-  function sameMembers(a, b) {
-    const sorted = [...new Set(a)].sort();
-    return sorted.length === b.length && sorted.every((v, i) => v === b[i]);
+  /* Composer already warns the user before save that a reader/freeBusyReader
+     — or unlinked — member won't sync; skipping here (rather than failing
+     the whole create) is that promise kept, not a new decision. */
+  function canWrite(calendar) {
+    return Boolean(calendar) && (calendar.accessRole === "writer" || calendar.accessRole === "owner");
   }
 
   /* ── Fetching one calendar ────────────────────────────────────────────── */
@@ -440,19 +468,55 @@ export function createGoogleSource(options = {}) {
 
   async function create(draft) {
     const calendars = await readActiveCalendars();
-    const target = pickCalendar(calendars, draft.memberIds || []);
+    const memberIds = [...new Set(draft.memberIds || [])];
+    /* Never tag members on the per-calendar body: a personal calendar's own
+       CalendarLink already carries exactly one owner, so mapGoogleEvent()
+       infers the right memberIds on read without extendedProperties saying
+       so — and saying so would claim every selected member on every copy. */
+    const body = toGoogleEventBody({ ...draft, memberIds: undefined });
 
-    const { item } = await request("POST", {
-      body: { calendarId: target.id, event: toGoogleEventBody(draft) },
+    const targets = memberIds
+      .map((memberId) => ({ memberId, calendar: ownCalendar(calendars, memberId) }))
+      .filter(({ calendar }) => canWrite(calendar));
+
+    const settled = await Promise.allSettled(
+      targets.map(({ calendar }) =>
+        request("POST", { body: { calendarId: calendar.id, event: body } }),
+      ),
+    );
+
+    const copies = [];
+    const googleEventIds = {};
+    const writeErrors = [];
+    settled.forEach((result, i) => {
+      const { memberId, calendar } = targets[i];
+      if (result.status === "fulfilled") {
+        copies.push({ memberId, calendar, googleEventId: result.value.item.id });
+        googleEventIds[memberId] = result.value.item.id;
+        eventCalendarMap.set(result.value.item.id, calendar);
+      } else {
+        writeErrors.push({ memberId, error: result.reason?.message || String(result.reason) });
+      }
     });
-    const created = mapGoogleEvent(item, target);
-    eventCalendarMap.set(created.id, target);
+
+    /* A fresh local id, not any one copy's Google event id — this event may
+       have landed on zero, one or several calendars, and no single one of
+       them is "the" event. localEventCopies is how update()/remove() find
+       every copy again by this id. */
+    const localId = uid();
+    localEventCopies.set(localId, copies);
+    const created = normalizeEvent({ ...draft, id: localId, memberIds, googleEventIds });
+    /* Non-contract, transient — read once by the caller to report a partial
+       failure, the same way list() attaches `.degraded` to its array. */
+    if (writeErrors.length) created.writeErrors = writeErrors;
     cache = upsert(cache, created);
     notify();
     return created;
   }
 
   async function update(id, patch) {
+    if (localEventCopies.has(id)) return updatePerMemberEvent(id, patch);
+
     const target = eventCalendarMap.get(id);
     if (!target) {
       throw new Error(`Cannot update unknown event "${id}".`);
@@ -474,7 +538,46 @@ export function createGoogleSource(options = {}) {
     return updated;
   }
 
+  /*
+    Patches every copy create() wrote for this local id — best effort, the
+    same Promise.allSettled tolerance as create() itself, since one member's
+    calendar going read-only between create and edit must not block the
+    others. Unlike the single-target path above this never re-derives the
+    returned event from a server response (there is more than one), so it
+    merges the patch onto the board's own cached copy instead.
+  */
+  async function updatePerMemberEvent(id, patch) {
+    const copies = localEventCopies.get(id);
+    const { id: _ignored, memberIds: _ignoredMemberIds, ...rest } = patch || {};
+    const body = toGoogleEventBody(rest);
+
+    await Promise.allSettled(
+      copies.map((c) =>
+        request("PATCH", { body: { calendarId: c.calendar.id, eventId: c.googleEventId, patch: body } }),
+      ),
+    );
+
+    const existing = cache.find((e) => e.id === id);
+    const updated = normalizeEvent({ ...existing, ...rest, id });
+    cache = upsert(cache, updated);
+    notify();
+    return updated;
+  }
+
   async function remove(id) {
+    if (localEventCopies.has(id)) {
+      const copies = localEventCopies.get(id);
+      await Promise.allSettled(
+        copies.map((c) => request("DELETE", { query: { calendarId: c.calendar.id, eventId: c.googleEventId } })),
+      );
+      localEventCopies.delete(id);
+      for (const c of copies) eventCalendarMap.delete(c.googleEventId);
+      const before = cache.length;
+      cache = cache.filter((e) => e.id !== id);
+      if (cache.length !== before) notify();
+      return;
+    }
+
     const target = eventCalendarMap.get(id);
     if (!target) return; // Idempotent: nothing on this board's side to remove.
 
@@ -544,4 +647,106 @@ export function createGoogleSource(options = {}) {
   }
 
   return defineSource({ list, create, update, remove, subscribe }, "google source");
+}
+
+/*
+  Standalone — deliberately not part of a createGoogleSource() closure, since
+  both call sites need it independent of whether a source has been created at
+  all: Settings.jsx checks a calendar id the moment it's entered, and the
+  periodic re-check (src/hooks/useCalendarAccessSync.js) runs for as long as
+  the board is open, on the same POLL_MS cadence as the event poll but never
+  touching it — CalendarLink.accessRole is metadata a write path reads, not
+  something the read/sync path needs to know about.
+
+  Best-effort like everything else this board treats as "can fail silently
+  and be tried again in five minutes": a bad calendar id, a dead network or a
+  5xx all resolve to null (no known access) rather than throwing, so a
+  transient failure here never surfaces as a crash in Settings or an
+  unhandled rejection in the background poll.
+*/
+/**
+ * @param {{ apiBase?: string, deviceSecret?: string, calendarId: string }} options
+ * @returns {Promise<"owner"|"writer"|"reader"|"freeBusyReader"|null>}
+ */
+export async function fetchAccessRole({ apiBase = "", deviceSecret = "", calendarId }) {
+  try {
+    const url = new URL(`${apiBase}/api/calendar/access`, globalThis.location?.origin ?? "http://localhost");
+    url.searchParams.set("calendarId", calendarId);
+    const res = await fetch(url, { headers: { "X-Board-Secret": deviceSecret } });
+    const text = await res.text();
+    const json = text ? JSON.parse(text) : null;
+    if (!res.ok || !json?.ok) return null;
+    return json.accessRole ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/*
+  The periodic half of the same job: access can be revoked by a calendar's
+  owner at any time, so a one-time fetch when the id is entered (Settings.jsx
+  calls fetchAccessRole directly for that) is not enough on its own. Same
+  shape as ../data/drive.js's useDrivePhotos — a function + a hook that polls
+  it — and the same POLL_MS cadence as the event source's own poll, run
+  independently of it so this stays additive metadata rather than a change to
+  the read/sync path itself.
+
+  Mounted once from App.jsx, same as useDrivePhotos, so it keeps running
+  regardless of whether Settings or Composer is open — Composer needs the
+  result to already be there, synchronously, the moment a member is toggled.
+*/
+/**
+ * @param {import("../contracts/schema.js").Settings} settings
+ * @param {(updater: (s: import("../contracts/schema.js").Settings) => import("../contracts/schema.js").Settings) => void} setSettings
+ * @param {{ apiBase?: string, deviceSecret?: string }} [options]
+ */
+export function useCalendarAccessSync(settings, setSettings, options = {}) {
+  const apiBase = options.apiBase ?? (import.meta.env.VITE_API_BASE_URL || "");
+  const deviceSecret = options.deviceSecret ?? (import.meta.env.VITE_BOARD_DEVICE_SECRET || "");
+
+  /* Read fresh at check time rather than depending on `settings`, so a Settings
+     edit elsewhere does not restart this interval and reset its 5-minute
+     clock on every keystroke. */
+  const settingsRef = useRef(settings);
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  useEffect(() => {
+    if (!deviceSecret) return; // Mock/dev mode — no real backend to ask.
+    let cancelled = false;
+
+    const check = async () => {
+      const mode = settingsRef.current.mode;
+      const calendars = (settingsRef.current.calendars[mode] || []).filter((c) => c.enabled);
+      if (!calendars.length) return;
+
+      const results = await Promise.all(
+        calendars.map(async (c) => ({
+          id: c.id,
+          accessRole: await fetchAccessRole({ apiBase, deviceSecret, calendarId: c.id }),
+        })),
+      );
+      if (cancelled) return;
+
+      setSettings((s) => {
+        const list = s.calendars[s.mode] || [];
+        let changed = false;
+        const next = list.map((c) => {
+          const found = results.find((r) => r.id === c.id);
+          if (!found || found.accessRole == null || found.accessRole === c.accessRole) return c;
+          changed = true;
+          return { ...c, accessRole: found.accessRole };
+        });
+        return changed ? { ...s, calendars: { ...s.calendars, [s.mode]: next } } : s;
+      });
+    };
+
+    check();
+    const id = setInterval(check, POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [apiBase, deviceSecret, setSettings]);
 }

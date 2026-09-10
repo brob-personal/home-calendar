@@ -61,6 +61,14 @@ export default `
   font-size: 14px; font-weight: 600; padding: 6px 16px 6px 7px;
   background: var(--surface); border: 2px solid transparent; border-radius: 999px; color: var(--ink);
 }
+.fb-avpill-avatar { position: relative; display: inline-flex; }
+.fb-avpill-warn {
+  position: absolute; top: -3px; right: -3px; width: 15px; height: 15px;
+  border-radius: 50%; background: var(--warn-bg); color: var(--ink-on-dark);
+  font-size: 10px; font-weight: 800; line-height: 15px; text-align: center;
+  border: 2px solid var(--paper);
+}
+.fb-textwarn { color: var(--warn-ink); }
 .fb-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
 .fb-ramp { display: flex; gap: 6px; flex-wrap: wrap; }
 .fb-shade { width: 48px; height: var(--tap-min); border-radius: 8px; display: block; }

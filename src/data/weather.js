@@ -87,12 +87,15 @@ function pickUvPeak(hours) {
  * (../contracts/schema.js). Throws on any network, HTTP or timeout failure —
  * getWeather is what degrades, this stays a straight mapping.
  *
- * `forecast_days=1` plus `timezone=auto` returns the day's hours, sunrise and
- * sunset in the location's own local time as bare "YYYY-MM-DDTHH:MM" strings,
- * which `new Date(...)` reads as browser-local. That is only correct when the
- * board's timezone matches the configured location's — true for this board,
- * which sits at the location it displays weather for, but worth knowing
- * before reusing this function somewhere that assumption does not hold.
+ * `forecast_days=16` plus `timezone=auto` returns sixteen days of hours,
+ * sunrise and sunset in the location's own local time as bare
+ * "YYYY-MM-DDTHH:MM" strings, which `new Date(...)` reads as browser-local.
+ * That is only correct when the board's timezone matches the configured
+ * location's — true for this board, which sits at the location it displays
+ * weather for, but worth knowing before reusing this function somewhere that
+ * assumption does not hold. The Month view's per-day forecast is the reason
+ * for the sixteen days; Day/Week and the header chip only ever read the
+ * top-level fields below, which stay today-only exactly as before.
  *
  * @param {{lat: number, lon: number, units: "F"|"C"}} location
  * @returns {Promise<import("../contracts/schema.js").WeatherSnapshot>}
@@ -102,9 +105,9 @@ export async function fetchWeatherSnapshot({ lat, lon, units }) {
     `${API_BASE}?latitude=${lat}&longitude=${lon}` +
     `&current=temperature_2m,weather_code` +
     `&hourly=temperature_2m,precipitation_probability,uv_index` +
-    `&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min` +
+    `&daily=weather_code,sunrise,sunset,temperature_2m_max,temperature_2m_min` +
     `&temperature_unit=${units === "C" ? "celsius" : "fahrenheit"}` +
-    `&timezone=auto&forecast_days=1`;
+    `&timezone=auto&forecast_days=16`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -120,10 +123,32 @@ export async function fetchWeatherSnapshot({ lat, lon, units }) {
   const times = json.hourly?.time ?? [];
   const hours = times.map((t, i) => ({
     at: new Date(t),
+    day: t.slice(0, 10),
     temp: json.hourly.temperature_2m?.[i] ?? null,
     precipChance: json.hourly.precipitation_probability?.[i] ?? 0,
     uv: json.hourly.uv_index?.[i] ?? 0,
   }));
+
+  const dailyTimes = json.daily?.time ?? [];
+  const daily = dailyTimes.map((dayStr, i) => {
+    const dayHours = hours.filter((h) => h.day === dayStr);
+    return {
+      /* `dayStr` is a bare "YYYY-MM-DD" — parsed on its own that reads as
+         UTC midnight, unlike the "YYYY-MM-DDTHH:MM" strings elsewhere in
+         this file that the JS date-string grammar parses as local time.
+         Appending a time forces the same local-midnight reading MonthView's
+         sameDay() comparisons need. */
+      date: new Date(`${dayStr}T00:00`),
+      condition: normalizeCondition(conditionFromCode(json.daily.weather_code?.[i])),
+      hi: json.daily.temperature_2m_max?.[i] ?? null,
+      lo: json.daily.temperature_2m_min?.[i] ?? null,
+      sunrise: new Date(json.daily.sunrise?.[i]),
+      sunset: new Date(json.daily.sunset?.[i]),
+      uvPeak: pickUvPeak(dayHours),
+      hourly: dayHours.map(({ at, temp, precipChance }) => ({ at, temp, precipChance })),
+    };
+  });
+  const today = daily[0] ?? null;
 
   return {
     fetchedAt: new Date(),
@@ -131,12 +156,13 @@ export async function fetchWeatherSnapshot({ lat, lon, units }) {
     units,
     temp: json.current?.temperature_2m ?? null,
     condition: normalizeCondition(conditionFromCode(json.current?.weather_code)),
-    hi: json.daily?.temperature_2m_max?.[0] ?? null,
-    lo: json.daily?.temperature_2m_min?.[0] ?? null,
-    sunrise: new Date(json.daily?.sunrise?.[0]),
-    sunset: new Date(json.daily?.sunset?.[0]),
-    uvPeak: pickUvPeak(hours),
-    hourly: hours.map(({ at, temp, precipChance }) => ({ at, temp, precipChance })),
+    hi: today?.hi ?? null,
+    lo: today?.lo ?? null,
+    sunrise: today ? today.sunrise : new Date(undefined),
+    sunset: today ? today.sunset : new Date(undefined),
+    uvPeak: today?.uvPeak ?? null,
+    hourly: today?.hourly ?? [],
+    daily,
   };
 }
 

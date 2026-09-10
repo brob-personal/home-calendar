@@ -85,6 +85,13 @@ export const SLEEP_STYLES = ["black", "dim"];
 */
 export const VARIATION_COUNT = 11;
 
+/*
+  Google's own calendarList.get access levels, closed the same way
+  ROUTINE_KINDS is: a hand-edited or stale value should degrade to "no known
+  access" rather than be trusted as a role Google never granted.
+*/
+export const ACCESS_ROLES = ["owner", "writer", "reader", "freeBusyReader"];
+
 /* ============================================================================
    Event
    ========================================================================= */
@@ -104,6 +111,10 @@ export const VARIATION_COUNT = 11;
  * @property {string}   location   Free text. "" when absent.
  * @property {string}   [calendarId] Source calendar. R8 sets it; the mock leaves it undefined.
  * @property {string}   [etag]     Google concurrency token, for R8's incremental sync.
+ * @property {Record<string, string>} [googleEventIds] One entry per member calendar this
+ *   event was written to on create — the write path's own event id, not a source
+ *   calendar. Lets a future edit/delete find and update every copy instead of
+ *   orphaning them. Absent for events that were never written by this app.
  */
 
 /**
@@ -138,6 +149,7 @@ export function normalizeEvent(raw) {
      etags for its incremental sync and an empty string is not a missing one. */
   if (e.calendarId) out.calendarId = String(e.calendarId);
   if (e.etag) out.etag = String(e.etag);
+  if (isPlainRecordOfStrings(e.googleEventIds)) out.googleEventIds = { ...e.googleEventIds };
   return out;
 }
 
@@ -336,6 +348,21 @@ export function normalizeRoutine(raw) {
  * @property {number} temp          °F or °C per Settings.weather.units.
  * @property {number} precipChance  0-100.
  *
+ * One forecast day, today included. `daily[0]` is always the same day the
+ * top-level `hi`/`lo`/`sunrise`/`sunset`/`uvPeak`/`hourly` fields describe —
+ * those top-level fields exist so Day/Week and the header chip, which only
+ * ever care about today, don't need to reach into `daily[0]` themselves.
+ *
+ * @typedef {object} WeatherDay
+ * @property {Date}   date
+ * @property {string} condition
+ * @property {number} hi
+ * @property {number} lo
+ * @property {Date}   sunrise
+ * @property {Date}   sunset
+ * @property {{at: Date, index: number}|null} uvPeak
+ * @property {WeatherHour[]} hourly
+ *
  * @typedef {object} WeatherSnapshot
  * @property {Date}   fetchedAt
  * @property {{label: string, lat: number, lon: number}} location
@@ -348,6 +375,7 @@ export function normalizeRoutine(raw) {
  * @property {Date}   sunset
  * @property {{at: Date, index: number}|null} uvPeak
  * @property {WeatherHour[]} hourly
+ * @property {WeatherDay[]} daily     Today plus up to 15 more days, in order.
  */
 
 /**
@@ -376,6 +404,11 @@ export function normalizeCondition(condition) {
  * @property {number}   [colorId]  Calendar-level Google colour, 1-11. Events with no
  *                                 colorId of their own inherit it (PLAN.md §R8 item 2).
  * @property {boolean}  enabled    Off keeps the mapping without syncing it.
+ * @property {"owner"|"writer"|"reader"|"freeBusyReader"} [accessRole] The
+ *   authenticated board account's access to this calendar, per Google's own
+ *   calendarList.get. Absent until first fetched. Re-checked alongside the
+ *   5-minute poll — access can be revoked by the calendar's owner at any
+ *   time, so this is read-model metadata, not a one-time setup fact.
  */
 
 /**
@@ -424,6 +457,12 @@ export function asDate(v) {
   if (typeof v === "number") return new Date(v);
   if (typeof v === "string") return new Date(v);
   return new Date(NaN);
+}
+
+/** @param {unknown} v @returns {boolean} A plain object whose values are all strings. */
+function isPlainRecordOfStrings(v) {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  return Object.values(v).every((x) => typeof x === "string");
 }
 
 /** @param {unknown} v @returns {number} 0-10, the shade index inside a hue. */

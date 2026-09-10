@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Settings } from "./Settings.jsx";
@@ -164,6 +164,51 @@ describe("Settings' Calendars section", () => {
         "solo@x.com",
       ),
     ).not.toBeInTheDocument();
+  });
+
+  it("checks accessRole when a member's calendar id field is blurred, and merges the result", async () => {
+    vi.stubEnv("VITE_BOARD_DEVICE_SECRET", "test-secret");
+    const fetchSpy = vi.fn(
+      async () => new Response(JSON.stringify({ ok: true, accessRole: "reader" }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const existing = {
+      personal: [{ id: "brian@x.com", memberIds: [DEFAULT_MEMBERS[0].id], enabled: true }],
+      roommate: [],
+    };
+    const setSettings = renderSettings({ calendars: existing });
+
+    fireEvent.blur(screen.getByDisplayValue("brian@x.com"));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+    const url = new URL(fetchSpy.mock.calls[0][0]);
+    expect(url.pathname).toBe("/api/calendar/access");
+    expect(url.searchParams.get("calendarId")).toBe("brian@x.com");
+
+    await waitFor(() => {
+      const updater = setSettings.mock.calls.at(-1)[0];
+      const result = updater({ ...DEFAULT_SETTINGS, calendars: existing });
+      expect(result.calendars.personal[0].accessRole).toBe("reader");
+    });
+
+    vi.unstubAllEnvs();
+  });
+
+  it("does not check accessRole outside a real deployment (no device secret configured)", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const existing = {
+      personal: [{ id: "brian@x.com", memberIds: [DEFAULT_MEMBERS[0].id], enabled: true }],
+      roommate: [],
+    };
+    renderSettings({ calendars: existing });
+
+    fireEvent.blur(screen.getByDisplayValue("brian@x.com"));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("a calendar shared by two or more people still shows under Joint calendars", () => {

@@ -34,7 +34,8 @@ export default `
 }
 .fb-dheadrow { display: flex; align-items: center; gap: 9px; }
 .fb-dname { font-size: 15px; font-weight: 600; letter-spacing: -.015em; }
-.fb-daybody { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.fb-daybody { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+.fb-daybody::-webkit-scrollbar { display: none; }
 .fb-daygrid { display: flex; position: relative; }
 .fb-dcol { position: relative; flex: 1; border-left: 1px solid var(--line); }
 .fb-dcol:last-child { border-right: 1px solid var(--line); }

@@ -199,6 +199,22 @@ describe("migrateSettings — clamps and repairs", () => {
     expect(settings.calendars.roommate).toEqual([]);
   });
 
+  it("keeps a calendar's accessRole and drops an unrecognized one", () => {
+    const settings = migrateSettings({
+      calendars: {
+        personal: [
+          { id: "brian@gmail.com", memberIds: ["brian"], accessRole: "writer" },
+          { id: "rachel@gmail.com", memberIds: ["rachel"], accessRole: "reader" },
+          { id: "stale@gmail.com", memberIds: ["david"], accessRole: "superAdmin" },
+        ],
+      },
+    });
+
+    expect(settings.calendars.personal[0].accessRole).toBe("writer");
+    expect(settings.calendars.personal[1].accessRole).toBe("reader");
+    expect("accessRole" in settings.calendars.personal[2]).toBe(false);
+  });
+
   it("keeps an unknown field rather than stripping it", () => {
     /* A board briefly rolled back to an older build must not permanently
        discard the newer build's settings. */

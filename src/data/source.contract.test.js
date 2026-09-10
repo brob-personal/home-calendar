@@ -308,7 +308,7 @@ async function seedGoogleFixture() {
     mode: "personal",
     calendars: {
       personal: [
-        { id: CALENDAR_A, memberIds: ["brian"], enabled: true },
+        { id: CALENDAR_A, memberIds: ["brian"], enabled: true, accessRole: "owner" },
         { id: CALENDAR_B, memberIds: ["brian", "rachel"], enabled: true },
       ],
       roommate: [],

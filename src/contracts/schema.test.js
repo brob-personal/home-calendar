@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { VARIATIONS } from "../lib/color.js";
 import {
+  ACCESS_ROLES,
   MODES,
   SCHEMA_VERSION,
   SLEEP_STYLES,
@@ -73,6 +74,28 @@ describe("normalizeEvent", () => {
     const full = normalizeEvent({ id: "e1", etag: "abc", calendarId: "brian@gmail.com" });
     expect(full.etag).toBe("abc");
     expect(full.calendarId).toBe("brian@gmail.com");
+  });
+
+  it("keeps the per-member Google event id map when a write path set one", () => {
+    /* One logical board event can produce several Google event ids — one per
+       member calendar it was written to. A future edit/delete needs to find
+       every copy, so the map survives normalization the same way calendarId
+       and etag do: absent when never written, present verbatim otherwise. */
+    const bare = normalizeEvent({ id: "e1" });
+    expect("googleEventIds" in bare).toBe(false);
+
+    const full = normalizeEvent({
+      id: "e1",
+      googleEventIds: { brian: "evt-brian-1", rachel: "evt-rachel-1" },
+    });
+    expect(full.googleEventIds).toEqual({ brian: "evt-brian-1", rachel: "evt-rachel-1" });
+  });
+
+  it("drops a malformed googleEventIds rather than throwing", () => {
+    for (const bad of [null, "nope", 42, [], { brian: 5 }]) {
+      const e = normalizeEvent({ id: "e1", googleEventIds: bad });
+      expect("googleEventIds" in e).toBe(false);
+    }
   });
 
   it("is idempotent", () => {
@@ -216,6 +239,7 @@ describe("the contract constants", () => {
     expect(MODES).toEqual(["personal", "roommate"]);
     expect(SLEEP_STYLES).toEqual(["black", "dim"]);
     expect(WEATHER_CONDITIONS).toHaveLength(5);
+    expect(ACCESS_ROLES).toEqual(["owner", "writer", "reader", "freeBusyReader"]);
   });
 
   it("starts the schema at a real version", () => {
