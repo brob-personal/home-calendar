@@ -282,6 +282,11 @@ export default function App() {
                           members={shownMembers}
                           settings={settings}
                           onSelect={setSelectedEvent}
+                          roster={roster}
+                          isShown={isShown}
+                          onToggleMember={toggleMember}
+                          filterTouched={filterTouched}
+                          onReset={resetFilter}
                         />
                       )}
                       {view === "week" && (
@@ -292,6 +297,11 @@ export default function App() {
                           members={shownMembers}
                           settings={settings}
                           onSelect={setSelectedEvent}
+                          roster={roster}
+                          isShown={isShown}
+                          onToggleMember={toggleMember}
+                          filterTouched={filterTouched}
+                          onReset={resetFilter}
                         />
                       )}
                       {view === "month" && (
@@ -305,6 +315,11 @@ export default function App() {
                             setView("day");
                           }}
                           onSelect={setSelectedEvent}
+                          roster={roster}
+                          isShown={isShown}
+                          onToggleMember={toggleMember}
+                          filterTouched={filterTouched}
+                          onReset={resetFilter}
                         />
                       )}
                       {/* Deferred Defect #2, fixed: `shownMembers`, matching DayView,

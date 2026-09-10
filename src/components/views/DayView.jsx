@@ -4,6 +4,7 @@ import { tint, variantColor } from "../../lib/color.js";
 import { layoutOverlaps } from "../../lib/layout.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { PersonProgress } from "../shell/PersonProgress.jsx";
+import { MemberPicker } from "../shell/MemberPicker.jsx";
 import { TimeGutter } from "./TimeGutter.jsx";
 import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
 
@@ -38,6 +39,12 @@ import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
     - `shownMembers`, not `members` (Deferred Defect #2 is AgendaView's, not
       this view's)
 
+  The home/member-picker icon lives in `.fb-dayhead`'s gutter slot now,
+  fixed to the left and vertically centred against the avatar row —
+  `roster`/`isShown`/`onToggleMember`/`filterTouched`/`onReset` are threaded
+  straight through from App.jsx, the same values Header used to receive.
+  HeaderControls no longer renders its own copy for this view.
+
   Item 5: the onDoubleClick delete is gone. Tapping a block calls `onSelect`,
   which App.jsx wires to the new EventDetailSheet — the app's first edit path,
   and a delete path that requires a confirm step and is reachable from every
@@ -59,7 +66,19 @@ import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
 */
 const HOUR_H = 34;
 
-export function DayView({ date, now, events, members, settings, onSelect }) {
+export function DayView({
+  date,
+  now,
+  events,
+  members,
+  settings,
+  onSelect,
+  roster,
+  isShown,
+  onToggleMember,
+  filterTouched,
+  onReset,
+}) {
   const hours = [];
   for (let h = 0; h < 24; h++) hours.push(h);
   const spanStart = 0;
@@ -77,9 +96,26 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
   const nowTop = ((minutesInto(now) - spanStart) / 60) * HOUR_H;
   const showNow = sameDay(date, now);
 
+  const headHome = (
+    <div className="fb-gutter fb-headhome">
+      <MemberPicker
+        members={roster}
+        isShown={isShown}
+        onToggleMember={onToggleMember}
+        showReset={filterTouched}
+        onReset={onReset}
+        align="left"
+        compact
+      />
+    </div>
+  );
+
   if (members.length === 0) {
     return (
-      <div className="fb-empty">Everyone is hidden. Tap a face below to bring a calendar back.</div>
+      <div className="fb-day">
+        <div className="fb-dayhead">{headHome}</div>
+        <div className="fb-empty">Everyone is hidden. Tap the home icon to bring a calendar back.</div>
+      </div>
     );
   }
 
@@ -96,7 +132,7 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
       )}
 
       <div className="fb-dayhead">
-        <span className="fb-gutter" />
+        {headHome}
         {members.map((m) => (
           <div className="fb-dhead" key={m.id}>
             <div className="fb-dheadrow">

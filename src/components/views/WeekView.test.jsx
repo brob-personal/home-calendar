@@ -26,7 +26,18 @@ function ev(id, title, startH, startM, endH, endM) {
 function renderWeek(events, onSelect = () => {}) {
   return render(
     <PaletteContext.Provider value={palette}>
-      <WeekView date={DATE} now={NOW} events={events} settings={SETTINGS} onSelect={onSelect} />
+      <WeekView
+        date={DATE}
+        now={NOW}
+        events={events}
+        settings={SETTINGS}
+        onSelect={onSelect}
+        roster={[]}
+        isShown={() => true}
+        onToggleMember={() => {}}
+        filterTouched={false}
+        onReset={() => {}}
+      />
     </PaletteContext.Provider>,
   );
 }
