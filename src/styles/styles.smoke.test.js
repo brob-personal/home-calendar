@@ -4,13 +4,16 @@ import { BOARD_CSS } from "./index.js";
 import fit from "./shell/Fit.js";
 import root from "./shell/Root.js";
 import header from "./shell/Header.js";
+import headerControls from "./shell/HeaderControls.js";
+import viewSwitcher from "./shell/ViewSwitcher.js";
+import memberPicker from "./shell/MemberPicker.js";
 import countdowns from "./shell/Countdowns.js";
 import day from "./views/DayView.js";
 import week from "./views/WeekView.js";
 import month from "./views/MonthView.js";
 import agenda from "./views/AgendaView.js";
-import footer from "./shell/Footer.js";
 import avatar from "./shell/Avatar.js";
+import personProgress from "./shell/PersonProgress.js";
 import notes from "./notes/Notes.js";
 import sheet from "./shell/Sheet.js";
 import sleep from "./idle/SleepVeil.js";
@@ -79,9 +82,7 @@ describe("board stylesheet", () => {
   });
 
   it("derives the dock offset instead of restating it", () => {
-    expect(BOARD_CSS).toContain(
-      "--dock-bottom: calc(var(--footer-h) + var(--board-gap) + var(--board-pad-b))",
-    );
+    expect(BOARD_CSS).toContain("--dock-bottom: calc(var(--board-pad-b) + 8px)");
     expect(BOARD_CSS).not.toContain("bottom: 92px");
     // R7's DayView rewrite retired the axis-margin duplication (and the
     // .fb-axis it measured) along with the old lane-name column.
@@ -96,13 +97,16 @@ describe("board stylesheet", () => {
     const everythingElse = [
       root,
       header,
+      headerControls,
+      viewSwitcher,
+      memberPicker,
       countdowns,
       day,
       week,
       month,
       agenda,
-      footer,
       avatar,
+      personProgress,
       notes,
       sheet,
       sleep,

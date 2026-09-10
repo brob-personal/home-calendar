@@ -2,13 +2,16 @@ import fit from "./shell/Fit.js";
 import tokens from "./tokens.js";
 import root from "./shell/Root.js";
 import header from "./shell/Header.js";
+import headerControls from "./shell/HeaderControls.js";
+import viewSwitcher from "./shell/ViewSwitcher.js";
+import memberPicker from "./shell/MemberPicker.js";
 import countdowns from "./shell/Countdowns.js";
 import day from "./views/DayView.js";
 import week from "./views/WeekView.js";
 import month from "./views/MonthView.js";
 import agenda from "./views/AgendaView.js";
-import footer from "./shell/Footer.js";
 import avatar from "./shell/Avatar.js";
+import personProgress from "./shell/PersonProgress.js";
 import notes from "./notes/Notes.js";
 import sheet from "./shell/Sheet.js";
 import sleep from "./idle/SleepVeil.js";
@@ -44,6 +47,26 @@ import motion from "./motion.js";
   same commit as this file; `styles.smoke.test.js` replaces it with the
   invariants that still apply.
 */
-const chunks = [fit, tokens, root, header, countdowns, day, week, month, agenda, footer, avatar, notes, sheet, sleep, screensaver, motion];
+const chunks = [
+  fit,
+  tokens,
+  root,
+  header,
+  headerControls,
+  viewSwitcher,
+  memberPicker,
+  countdowns,
+  day,
+  week,
+  month,
+  agenda,
+  avatar,
+  personProgress,
+  notes,
+  sheet,
+  sleep,
+  screensaver,
+  motion,
+];
 
 export const BOARD_CSS = chunks.join("");

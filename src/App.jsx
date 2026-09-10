@@ -17,7 +17,6 @@ import { Fit } from "./components/shell/Fit.jsx";
 import { BoardStyles } from "./components/shell/BoardStyles.jsx";
 import { Header } from "./components/shell/Header.jsx";
 import { Countdowns } from "./components/shell/Countdowns.jsx";
-import { Footer } from "./components/shell/Footer.jsx";
 import { DayView } from "./components/views/DayView.jsx";
 import { WeekView } from "./components/views/WeekView.jsx";
 import { MonthView } from "./components/views/MonthView.jsx";
@@ -212,6 +211,15 @@ export default function App() {
                   degraded={data.degraded || Boolean(data.storageError)}
                   onToday={() => setAnchor(startOfDay(new Date()))}
                   onSettings={() => setPanel("settings")}
+                  view={view}
+                  setView={setView}
+                  views={views}
+                  setAnchor={setAnchor}
+                  roster={roster}
+                  isShown={isShown}
+                  onToggleMember={toggleMember}
+                  filterTouched={filterTouched}
+                  onReset={resetFilter}
                 />
 
                 {milestones.length > 0 && <Countdowns items={milestones} now={now} />}
@@ -236,6 +244,7 @@ export default function App() {
                           date={anchor}
                           now={now}
                           events={filtered}
+                          members={shownMembers}
                           settings={settings}
                           onSelect={setSelectedEvent}
                         />
@@ -270,19 +279,6 @@ export default function App() {
                     </>
                   )}
                 </main>
-
-                <Footer
-                  view={view}
-                  setView={setView}
-                  views={views}
-                  anchor={anchor}
-                  setAnchor={setAnchor}
-                  members={roster}
-                  isShown={isShown}
-                  onToggleMember={toggleMember}
-                  showReset={filterTouched}
-                  onReset={resetFilter}
-                />
               </div>
 
               <NoteDock

@@ -5,6 +5,12 @@
   absorbs whatever height the countdown row does or does not occupy: the
   row is only rendered when there is a milestone to show, so the stage
   grows by 46px plus one board gap when nothing is counting down.
+
+  .fb-stage's margin-bottom is --stage-gap-b, not zero: now that Footer no
+  longer sits below it as a flex sibling, the calendar would otherwise run
+  flush to the bottom edge. The reserved strip this margin creates is where
+  NoteDock's floating FAB (../notes/NoteDock.jsx) lives — see --dock-bottom
+  in tokens.js.
 */
 export default `
 /* Countdowns — 46px */
@@ -14,5 +20,5 @@ export default `
 .fb-cdunit { font-size: 13px; color: var(--mute); }
 .fb-cdlabel { font-size: 15px; font-weight: 500; }
 
-.fb-stage { flex: 1; min-height: 0; }
+.fb-stage { flex: 1; min-height: 0; margin-bottom: var(--stage-gap-b); }
 `;

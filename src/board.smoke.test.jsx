@@ -28,6 +28,7 @@ const VIEWS = ["Day", "Week", "Month", "Agenda"];
 
 describe("Family Board scaffold smoke", () => {
   it("mounts and renders the board shell", async () => {
+    const user = userEvent.setup();
     render(<FamilyBoard />);
 
     // findBy* rather than getBy*: the root component loads events through
@@ -35,8 +36,11 @@ describe("Family Board scaffold smoke", () => {
     // state update.
     expect(await screen.findByRole("button", { name: "Day" })).toBeInTheDocument();
 
-    for (const view of VIEWS) {
-      expect(screen.getByRole("button", { name: view })).toBeInTheDocument();
+    // Day is the active view, shown as the switcher's own button label; the
+    // rest only appear once the switcher's popover is open.
+    await user.click(screen.getByRole("button", { name: "Day" }));
+    for (const view of VIEWS.filter((v) => v !== "Day")) {
+      expect(screen.getByRole("option", { name: view })).toBeInTheDocument();
     }
 
     expect(screen.getByRole("button", { name: "Open settings" })).toBeInTheDocument();
@@ -80,12 +84,14 @@ describe("Family Board scaffold smoke", () => {
     render(<FamilyBoard />);
     await screen.findByRole("button", { name: "Day" });
 
-    expect(screen.getByRole("button", { name: "Day" }).className).toContain("is-on");
+    const viewPill = () => screen.getByRole("button", { name: /^(Day|Week|Month|Agenda)$/ });
+    expect(viewPill()).toHaveTextContent("Day");
 
     for (const view of VIEWS) {
-      const button = screen.getByRole("button", { name: view });
-      await user.click(button);
-      expect(screen.getByRole("button", { name: view }).className).toContain("is-on");
+      if (viewPill().textContent.trim() === view) continue;
+      await user.click(viewPill());
+      await user.click(screen.getByRole("option", { name: view }));
+      expect(viewPill()).toHaveTextContent(view);
     }
   });
 });

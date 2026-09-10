@@ -29,9 +29,10 @@ export default `
 }
 .fb-dayhead { display: flex; flex: none; padding-right: 6px; }
 .fb-dhead {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 9px;
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   padding: 2px 0 8px; color: var(--ink); border-bottom: 1px solid var(--line);
 }
+.fb-dheadrow { display: flex; align-items: center; gap: 9px; }
 .fb-dname { font-size: 15px; font-weight: 600; letter-spacing: -.015em; }
 .fb-daybody { flex: 1; overflow-y: auto; overflow-x: hidden; }
 .fb-daygrid { display: flex; position: relative; }

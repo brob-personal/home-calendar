@@ -3,6 +3,7 @@ import { sameDay, spansDay, minutesInto, fmtTime, fmtRange } from "../../lib/dat
 import { tint, variantColor } from "../../lib/color.js";
 import { layoutOverlaps } from "../../lib/layout.js";
 import { Avatar } from "../shell/Avatar.jsx";
+import { PersonProgress } from "../shell/PersonProgress.jsx";
 import { TimeGutter } from "./TimeGutter.jsx";
 import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
 
@@ -98,8 +99,11 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
         <span className="fb-gutter" />
         {members.map((m) => (
           <div className="fb-dhead" key={m.id}>
-            <Avatar member={m} size={30} />
-            <span className="fb-dname">{m.name}</span>
+            <div className="fb-dheadrow">
+              <Avatar member={m} size={30} />
+              <span className="fb-dname">{m.name}</span>
+            </div>
+            <PersonProgress member={m} events={events} now={now} />
           </div>
         ))}
       </div>

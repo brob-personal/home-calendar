@@ -1,10 +1,19 @@
 import { sameDay, fmtClock, DOW_LONG } from "../../lib/date.js";
 import { MONTH_ART } from "../../lib/theme.js";
-import { Gear } from "./icons.jsx";
 import { WeatherWidget } from "../weather/WeatherWidget.jsx";
+import { HeaderControls } from "./HeaderControls.jsx";
 
 /*
-  Moved verbatim from family-board.jsx:710-739.
+  Header redesign: the left side is now purely static "what day is it"
+  info — weekday, date number, month/year, today's count, weather and the
+  clock all live here and never change what the board is showing. Every
+  control that alters something (pager, view switch, member filter,
+  settings) moved to <HeaderControls>, on the right — see that file for
+  what used to live in Footer.jsx.
+
+  Weather and the clock used to sit in the right-hand button cluster; they
+  are read-only displays, not controls, so they moved into the left block
+  instead of getting folded into HeaderControls.
 
   Note the asymmetry, which is intentional and easy to "fix" by mistake: the
   big date reads from `anchor` (whatever day you have paged to) while the
@@ -16,17 +25,29 @@ import { WeatherWidget } from "../weather/WeatherWidget.jsx";
   coupling came with the move; R5 may want to separate the two when the art
   becomes a token.
 
-  R6 landed here: <WeatherWidget> is one line, self-contained, and renders
-  nothing until settings.weather has a location — see
-  ../weather/WeatherWidget.jsx.
-
   R12 item 4: `degraded` is one boolean covering both of useBoardData's
   failure signals — a source that fell back to cached events, or a storage
   write that failed — so the board says so quietly instead of pretending
   everything is fine. Reuses `.fb-chip`, the same pill "Back to today"
   already uses, rather than introducing a second visual language for status.
 */
-export function Header({ now, anchor, events, degraded, onToday, onSettings }) {
+export function Header({
+  now,
+  anchor,
+  events,
+  degraded,
+  onToday,
+  onSettings,
+  view,
+  setView,
+  views,
+  setAnchor,
+  roster,
+  isShown,
+  onToggleMember,
+  filterTouched,
+  onReset,
+}) {
   const isToday = sameDay(anchor, now);
   const todayCount = events.filter((e) => !e.allDay && sameDay(e.start, now)).length;
 
@@ -41,26 +62,30 @@ export function Header({ now, anchor, events, degraded, onToday, onSettings }) {
           {MONTH_ART[anchor.getMonth()].name} {anchor.getFullYear()}
         </div>
         <div className="fb-sub">
-          {todayCount === 0 ? "Nothing scheduled today" : `${todayCount} Events Today`}
+          {todayCount === 0 ? "Nothing scheduled today" : `${todayCount} today`}
+        </div>
+        <div className="fb-headinfo">
+          <WeatherWidget now={now} />
+          <span className="fb-clock">{fmtClock(now)}</span>
         </div>
       </div>
-      <div className="fb-headright">
-        <WeatherWidget now={now} />
-        <div className="fb-clock">{fmtClock(now)}</div>
-        {degraded && (
-          <span className="fb-chip" title="Showing the last saved events and settings">
-            Offline
-          </span>
-        )}
-        {!isToday && (
-          <button className="fb-chip" onClick={onToday}>
-            Back to today
-          </button>
-        )}
-        <button className="fb-icon" onClick={onSettings} aria-label="Open settings">
-          <Gear />
-        </button>
-      </div>
+
+      <HeaderControls
+        degraded={degraded}
+        isToday={isToday}
+        onToday={onToday}
+        view={view}
+        setView={setView}
+        views={views}
+        anchor={anchor}
+        setAnchor={setAnchor}
+        roster={roster}
+        isShown={isShown}
+        onToggleMember={onToggleMember}
+        filterTouched={filterTouched}
+        onReset={onReset}
+        onSettings={onSettings}
+      />
     </header>
   );
 }
