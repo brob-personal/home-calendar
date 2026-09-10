@@ -22,11 +22,43 @@ function openMeteoFixture(overrides = {}) {
       ...overrides.hourly,
     },
     daily: {
+      time: ["2026-09-09"],
+      weather_code: [2],
       sunrise: ["2026-09-09T06:42"],
       sunset: ["2026-09-09T19:18"],
       temperature_2m_max: [76],
       temperature_2m_min: [58],
       ...overrides.daily,
+    },
+  };
+}
+
+/* A realistic multi-day payload — daily.time and hourly.time both span three
+   days — for exercising the day-grouping the Month view's forecast relies
+   on. Real Open-Meteo requests ask for sixteen; three is enough to prove the
+   grouping without a wall of fixture data. */
+function multiDayFixture() {
+  return {
+    current: { temperature_2m: 71.4, weather_code: 2 },
+    hourly: {
+      time: [
+        "2026-09-09T13:00",
+        "2026-09-09T14:00",
+        "2026-09-10T09:00",
+        "2026-09-10T15:00",
+        "2026-09-11T12:00",
+      ],
+      temperature_2m: [70, 74, 55, 60, 80],
+      precipitation_probability: [10, 20, 0, 5, 90],
+      uv_index: [3, 7, 1, 2, 9],
+    },
+    daily: {
+      time: ["2026-09-09", "2026-09-10", "2026-09-11"],
+      weather_code: [2, 61, 3],
+      sunrise: ["2026-09-09T06:42", "2026-09-10T06:43", "2026-09-11T06:44"],
+      sunset: ["2026-09-09T19:18", "2026-09-10T19:16", "2026-09-11T19:14"],
+      temperature_2m_max: [76, 65, 82],
+      temperature_2m_min: [58, 52, 61],
     },
   };
 }
@@ -83,6 +115,41 @@ describe("fetchWeatherSnapshot", () => {
   it("throws on a non-ok response so getWeather is the only thing that degrades", async () => {
     mockFetchOnce({}, { ok: false, status: 500 });
     await expect(fetchWeatherSnapshot({ lat: 0, lon: 0, units: "F" })).rejects.toThrow();
+  });
+
+  it("groups the multi-day payload into one WeatherDay per daily.time entry", async () => {
+    mockFetchOnce(multiDayFixture());
+    const snapshot = await fetchWeatherSnapshot({ lat: 0, lon: 0, units: "F" });
+
+    expect(snapshot.daily).toHaveLength(3);
+
+    const [day0, day1, day2] = snapshot.daily;
+    expect(day0.date).toEqual(new Date("2026-09-09T00:00"));
+    expect(day0.hi).toBe(76);
+    expect(day0.lo).toBe(58);
+    expect(day0.condition).toBe("partly");
+    expect(day0.hourly).toHaveLength(2);
+    expect(day0.uvPeak).toEqual({ at: new Date("2026-09-09T14:00"), index: 7 });
+
+    expect(day1.condition).toBe("rain");
+    expect(day1.hourly).toHaveLength(2);
+    expect(day1.uvPeak).toEqual({ at: new Date("2026-09-10T15:00"), index: 2 });
+
+    expect(day2.condition).toBe("cloudy");
+    expect(day2.hi).toBe(82);
+    expect(day2.hourly).toHaveLength(1);
+  });
+
+  it("mirrors daily[0] in the top-level today fields, so Day/Week see no change", async () => {
+    mockFetchOnce(multiDayFixture());
+    const snapshot = await fetchWeatherSnapshot({ lat: 0, lon: 0, units: "F" });
+
+    expect(snapshot.hi).toBe(snapshot.daily[0].hi);
+    expect(snapshot.lo).toBe(snapshot.daily[0].lo);
+    expect(snapshot.sunrise).toEqual(snapshot.daily[0].sunrise);
+    expect(snapshot.sunset).toEqual(snapshot.daily[0].sunset);
+    expect(snapshot.uvPeak).toEqual(snapshot.daily[0].uvPeak);
+    expect(snapshot.hourly).toEqual(snapshot.daily[0].hourly);
   });
 });
 

@@ -1,5 +1,10 @@
+import { useState } from "react";
+
 import { addDays, sameDay, startOfWeek, DOW } from "../../lib/date.js";
 import { usePalette } from "../../state/PaletteContext.js";
+import { WEATHER_ICONS } from "../weather/weatherIcons.js";
+import { WeatherDaySheet } from "../weather/WeatherDaySheet.jsx";
+import { fmtTemp } from "../weather/weatherRows.js";
 
 /*
   Month — moved from family-board.jsx:931-974.
@@ -26,9 +31,22 @@ import { usePalette } from "../../state/PaletteContext.js";
   EventDetailSheet instead of the cell's own onPick navigation, so it needs
   its own handler with stopPropagation — the cell itself is already a button
   and a chip is a nested span, not a nested button, so this stays valid HTML.
+
+  The forecast toggle and per-day breakdown, added alongside R6's Month-view
+  extension: `weather` is the same WeatherSnapshot Header's chip shows
+  (App.jsx makes the one `useWeather()` call and threads it to both), so no
+  second network poller. `showForecast` gates the H/L text rather than the
+  weather icon always taking up cell space — a wall board with no weather
+  configured, or one where nobody's tapped the toggle, looks exactly as it
+  did before this landed. The H/L text is its own tap target with
+  stopPropagation, same pattern as the event chip above: tapping a day
+  number/empty cell still navigates via `onPick`, tapping H/L opens that
+  day's WeatherDaySheet instead.
 */
-export function MonthView({ date, now, events, onPick, onSelect }) {
+export function MonthView({ date, now, events, weather, onPick, onSelect }) {
   const { fillFor } = usePalette();
+  const [showForecast, setShowForecast] = useState(false);
+  const [forecastDay, setForecastDay] = useState(null);
 
   const first = new Date(date.getFullYear(), date.getMonth(), 1);
   const last = new Date(date.getFullYear(), date.getMonth() + 1, 0);
@@ -37,8 +55,22 @@ export function MonthView({ date, now, events, onPick, onSelect }) {
   const cut = cells.findIndex((d, i) => i % 7 === 0 && d > last);
   const visible = cells.slice(0, cut > 0 ? cut : 42);
 
+  const TodayIcon = weather ? WEATHER_ICONS[weather.condition] || WEATHER_ICONS.sunny : null;
+
   return (
     <div className="fb-monthwrap">
+      {weather && (
+        <div className="fb-monthtoolbar">
+          <button
+            className="fb-monthweather"
+            onClick={() => setShowForecast((v) => !v)}
+            aria-label={showForecast ? "Hide forecast" : "Show forecast"}
+            aria-pressed={showForecast}
+          >
+            <TodayIcon />
+          </button>
+        </div>
+      )}
       <div className="fb-monthhead">
         {DOW.map((d) => (
           <span key={d}>{d}</span>
@@ -49,13 +81,29 @@ export function MonthView({ date, now, events, onPick, onSelect }) {
           const outside = d.getMonth() !== date.getMonth();
           const today = sameDay(d, now);
           const list = events.filter((e) => sameDay(e.start, d));
+          const forecast = showForecast ? weather?.daily.find((wd) => sameDay(wd.date, d)) : null;
           return (
             <button
               key={i}
               className={`fb-cell${outside ? " is-outside" : ""}${today ? " is-today" : ""}`}
               onClick={() => onPick(d)}
             >
-              <span className="fb-cellnum">{d.getDate()}</span>
+              <span className="fb-cellnumrow">
+                <span className="fb-cellnum">{d.getDate()}</span>
+                {forecast && (
+                  <span
+                    className="fb-cellhilo"
+                    role="button"
+                    tabIndex={0}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      setForecastDay(forecast);
+                    }}
+                  >
+                    H{fmtTemp(forecast.hi)} L{fmtTemp(forecast.lo)}
+                  </span>
+                )}
+              </span>
               <span className="fb-cellevents">
                 {list.slice(0, 3).map((e) => (
                   <span
@@ -78,6 +126,10 @@ export function MonthView({ date, now, events, onPick, onSelect }) {
           );
         })}
       </div>
+
+      {forecastDay && (
+        <WeatherDaySheet day={forecastDay} now={now} onClose={() => setForecastDay(null)} />
+      )}
     </div>
   );
 }

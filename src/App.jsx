@@ -9,6 +9,7 @@ import { useMemberFilter } from "./hooks/useMemberFilter.js";
 import { useSleep } from "./hooks/useSleep.js";
 import { useSwipePage } from "./hooks/useSwipePage.js";
 import { useDrivePhotos } from "./data/drive.js";
+import { useWeather } from "./components/weather/useWeather.js";
 import { PaletteContext, useBoardPalette } from "./state/PaletteContext.js";
 import { BoardContext } from "./state/BoardContext.js";
 import { ModeContext, useModeState } from "./state/ModeContext.js";
@@ -84,6 +85,17 @@ export default function App() {
   */
   const modeState = useModeState(members, settings, data.setSettings);
   const { roster, views, isRoommate } = modeState;
+
+  /*
+    R6's forecast, extended for MonthView's per-day hi/lo: one `useWeather()`
+    call here rather than one each in Header and MonthView, so two consumers
+    of the same reading don't mean two independent 15-minute pollers against
+    Open-Meteo. Same reason `useModeState`/`useBoardPalette` take `settings`
+    directly instead of reading it off BoardContext — App is the one place
+    above both consumers, and cannot consume the context it is about to
+    provide to them.
+  */
+  const weather = useWeather(settings);
 
   /* The To-do tab only exists in Roommate mode (PLAN.md §R10 item 5). Without
      this, switching out of Roommate mode while it is open would leave `view`
@@ -209,6 +221,7 @@ export default function App() {
                   now={now}
                   anchor={anchor}
                   events={filtered}
+                  weather={weather}
                   degraded={data.degraded || Boolean(data.storageError)}
                   onToday={() => setAnchor(startOfDay(new Date()))}
                   onSettings={() => setPanel("settings")}
@@ -245,6 +258,7 @@ export default function App() {
                           date={anchor}
                           now={now}
                           events={filtered}
+                          weather={weather}
                           onPick={(d) => {
                             setAnchor(d);
                             setView("day");

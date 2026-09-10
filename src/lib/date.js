@@ -72,6 +72,13 @@ export function fmtRange(start, end) {
   return `${fmtTime(start)} - ${fmtTime(end)}`;
 }
 
+/* "Tue, Sep 15" — the WeatherDaySheet title, using DOW/MONTH_SHORT below
+   rather than a new label table since both already exist for the same
+   abbreviated style. */
+export function fmtLongDate(d) {
+  return `${DOW[d.getDay()]}, ${MONTH_SHORT[d.getMonth()]} ${d.getDate()}`;
+}
+
 export function fmtClock(d) {
   let h = d.getHours();
   const m = String(d.getMinutes()).padStart(2, "0");

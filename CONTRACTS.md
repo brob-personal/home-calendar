@@ -150,7 +150,12 @@ inherits all fourteen cases.
 you can show stale readings rather than an error. `WEATHER_CONDITIONS` is closed at
 five and `normalizeCondition()` folds everything else to `sunny` — pinned as spec, not
 as a shortcut. Location and units are in `settings.weather`, `lat`/`lon` null until
-configured. Read `settings` from `useBoard()` rather than threading a prop.
+configured. `WeatherSnapshot.daily` (added for the Month view's 16-day forecast) holds
+one `WeatherDay` per day, `daily[0]` always mirroring the top-level today-only fields.
+`useWeather(settings)` now takes `settings` directly rather than reading it off
+`useBoard()` — App.jsx makes the one call and hands the reading to both `Header` and
+`MonthView` as a prop, so a second consumer doesn't mean a second poller hitting
+Open-Meteo.
 
 **R7 — Day View.** `update` exists now: `useBoardData` exposes `updateEvent(id, patch)`,
 patch semantics, so your detail sheet sends back only what it showed.
