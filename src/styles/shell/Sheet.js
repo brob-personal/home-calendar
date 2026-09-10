@@ -32,7 +32,7 @@ export default `
   padding: 18px 20px; border-bottom: 1px solid var(--line);
 }
 .fb-sheethead h2 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.025em; }
-.fb-sheetbody { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+.fb-sheetbody { padding: 20px; display: flex; flex-direction: column; gap: 18px; }
 .fb-sheetfoot { display: flex; justify-content: flex-end; gap: 10px; padding-top: 2px; }
 
 .fb-preview { border-radius: 10px; padding: 16px 18px; font-size: 17px; font-weight: 700; color: var(--ink-on-color); }
@@ -49,7 +49,6 @@ export default `
 .fb-input-hex { width: 96px; min-width: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
 
 .fb-pills { display: flex; gap: 8px; flex-wrap: wrap; }
-.fb-pills-scroll { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
 .fb-pill {
   font-size: 14px; font-weight: 600; padding: 10px 15px; white-space: nowrap;
   background: var(--surface); border: 1px solid transparent; border-radius: 10px; color: var(--mute);
