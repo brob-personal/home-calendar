@@ -1,4 +1,4 @@
-import { sameDay, minutesInto, fmtTime, fmtRange } from "../../lib/date.js";
+import { sameDay, spansDay, minutesInto, fmtTime, fmtRange } from "../../lib/date.js";
 import { tint, variantColor } from "../../lib/color.js";
 import { layoutOverlaps } from "../../lib/layout.js";
 import { Avatar } from "../shell/Avatar.jsx";
@@ -19,7 +19,9 @@ import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
   column grouping (by member, not by day) differ.
 
   Preserved (item 4):
-    - the all-day chip row, unchanged
+    - the all-day chip row — now spans-aware (`spansDay`, not `sameDay(e.start,
+      date)`) so a multi-day all-day event shows on every day it covers, and
+      each chip is a button that opens EventDetailSheet like every other event
     - the now-line, gated on `showNow` — today *and* inside dayStart..dayEnd
     - the empty state below, for when every member is filtered out
     - the short-event floor that stops a block collapsing to an invisible
@@ -55,7 +57,7 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
   const gridH = hours.length * HOUR_H;
 
   const timed = events.filter((e) => sameDay(e.start, date) && !e.allDay);
-  const allDay = events.filter((e) => sameDay(e.start, date) && e.allDay);
+  const allDay = events.filter((e) => e.allDay && spansDay(e, date));
 
   const nowTop = ((minutesInto(now) - spanStart) / 60) * HOUR_H;
   const showNow =
@@ -72,9 +74,9 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
       {allDay.length > 0 && (
         <div className="fb-allday">
           {allDay.map((e) => (
-            <span key={e.id} className="fb-alldaychip">
+            <button key={e.id} className="fb-alldaychip" onClick={() => onSelect(e)}>
               {e.title}
-            </span>
+            </button>
           ))}
         </div>
       )}

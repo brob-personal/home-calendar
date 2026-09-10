@@ -1,4 +1,4 @@
-import { addDays, sameDay, startOfWeek, minutesInto, fmtTime, fmtRange, DOW } from "../../lib/date.js";
+import { addDays, sameDay, spansDay, startOfWeek, minutesInto, fmtTime, fmtRange, DOW } from "../../lib/date.js";
 import { usePalette } from "../../state/PaletteContext.js";
 import { layoutOverlaps } from "../../lib/layout.js";
 import { TimeGutter } from "./TimeGutter.jsx";
@@ -31,6 +31,14 @@ import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
   fixed readable width, staggered left offset, higher z-index for later
   events — purely as left/width/zIndex on top of the existing top/height
   positioning — `fillFor`'s diagonal split-fill colouring is untouched.
+
+  All-day row: Week used to drop `allDay` events on the floor entirely — the
+  timed `list` filter excluded them and nothing else rendered them. `fb-
+  weekallday` mirrors `fb-weekhead`'s gutter-plus-seven-columns layout, one
+  `fb-alldaychip` per day a given event spans (`spansDay`, not a single
+  `sameDay(e.start, d)` check), so a multi-day event repeats across the days
+  it covers rather than appearing once — the same chip idiom DayView already
+  used, not a spanning bar, so the two views keep reading as one system.
 */
 const HOUR_H = 34;
 
@@ -56,6 +64,21 @@ export function WeekView({ date, now, events, settings, onSelect }) {
           <div className={`fb-whead${sameDay(d, now) ? " is-today" : ""}`} key={i}>
             <span className="fb-wdow">{DOW[d.getDay()]}</span>
             <span className="fb-wnum">{d.getDate()}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="fb-weekallday">
+        <span className="fb-gutter" />
+        {days.map((d, i) => (
+          <div className="fb-walldaycol" key={i}>
+            {events
+              .filter((e) => e.allDay && spansDay(e, d))
+              .map((e) => (
+                <button key={e.id} className="fb-alldaychip" onClick={() => onSelect(e)}>
+                  {e.title}
+                </button>
+              ))}
           </div>
         ))}
       </div>
