@@ -39,6 +39,7 @@ export default `
 .fb-daygrid { display: flex; position: relative; }
 .fb-dcol { position: relative; flex: 1; border-left: 1px solid var(--line); }
 .fb-dcol:last-child { border-right: 1px solid var(--line); }
+.fb-daygrid > .fb-nowrow-day { left: 56px; right: 0; }
 .fb-laneempty {
   position: absolute; left: 14px; top: 10px;
   font-size: 13px; font-weight: 500; color: var(--mute); opacity: .75;
