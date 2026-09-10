@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { addDays, sameDay, spansDay, startOfWeek, minutesInto, fmtTime, fmtRange, DOW } from "../../lib/date.js";
 import { usePalette } from "../../state/PaletteContext.js";
 import { layoutOverlaps } from "../../lib/layout.js";
@@ -39,6 +40,14 @@ import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
   `sameDay(e.start, d)` check), so a multi-day event repeats across the days
   it covers rather than appearing once — the same chip idiom DayView already
   used, not a spanning bar, so the two views keep reading as one system.
+
+  The grid always spans the full midnight-to-midnight day now — `dayStart`
+  only picks where the view scrolls to by default, not what's clipped out.
+  `.fb-weekbody` scrolls (it already had `overflow-y: auto`); the effect
+  below resets that scroll to `dayStart` on mount and whenever the viewed
+  week changes, so the board still opens on the 7am-ish window it always
+  has, but scrolling up reaches midnight and scrolling down reaches the next
+  midnight.
 */
 const HOUR_H = 34;
 
@@ -47,14 +56,18 @@ export function WeekView({ date, now, events, settings, onSelect }) {
 
   const start = startOfWeek(date);
   const hours = [];
-  for (let h = settings.dayStart; h < settings.dayEnd; h++) hours.push(h);
-  const spanStart = settings.dayStart * 60;
-  const spanEnd = settings.dayEnd * 60;
+  for (let h = 0; h < 24; h++) hours.push(h);
+  const spanStart = 0;
+  const spanEnd = 24 * 60;
   const gridH = hours.length * HOUR_H;
+
+  const bodyRef = useRef(null);
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = settings.dayStart * HOUR_H;
+  }, [start, settings.dayStart]);
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
   const nowTop = ((minutesInto(now) - spanStart) / 60) * HOUR_H;
-  const nowVisible = minutesInto(now) >= spanStart && minutesInto(now) <= spanEnd;
 
   return (
     <div className="fb-week">
@@ -83,7 +96,7 @@ export function WeekView({ date, now, events, settings, onSelect }) {
         ))}
       </div>
 
-      <div className="fb-weekbody">
+      <div className="fb-weekbody" ref={bodyRef}>
         <div className="fb-weekgrid" style={{ height: gridH }}>
           <TimeGutter hours={hours} hourH={HOUR_H} />
 
@@ -96,7 +109,7 @@ export function WeekView({ date, now, events, settings, onSelect }) {
                 {hours.map((h) => (
                   <div className="fb-hourline" style={{ height: HOUR_H }} key={h} />
                 ))}
-                {today && nowVisible && (
+                {today && (
                   <div className="fb-nowrow" style={{ top: nowTop }}>
                     <span className="fb-nowdot" />
                   </div>

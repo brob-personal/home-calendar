@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { sameDay, spansDay, minutesInto, fmtTime, fmtRange } from "../../lib/date.js";
 import { tint, variantColor } from "../../lib/color.js";
 import { layoutOverlaps } from "../../lib/layout.js";
@@ -22,7 +23,8 @@ import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
     - the all-day chip row — now spans-aware (`spansDay`, not `sameDay(e.start,
       date)`) so a multi-day all-day event shows on every day it covers, and
       each chip is a button that opens EventDetailSheet like every other event
-    - the now-line, gated on `showNow` — today *and* inside dayStart..dayEnd
+    - the now-line, gated on `showNow` — today (the grid is full-day now, so
+      no separate dayStart..dayEnd bound is needed)
     - the empty state below, for when every member is filtered out
     - the short-event floor that stops a block collapsing to an invisible
       sliver, `Math.max(en - s, 22)` — now applied to height, since height is
@@ -46,22 +48,33 @@ import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
   fixed readable width, staggered left offset, higher z-index for later
   events — purely as left/width/zIndex on top of the existing top/height
   positioning — colouring and content are untouched.
+
+  The grid always spans the full midnight-to-midnight day now — `dayStart`
+  only picks where the view scrolls to by default, not what's clipped out.
+  `.fb-daybody` scrolls (it already had `overflow-y: auto`); the effect below
+  resets that scroll to `dayStart` on mount and whenever the viewed day
+  changes, so the board still opens on the 7am-ish window it always has, but
+  scrolling up reaches midnight and scrolling down reaches the next midnight.
 */
 const HOUR_H = 34;
 
 export function DayView({ date, now, events, members, settings, onSelect }) {
   const hours = [];
-  for (let h = settings.dayStart; h < settings.dayEnd; h++) hours.push(h);
-  const spanStart = settings.dayStart * 60;
-  const spanEnd = settings.dayEnd * 60;
+  for (let h = 0; h < 24; h++) hours.push(h);
+  const spanStart = 0;
+  const spanEnd = 24 * 60;
   const gridH = hours.length * HOUR_H;
+
+  const bodyRef = useRef(null);
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = settings.dayStart * HOUR_H;
+  }, [date, settings.dayStart]);
 
   const timed = events.filter((e) => sameDay(e.start, date) && !e.allDay);
   const allDay = events.filter((e) => e.allDay && spansDay(e, date));
 
   const nowTop = ((minutesInto(now) - spanStart) / 60) * HOUR_H;
-  const showNow =
-    sameDay(date, now) && minutesInto(now) >= spanStart && minutesInto(now) <= spanEnd;
+  const showNow = sameDay(date, now);
 
   if (members.length === 0) {
     return (
@@ -91,7 +104,7 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
         ))}
       </div>
 
-      <div className="fb-daybody">
+      <div className="fb-daybody" ref={bodyRef}>
         <div className="fb-daygrid" style={{ height: gridH }}>
           <TimeGutter hours={hours} hourH={HOUR_H} />
 
