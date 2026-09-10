@@ -104,6 +104,34 @@ describe("DayView overlap layout", () => {
   day — DATE (Mar 15 2026) is inside, not the start of, each trip below, so
   these would have shown nothing before the `spansDay` fix.
 */
+/*
+  Every member gets their own `.fb-dcol`, but they're all the same day, so
+  the now-line used to be drawn once per column — a broken row of segments
+  and dots instead of one line spanning the whole grid.
+*/
+describe("DayView now line", () => {
+  const MULTI_MEMBERS = [
+    { id: "brian", name: "Brian", color: "#7EB6E8" },
+    { id: "jamie", name: "Jamie", color: "#E8A17E" },
+  ];
+
+  it("renders exactly one now-line across all member columns", () => {
+    const { container } = render(
+      <DayView date={DATE} now={NOW} events={[]} members={MULTI_MEMBERS} settings={SETTINGS} onSelect={() => {}} />,
+    );
+    expect(container.querySelectorAll(".fb-nowrow").length).toBe(1);
+    expect(container.querySelectorAll(".fb-nowdot").length).toBe(1);
+  });
+
+  it("renders no now-line when the viewed day isn't today", () => {
+    const otherDay = new Date(2026, 2, 16);
+    const { container } = render(
+      <DayView date={otherDay} now={NOW} events={[]} members={MULTI_MEMBERS} settings={SETTINGS} onSelect={() => {}} />,
+    );
+    expect(container.querySelectorAll(".fb-nowrow").length).toBe(0);
+  });
+});
+
 describe("DayView all-day chips", () => {
   it("shows a chip for a multi-day event that spans, but doesn't start on, the viewed day", () => {
     renderDay([allDayEv("t", "Kauai", new Date(2026, 2, 12), new Date(2026, 2, 19))]);

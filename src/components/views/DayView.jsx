@@ -108,6 +108,12 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
         <div className="fb-daygrid" style={{ height: gridH }}>
           <TimeGutter hours={hours} hourH={HOUR_H} />
 
+          {showNow && (
+            <div className="fb-nowrow fb-nowrow-day" style={{ top: nowTop }}>
+              <span className="fb-nowdot" />
+            </div>
+          )}
+
           {members.map((m) => {
             const mine = timed.filter((e) => e.memberIds?.includes(m.id));
             const cols = layoutOverlaps(mine);
@@ -116,11 +122,6 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
                 {hours.map((h) => (
                   <div className="fb-hourline" style={{ height: HOUR_H }} key={h} />
                 ))}
-                {showNow && (
-                  <div className="fb-nowrow" style={{ top: nowTop }}>
-                    <span className="fb-nowdot" />
-                  </div>
-                )}
                 {mine.length === 0 && <span className="fb-laneempty">Free</span>}
                 {mine.map((e) => {
                   const s = Math.max(minutesInto(e.start), spanStart);
