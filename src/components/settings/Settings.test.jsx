@@ -299,3 +299,19 @@ describe("Settings' per-person calendar id field", () => {
     expect(updater({ ...DEFAULT_SETTINGS, calendars: existing }).calendars.personal).toEqual([]);
   });
 });
+
+describe("Settings' time format toggle", () => {
+  it("shows 12-hour and 24-hour pills, defaulting to 12-hour", () => {
+    renderSettings({ timeFormat: "12" });
+    expect(screen.getByRole("button", { name: "12-hour" })).toHaveClass("is-on");
+    expect(screen.getByRole("button", { name: "24-hour" })).not.toHaveClass("is-on");
+  });
+
+  it("picking 24-hour calls setSettings with timeFormat: 24", async () => {
+    const user = userEvent.setup();
+    const setSettings = renderSettings({ timeFormat: "12" });
+    await user.click(screen.getByRole("button", { name: "24-hour" }));
+    const updater = setSettings.mock.calls.at(-1)[0];
+    expect(updater(DEFAULT_SETTINGS).timeFormat).toBe("24");
+  });
+});
