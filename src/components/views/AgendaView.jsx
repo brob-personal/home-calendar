@@ -1,4 +1,4 @@
-import { startOfDay, sameDay, fmtTime, DOW } from "../../lib/date.js";
+import { startOfDay, addDays, sameDay, fmtTime, DOW } from "../../lib/date.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { usePalette } from "../../state/PaletteContext.js";
 
@@ -22,21 +22,40 @@ import { usePalette } from "../../state/PaletteContext.js";
   that opens the EventDetailSheet. Its children were already plain spans, so
   turning the row itself into a button introduces no nested-interactive-element
   problem.
+
+  Multi-day all-day events used to appear once, grouped under their start
+  day, and drop off the list the moment that day passed even while still
+  running. `relevant`/`instances` above expand such an event into one row per
+  remaining day it spans (today through its inclusive `end`) before grouping,
+  so a trip shows up on every day of the trip, same as Day/Week/Month.
 */
 export function AgendaView({ date, now, events, members, onSelect }) {
   const { fillFor } = usePalette();
 
   const from = startOfDay(date);
-  const upcoming = events
-    .filter((e) => e.start >= from)
-    .sort((a, b) => a.start - b.start)
-    .slice(0, 40);
+  /* A multi-day all-day event stays relevant every day it's still running,
+     not only on the day it started — `e.start >= from` alone would drop a
+     trip already underway off the agenda the moment its first day passes. */
+  const relevant = events.filter((e) => (e.allDay ? e.end >= from : e.start >= from));
+
+  const instances = [];
+  relevant.forEach((e) => {
+    if (!e.allDay) {
+      instances.push({ day: e.start, event: e });
+      return;
+    }
+    const last = startOfDay(e.end);
+    const first = startOfDay(e.start) < from ? from : startOfDay(e.start);
+    for (let d = first; d <= last; d = addDays(d, 1)) instances.push({ day: d, event: e });
+  });
+  instances.sort((a, b) => a.day - b.day || a.event.start - b.event.start);
+  const upcoming = instances.slice(0, 40);
 
   const groups = [];
-  upcoming.forEach((e) => {
+  upcoming.forEach(({ day, event: e }) => {
     const last = groups[groups.length - 1];
-    if (last && sameDay(last.day, e.start)) last.items.push(e);
-    else groups.push({ day: e.start, items: [e] });
+    if (last && sameDay(last.day, day)) last.items.push(e);
+    else groups.push({ day, items: [e] });
   });
 
   const who = (e) =>

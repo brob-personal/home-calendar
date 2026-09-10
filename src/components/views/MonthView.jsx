@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { addDays, sameDay, startOfWeek, DOW } from "../../lib/date.js";
+import { addDays, sameDay, spansDay, startOfWeek, DOW } from "../../lib/date.js";
 import { usePalette } from "../../state/PaletteContext.js";
 import { WEATHER_ICONS } from "../weather/weatherIcons.js";
 import { WeatherDaySheet } from "../weather/WeatherDaySheet.jsx";
@@ -31,6 +31,11 @@ import { fmtTemp } from "../weather/weatherRows.js";
   EventDetailSheet instead of the cell's own onPick navigation, so it needs
   its own handler with stopPropagation — the cell itself is already a button
   and a chip is a nested span, not a nested button, so this stays valid HTML.
+
+  Per-cell event list: a timed event still matches only its own day
+  (`sameDay(e.start, d)`), but an all-day event matches every day it spans
+  (`spansDay`) rather than only its start day — otherwise a multi-day event
+  (a trip, a holiday) only ever showed a chip on the first cell it touched.
 
   The forecast toggle and per-day breakdown, added alongside R6's Month-view
   extension: `weather` is the same WeatherSnapshot Header's chip shows
@@ -80,7 +85,7 @@ export function MonthView({ date, now, events, weather, onPick, onSelect }) {
         {visible.map((d, i) => {
           const outside = d.getMonth() !== date.getMonth();
           const today = sameDay(d, now);
-          const list = events.filter((e) => sameDay(e.start, d));
+          const list = events.filter((e) => (e.allDay ? spansDay(e, d) : sameDay(e.start, d)));
           const forecast = showForecast ? weather?.daily.find((wd) => sameDay(wd.date, d)) : null;
           return (
             <button

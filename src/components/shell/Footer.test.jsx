@@ -26,7 +26,6 @@ function renderFooter(views) {
       onToggleMember={noop}
       showReset={false}
       onReset={noop}
-      onCompose={noop}
     />,
   );
 }

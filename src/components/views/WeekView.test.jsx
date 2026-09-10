@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 import { WeekView } from "./WeekView.jsx";
@@ -23,12 +23,16 @@ function ev(id, title, startH, startM, endH, endM) {
   };
 }
 
-function renderWeek(events) {
+function renderWeek(events, onSelect = () => {}) {
   return render(
     <PaletteContext.Provider value={palette}>
-      <WeekView date={DATE} now={NOW} events={events} settings={SETTINGS} onSelect={() => {}} />
+      <WeekView date={DATE} now={NOW} events={events} settings={SETTINGS} onSelect={onSelect} />
     </PaletteContext.Provider>,
   );
+}
+
+function allDayEv(id, title, startDate, endDate) {
+  return { id, title, start: startDate, end: endDate, allDay: true, memberIds: ["brian"], variant: 0 };
 }
 
 function pct(style) {
@@ -90,5 +94,31 @@ describe("WeekView overlap layout", () => {
     renderWeek([ev("a", "Before", 9, 0, 10, 0), ev("b", "After", 10, 0, 11, 0)]);
     expect(pct(screen.getByRole("button", { name: /Before/ }).style.width)).toBe(100);
     expect(pct(screen.getByRole("button", { name: /After/ }).style.width)).toBe(100);
+  });
+});
+
+/*
+  Week used to drop allDay events on the floor entirely — no banner row
+  existed at all, so these events rendered nowhere in this view.
+*/
+describe("WeekView all-day row", () => {
+  it("shows a single-day all-day event once, in its own day's column", () => {
+    renderWeek([allDayEv("h", "Holiday", new Date(2026, 2, 16), new Date(2026, 2, 16))]);
+    expect(screen.getAllByRole("button", { name: "Holiday" })).toHaveLength(1);
+  });
+
+  it("repeats a multi-day all-day event's chip across every day it spans within the visible week", () => {
+    // Fri Mar 13 - Wed Mar 18; the visible week is Sun Mar 15 - Sat Mar 21,
+    // so only 4 of the trip's 6 days (15, 16, 17, 18) fall in this week.
+    renderWeek([allDayEv("t", "Kauai", new Date(2026, 2, 13), new Date(2026, 2, 18))]);
+    expect(screen.getAllByRole("button", { name: "Kauai" })).toHaveLength(4);
+  });
+
+  it("opens the detail sheet when an all-day chip is tapped", () => {
+    const onSelect = vi.fn();
+    const holiday = allDayEv("h", "Holiday", new Date(2026, 2, 16), new Date(2026, 2, 16));
+    renderWeek([holiday], onSelect);
+    screen.getByRole("button", { name: "Holiday" }).click();
+    expect(onSelect).toHaveBeenCalledWith(holiday);
   });
 });

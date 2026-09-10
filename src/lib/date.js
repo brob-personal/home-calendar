@@ -44,6 +44,17 @@ export function daysUntil(d, from) {
 }
 
 /*
+  Whether an all-day event covers `day`. `event.end` is documented (schema.js)
+  as the last day, inclusive, so this is a closed range on both ends — unlike
+  Google's own exclusive end-date convention, which src/data/google.js
+  converts at its own boundary rather than leaking into this contract.
+*/
+export function spansDay(event, day) {
+  const d = startOfDay(day);
+  return d >= startOfDay(event.start) && d <= startOfDay(event.end);
+}
+
+/*
   The paging step shared by Footer's chevrons and R12's swipe gesture — a
   month at a time in month view, seven days in week, one day otherwise. Pulled
   out to a pure function so the two call sites can't drift apart; see

@@ -296,13 +296,13 @@ export default function App() {
                   onToggleMember={toggleMember}
                   showReset={filterTouched}
                   onReset={resetFilter}
-                  onCompose={() => setPanel("compose")}
                 />
               </div>
 
               <NoteDock
                 note={data.todayNote}
-                onOpen={() => setNoteOpen(true)}
+                onOpenNote={() => setNoteOpen(true)}
+                onCompose={() => setPanel("compose")}
                 hidden={noteOpen || Boolean(panel)}
               />
 

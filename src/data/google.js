@@ -149,19 +149,25 @@ export function createGoogleSource(options = {}) {
 
   /* ── Mapping, both directions ─────────────────────────────────────────── */
 
+  /* Google's all-day end.date is exclusive (the day after the last day);
+     this app's own contract (schema.js) is inclusive (the last day itself).
+     The conversion happens only at this boundary, both directions, so the
+     mismatch never leaks into normalizeEvent, the mock source, or any view —
+     read subtracts a day, write adds one back. */
   function mapGoogleEvent(raw, calendarLink) {
     const membersRaw = raw.extendedProperties?.private?.members;
     const memberIds = membersRaw
       ? membersRaw.split(",").filter(Boolean)
       : (calendarLink?.memberIds ?? []);
     const colorId = Number(raw.colorId || calendarLink?.colorId || 1);
+    const allDay = !raw.start?.dateTime;
 
     return normalizeEvent({
       id: raw.id,
       title: raw.summary,
       start: raw.start?.dateTime || raw.start?.date,
-      end: raw.end?.dateTime || raw.end?.date,
-      allDay: !raw.start?.dateTime,
+      end: allDay && raw.end?.date ? dateOnlyPlusDays(raw.end.date, -1) : raw.end?.dateTime,
+      allDay,
       location: raw.location || "",
       memberIds,
       variant: (colorId - 1) % VARIATION_COUNT,
@@ -181,7 +187,7 @@ export function createGoogleSource(options = {}) {
       const start = fields.start instanceof Date ? fields.start : new Date(fields.start);
       const end = fields.end instanceof Date ? fields.end : new Date(fields.end ?? fields.start);
       body.start = allDay ? { date: toDateOnly(start) } : { dateTime: start.toISOString() };
-      body.end = allDay ? { date: toDateOnly(end) } : { dateTime: end.toISOString() };
+      body.end = allDay ? { date: dateOnlyPlusDays(toDateOnly(end), 1) } : { dateTime: end.toISOString() };
     }
 
     if (fields.variant !== undefined) {
@@ -202,6 +208,16 @@ export function createGoogleSource(options = {}) {
   }
 
   function toDateOnly(d) {
+    return d.toISOString().slice(0, 10);
+  }
+
+  /* Date-only arithmetic done in UTC on the "YYYY-MM-DD" string itself,
+     never via `new Date(dateOnlyString)` plus local-time getters — that
+     round-trip is the classic date-only-string-parses-as-UTC-midnight trap,
+     which shifts a day in any negative-UTC-offset timezone. */
+  function dateOnlyPlusDays(dateOnly, n) {
+    const d = new Date(`${dateOnly}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + n);
     return d.toISOString().slice(0, 10);
   }
 

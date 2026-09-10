@@ -30,6 +30,17 @@ import { Field } from "../shell/Field.jsx";
   There is no edit path anywhere in the app; this composer only creates. R3's
   backlog item 5 adds `update` to the source interface and R7's item 5 adds
   the detail sheet that would use it.
+
+  "All day" is now its own checkbox, independent of "Count down to this" —
+  previously `allDay` only ever became true as a side effect of milestone,
+  so there was no way to author a plain all-day event (a holiday, a day off)
+  without it also being a countdown. Checking it hides Starts/For, same as
+  milestone, and reveals "Ends": a second day-pill row (Deferred Defect #15's
+  fix) so a multi-day event — a vacation, a multi-day trip — gets a real end
+  date instead of the old `start + dur` stub, which no view read but which
+  would have shipped to Google as a landmine once R8's write-back sent it. A
+  milestone stays single-day (a countdown targets one date), so "Ends" only
+  shows when "All day" is checked without "Count down to this".
 */
 export function Composer({ members, date, settings, onSave, onClose }) {
   const dayStart = settings.dayStart;
@@ -40,16 +51,20 @@ export function Composer({ members, date, settings, onSave, onClose }) {
   const [title, setTitle] = useState("");
   const [who, setWho] = useState([members[0]?.id].filter(Boolean));
   const [day, setDay] = useState(0);
+  const [endDay, setEndDay] = useState(0);
   const [hour, setHour] = useState(() => Math.min(Math.max(18, dayStart), dayEnd - 1));
   const [dur, setDur] = useState(60);
   const [variant, setVariant] = useState(0);
+  const [allDay, setAllDay] = useState(false);
   const [milestone, setMilestone] = useState(false);
   const [location, setLocation] = useState("");
 
+  const isAllDay = allDay || milestone;
   const base = addDays(startOfDay(date), day);
   const start = new Date(base);
   start.setHours(hour, 0, 0, 0);
   const end = new Date(start.getTime() + dur * 60000);
+  const allDayEnd = addDays(startOfDay(date), milestone ? day : endDay);
 
   const toggle = (id) => setWho((w) => (w.includes(id) ? w.filter((x) => x !== id) : [...w, id]));
   const chosen = who.map((id) => members.find((m) => m.id === id)).filter(Boolean);
@@ -121,7 +136,10 @@ export function Composer({ members, date, settings, onSave, onClose }) {
               <button
                 key={i}
                 className={`fb-pill${day === i ? " is-on" : ""}`}
-                onClick={() => setDay(i)}
+                onClick={() => {
+                  setDay(i);
+                  setEndDay((e) => Math.max(e, i));
+                }}
               >
                 {i === 0 ? "That day" : `${DOW[d.getDay()]} ${d.getDate()}`}
               </button>
@@ -130,7 +148,32 @@ export function Composer({ members, date, settings, onSave, onClose }) {
         </div>
       </Field>
 
-      {!milestone && (
+      <label className="fb-check">
+        <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} />
+        <span>All day</span>
+      </label>
+
+      {allDay && !milestone && (
+        <Field label="Ends">
+          <div className="fb-pills">
+            {Array.from({ length: 7 - day }, (_, k) => {
+              const i = day + k;
+              const d = addDays(startOfDay(date), i);
+              return (
+                <button
+                  key={i}
+                  className={`fb-pill${endDay === i ? " is-on" : ""}`}
+                  onClick={() => setEndDay(i)}
+                >
+                  {i === day ? "Same day" : `${DOW[d.getDay()]} ${d.getDate()}`}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+      )}
+
+      {!isAllDay && (
         <>
           <Field label="Starts">
             <div className="fb-pills fb-pills-scroll">
@@ -190,9 +233,9 @@ export function Composer({ members, date, settings, onSave, onClose }) {
               title: title.trim(),
               memberIds: who,
               variant,
-              start,
-              end,
-              allDay: milestone,
+              start: isAllDay ? base : start,
+              end: isAllDay ? allDayEnd : end,
+              allDay: isAllDay,
               milestone,
               location: location.trim(),
             })
