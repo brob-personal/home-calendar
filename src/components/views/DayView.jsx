@@ -1,8 +1,9 @@
-import { sameDay, minutesInto, fmtTime } from "../../lib/date.js";
+import { sameDay, minutesInto, fmtTime, fmtRange } from "../../lib/date.js";
 import { tint, variantColor } from "../../lib/color.js";
 import { layoutOverlaps } from "../../lib/layout.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { TimeGutter } from "./TimeGutter.jsx";
+import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
 
 /*
   Day — rebuilt by R7 (PLAN.md §R7) from the version moved verbatim off
@@ -111,13 +112,17 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
                   const en = Math.min(minutesInto(e.end), spanEnd);
                   const shared = (e.memberIds || []).length > 1;
                   const { left, width, z } = cols.get(e);
+                  const durMin = en - s;
+                  const tier = eventTier(durMin);
+                  const height =
+                    tier === "condensed" ? (SHORT_MIN / 60) * HOUR_H : ((en - s) / 60) * HOUR_H;
                   return (
                     <button
                       key={e.id}
-                      className="fb-dblock"
+                      className={`fb-dblock${tier === "stacked" ? " is-stacked" : " is-compact"}`}
                       style={{
                         top: ((s - spanStart) / 60) * HOUR_H,
-                        height: Math.max(((en - s) / 60) * HOUR_H, 22),
+                        height,
                         left: `calc(${left}% + 6px)`,
                         width: `calc(${width}% - 12px)`,
                         right: "auto",
@@ -128,7 +133,7 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
                     >
                       <span className="fb-blocktitle">{e.title}</span>
                       <span className="fb-blocktime">
-                        {fmtTime(e.start)}
+                        {tier === "stacked" ? fmtRange(e.start, e.end) : fmtTime(e.start)}
                         {shared ? " with family" : ""}
                       </span>
                     </button>

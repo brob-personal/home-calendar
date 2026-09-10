@@ -1,7 +1,8 @@
-import { addDays, sameDay, startOfWeek, minutesInto, fmtTime, DOW } from "../../lib/date.js";
+import { addDays, sameDay, startOfWeek, minutesInto, fmtTime, fmtRange, DOW } from "../../lib/date.js";
 import { usePalette } from "../../state/PaletteContext.js";
 import { layoutOverlaps } from "../../lib/layout.js";
 import { TimeGutter } from "./TimeGutter.jsx";
+import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
 
 /*
   Week — moved from family-board.jsx:854-928.
@@ -81,13 +82,19 @@ export function WeekView({ date, now, events, settings, onSelect }) {
                   const s = Math.max(minutesInto(e.start), spanStart);
                   const en = Math.min(minutesInto(e.end), spanEnd);
                   const { left, width, z } = cols.get(e);
+                  const durMin = en - s;
+                  const tier = eventTier(durMin);
+                  const height =
+                    tier === "condensed"
+                      ? (SHORT_MIN / 60) * HOUR_H - 2
+                      : ((en - s) / 60) * HOUR_H - 2;
                   return (
                     <button
                       key={e.id}
-                      className="fb-wblock"
+                      className={`fb-wblock${tier === "stacked" ? " is-stacked" : " is-compact"}`}
                       style={{
                         top: ((s - spanStart) / 60) * HOUR_H,
-                        height: Math.max(((en - s) / 60) * HOUR_H - 2, 18),
+                        height,
                         left: `calc(${left}% + 2px)`,
                         width: `calc(${width}% - 4px)`,
                         right: "auto",
@@ -97,7 +104,9 @@ export function WeekView({ date, now, events, settings, onSelect }) {
                       onClick={() => onSelect(e)}
                     >
                       <span className="fb-wbtitle">{e.title}</span>
-                      <span className="fb-wbtime">{fmtTime(e.start)}</span>
+                      <span className="fb-wbtime">
+                        {tier === "stacked" ? fmtRange(e.start, e.end) : fmtTime(e.start)}
+                      </span>
                     </button>
                   );
                 })}

@@ -68,6 +68,10 @@ export function fmtTime(d) {
   return m ? `${h}:${String(m).padStart(2, "0")}${ap}` : `${h}${ap}`;
 }
 
+export function fmtRange(start, end) {
+  return `${fmtTime(start)} - ${fmtTime(end)}`;
+}
+
 export function fmtClock(d) {
   let h = d.getHours();
   const m = String(d.getMinutes()).padStart(2, "0");

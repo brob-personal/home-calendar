@@ -41,11 +41,14 @@ export default `
 .fb-wblock {
   position: absolute; left: 2px; right: 2px; z-index: 2;
   border-radius: 6px; padding: 3px 6px; overflow: hidden;
-  display: flex; flex-direction: column; color: var(--ink-on-color);
+  display: flex; color: var(--ink-on-color); text-align: left;
 }
+.fb-wblock.is-stacked { flex-direction: column; justify-content: center; align-items: flex-start; }
+.fb-wblock.is-compact { flex-direction: row; align-items: center; gap: 5px; }
 .fb-wbtitle {
   font-size: 12px; font-weight: 700; letter-spacing: -.012em; line-height: 1.15;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.fb-wbtime { font-size: 10px; font-weight: 600; opacity: .64; }
+.fb-wblock.is-compact .fb-wbtitle { flex: 0 1 auto; min-width: 0; }
+.fb-wbtime { font-size: 10px; font-weight: 600; opacity: .64; white-space: nowrap; flex: none; }
 `;

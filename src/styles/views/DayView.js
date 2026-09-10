@@ -44,12 +44,15 @@ export default `
 .fb-dblock {
   position: absolute; left: 6px; right: 6px; z-index: 2;
   border-radius: 8px; padding: 5px 11px;
-  display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+  display: flex; align-items: center; justify-content: flex-start;
   color: var(--ink-on-color); overflow: hidden; text-align: left;
 }
+.fb-dblock.is-stacked { flex-direction: column; justify-content: center; align-items: flex-start; }
+.fb-dblock.is-compact { flex-direction: row; gap: 6px; }
 .fb-blocktitle {
   font-size: 14px; font-weight: 700; letter-spacing: -.015em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
-.fb-blocktime { font-size: 11px; font-weight: 600; opacity: .66; }
+.fb-dblock.is-compact .fb-blocktitle { flex: 0 1 auto; min-width: 0; max-width: none; }
+.fb-blocktime { font-size: 11px; font-weight: 600; opacity: .66; white-space: nowrap; flex: none; }
 `;
