@@ -7,6 +7,14 @@
   .fb-chip / .fb-icon live here rather than in HeaderControls.js because
   they predate the redesign that introduced that file and Sheet footers
   already share .fb-chip/.fb-primary across files the same way.
+
+  .fb-headmeta anchors from the top (align-self: flex-start + margin-top),
+  not the bottom .fb-head otherwise uses: it used to be flex-end with a
+  padding-bottom nudge, but that coupled the month/count line's position to
+  .fb-headinfo's height below it — the weather chip is taller than the bare
+  clock it replaced, so that bottom-anchor pushed the month/count line up
+  above .fb-num instead of level with it. Anchoring from the top keeps
+  .fb-month level with .fb-num regardless of what .fb-headinfo contains.
 */
 export default `
 /* Header — 92px */
@@ -14,7 +22,7 @@ export default `
 .fb-datestack { display: flex; align-items: baseline; gap: 13px; }
 .fb-dow { font-size: 27px; font-weight: 500; letter-spacing: -.015em; color: var(--mute); }
 .fb-num { font-size: 82px; font-weight: 800; line-height: .82; letter-spacing: -.045em; }
-.fb-headmeta { padding-bottom: 5px; }
+.fb-headmeta { align-self: flex-start; margin-top: 25px; }
 .fb-month { font-size: 19px; font-weight: 600; letter-spacing: -.012em; }
 .fb-sub { font-size: 14px; color: var(--mute); margin-top: 2px; }
 .fb-headinfo { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
