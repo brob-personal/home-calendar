@@ -158,4 +158,45 @@ describe("EventForm's multi-day auto-detection", () => {
     expect(lastDraft.start).toEqual(new Date(2026, 8, 9, 8, 0));
     expect(lastDraft.end).toEqual(new Date(2026, 8, 9, 9, 0));
   });
+
+  it("bumps end forward a day when the start date catches up to a touched end date, leaving the end time behind it", async () => {
+    const user = userEvent.setup();
+    let lastDraft = null;
+    renderForm(INITIAL, (draft) => {
+      lastDraft = draft;
+      return null;
+    });
+
+    await user.click(screen.getByRole("button", { name: "End time" }));
+    await user.click(screen.getByRole("option", { name: /^7a\s/ })); // auto-reveals end date as Sep 10 (before the 8am start)
+
+    await user.click(screen.getByLabelText("End date"));
+    await user.click(screen.getByRole("button", { name: "15" })); // explicit pick, Sep 15 — endDateTouched becomes true
+
+    await user.click(screen.getByRole("button", { name: "Event date" }));
+    await user.click(screen.getByRole("button", { name: "20" })); // start date moves past the touched end date, pulling endDate up to match
+
+    expect(lastDraft.start).toEqual(new Date(2026, 8, 20, 8, 0));
+    expect(lastDraft.end.getTime()).toBeGreaterThan(lastDraft.start.getTime());
+    expect(lastDraft.end).toEqual(new Date(2026, 8, 21, 7, 0));
+  });
+
+  it("bumps end forward a day when the end-date popover explicitly picks the start day itself", async () => {
+    const user = userEvent.setup();
+    let lastDraft = null;
+    renderForm(INITIAL, (draft) => {
+      lastDraft = draft;
+      return null;
+    });
+
+    await user.click(screen.getByRole("button", { name: "End time" }));
+    await user.click(screen.getByRole("option", { name: /^7a\s/ })); // auto-reveals end date as Sep 10 (before the 8am start)
+
+    await user.click(screen.getByLabelText("End date"));
+    await user.click(screen.getByRole("button", { name: "9" })); // explicit pick of the start day itself — allowed, minDate={startDate}
+
+    expect(lastDraft.start).toEqual(new Date(2026, 8, 9, 8, 0));
+    expect(lastDraft.end.getTime()).toBeGreaterThan(lastDraft.start.getTime());
+    expect(lastDraft.end).toEqual(new Date(2026, 8, 10, 7, 0));
+  });
 });

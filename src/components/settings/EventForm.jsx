@@ -117,12 +117,27 @@ export function EventForm({ initial, members, settings, placeholderTitle, render
     "var(--surface)",
   );
 
+  const draftStart = isAllDay ? startOfDay(startDate) : atMinutes(startDate, startMinutes);
+  /*
+    Safety net, not a design change: applyStartDate/applyEndDate correctly
+    clamp endDate relative to startDate, but neither reconciles endMinutes
+    against startMinutes once the two dates land on the same day (e.g. an
+    explicit end-date pick back onto the start day, or a start-date move
+    that catches up to a touched end date). Rather than reject that
+    end-before-start combination, bump end forward one day here — the same
+    "silently repair" philosophy schema.js's normalizeEvent already applies
+    to an end-before-start event, just one day forward instead of clamped
+    to zero-length, since a zero-length event isn't meaningful here either.
+  */
+  let draftEnd = isAllDay ? startOfDay(milestone ? startDate : endDate) : atMinutes(endDate, endMinutes);
+  if (!isAllDay && draftEnd <= draftStart) draftEnd = addDays(draftEnd, 1);
+
   const draft = {
     title: title.trim(),
     memberIds: who,
     variant,
-    start: isAllDay ? startOfDay(startDate) : atMinutes(startDate, startMinutes),
-    end: isAllDay ? startOfDay(milestone ? startDate : endDate) : atMinutes(endDate, endMinutes),
+    start: draftStart,
+    end: draftEnd,
     allDay: isAllDay,
     milestone,
     location: location.trim(),
