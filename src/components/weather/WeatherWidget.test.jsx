@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import { WeatherWidget } from "./WeatherWidget.jsx";
 
@@ -48,6 +48,7 @@ describe("WeatherWidget", () => {
   });
 
   it("expands on tap into hi/lo, hourly rows, sunrise, sunset and peak UV, then collapses", () => {
+    vi.useFakeTimers();
     /* Before sunrise, so nothing in the fixture is filtered out by the
        "current hour onward" cutoff — see the dedicated cutoff test below. */
     const early = new Date("2026-09-09T05:05:00");
@@ -65,7 +66,26 @@ describe("WeatherWidget", () => {
     expect(panel).toHaveTextContent(/Peak UV.*index 7/);
 
     fireEvent.click(screen.getByRole("button", { name: /collapse weather/i }));
+    act(() => {
+      vi.advanceTimersByTime(160);
+    });
     expect(screen.queryByRole("group")).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("plays a shrink animation before the panel unmounts, rather than vanishing instantly", () => {
+    vi.useFakeTimers();
+    render(<WeatherWidget now={NOW} snapshot={snapshot()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /expand weather/i }));
+    fireEvent.click(screen.getByRole("button", { name: /collapse weather/i }));
+
+    expect(screen.getByRole("group")).toHaveClass("fb-weatherpanel--closing");
+    act(() => {
+      vi.advanceTimersByTime(160);
+    });
+    expect(screen.queryByRole("group")).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it("drops hours before the current one, so a stale morning reading doesn't linger all day", () => {

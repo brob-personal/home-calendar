@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import { ViewSwitcher } from "./ViewSwitcher.jsx";
 
@@ -33,12 +33,31 @@ describe("ViewSwitcher", () => {
   });
 
   it("calls setView with the raw view id and closes the popover", () => {
+    vi.useFakeTimers();
     const setView = vi.fn();
     render(<ViewSwitcher view="day" setView={setView} views={["day", "todo"]} />);
     fireEvent.click(screen.getByRole("button", { name: /Day/ }));
     fireEvent.click(screen.getByRole("option", { name: "To-do" }));
     expect(setView).toHaveBeenCalledWith("todo");
+    act(() => {
+      vi.advanceTimersByTime(160);
+    });
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("plays a shrink animation before the popover unmounts, rather than vanishing instantly", () => {
+    vi.useFakeTimers();
+    render(<ViewSwitcher view="day" setView={noop} views={["day", "week"]} />);
+    fireEvent.click(screen.getByRole("button", { name: /Day/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Day/ }));
+
+    expect(screen.getByRole("listbox")).toHaveClass("fb-ddpop--closing");
+    act(() => {
+      vi.advanceTimersByTime(160);
+    });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it("omits Return to Today when already on today", () => {
@@ -50,6 +69,7 @@ describe("ViewSwitcher", () => {
   });
 
   it("offers Return to Today when paged away, calling onToday and closing the popover", () => {
+    vi.useFakeTimers();
     const onToday = vi.fn();
     render(
       <ViewSwitcher view="day" setView={noop} views={["day", "week"]} isToday={false} onToday={onToday} />,
@@ -57,6 +77,10 @@ describe("ViewSwitcher", () => {
     fireEvent.click(screen.getByRole("button", { name: /Day/ }));
     fireEvent.click(screen.getByRole("option", { name: "Return to Today" }));
     expect(onToday).toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(160);
+    });
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 });

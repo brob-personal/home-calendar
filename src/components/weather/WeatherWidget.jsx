@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { fmtTime } from "../../lib/date.js";
+import { useExpandable } from "../../hooks/useExpandable.js";
 import { WeatherStyles } from "./WeatherStyles.jsx";
 import { WEATHER_ICONS } from "./weatherIcons.js";
 import { fmtTemp as fmt, buildWeatherRows as buildRows } from "./weatherRows.js";
@@ -25,12 +26,13 @@ const STALE_MS = 45 * 60 * 1000;
  */
 export function WeatherWidget({ now, snapshot }) {
   const [open, setOpen] = useState(false);
+  const { mounted, closing } = useExpandable(open, 160);
 
   if (!snapshot) return null;
 
   const Icon = WEATHER_ICONS[snapshot.condition] || WEATHER_ICONS.sunny;
   const stale = now - snapshot.fetchedAt > STALE_MS;
-  const rows = open ? buildRows(snapshot, now) : [];
+  const rows = mounted ? buildRows(snapshot, now) : [];
 
   return (
     <div className="fb-weather">
@@ -48,9 +50,9 @@ export function WeatherWidget({ now, snapshot }) {
         </span>
       </button>
 
-      {open && (
+      {mounted && (
         <div
-          className="fb-weatherpanel"
+          className={`fb-weatherpanel${closing ? " fb-weatherpanel--closing" : ""}`}
           role="group"
           aria-label={snapshot.location.label ? `Weather for ${snapshot.location.label}` : "Weather"}
         >

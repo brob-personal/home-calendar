@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useExpandable } from "../../hooks/useExpandable.js";
 import { Home } from "./icons.jsx";
 import { Avatar } from "./Avatar.jsx";
 
@@ -24,6 +25,7 @@ export function MemberPicker({
   compact = false,
 }) {
   const [open, setOpen] = useState(false);
+  const { mounted, closing } = useExpandable(open, 160);
   const shownCount = members.filter((m) => isShown(m.id)).length;
 
   return (
@@ -38,11 +40,11 @@ export function MemberPicker({
         <Home />
         <span className="fb-homecount">{shownCount}</span>
       </button>
-      {open && (
+      {mounted && (
         <>
           <div className="fb-ddscrim" onClick={() => setOpen(false)} />
           <div
-            className={`fb-ddpop fb-homepop${align === "left" ? " fb-ddpop-left" : ""}`}
+            className={`fb-ddpop fb-homepop${align === "left" ? " fb-ddpop-left" : ""}${closing ? " fb-ddpop--closing" : ""}`}
             role="listbox"
           >
             {members.map((m) => {

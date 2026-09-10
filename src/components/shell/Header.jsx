@@ -1,7 +1,13 @@
 import { sameDay, fmtClock, DOW_LONG } from "../../lib/date.js";
 import { MONTH_ART } from "../../lib/theme.js";
+import { useAnchorDirection } from "../../hooks/useAnchorDirection.js";
 import { WeatherWidget } from "../weather/WeatherWidget.jsx";
 import { HeaderControls } from "./HeaderControls.jsx";
+import { Roller } from "./Roller.jsx";
+
+/* Every date the roller could ever show, purely to reserve max width — see
+   .fb-roller in styles/shell/Header.js. */
+const DATE_DIGITS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 
 /*
   Header redesign: the left side is now purely static "what day is it"
@@ -57,16 +63,24 @@ export function Header({
 }) {
   const isToday = sameDay(anchor, now);
   const todayCount = events.filter((e) => !e.allDay && sameDay(e.start, now)).length;
+  const dir = useAnchorDirection(anchor);
 
   return (
     <header className="fb-head">
       <div className="fb-datestack">
-        <span className="fb-dow">{DOW_LONG[anchor.getDay()]}</span>
-        <span className="fb-num">{anchor.getDate()}</span>
+        <Roller className="fb-dow" value={DOW_LONG[anchor.getDay()]} allValues={DOW_LONG} dir={dir} />
+        <Roller className="fb-num" value={String(anchor.getDate())} allValues={DATE_DIGITS} dir={dir} />
       </div>
       <div className="fb-headmeta">
         <div className="fb-month">
-          {MONTH_ART[anchor.getMonth()].name} {anchor.getFullYear()}
+          <span className="fb-monthname">
+            {MONTH_ART.map((m, i) => (
+              <span key={m.name} className={i === anchor.getMonth() ? "is-active" : undefined}>
+                {m.name}
+              </span>
+            ))}
+          </span>{" "}
+          {anchor.getFullYear()}
         </div>
         <div className="fb-sub">
           {todayCount === 0 ? "Nothing scheduled today" : `${todayCount} Events Today`}
