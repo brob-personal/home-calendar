@@ -48,7 +48,7 @@ import { fmtTemp } from "../weather/weatherRows.js";
   number/empty cell still navigates via `onPick`, tapping H/L opens that
   day's WeatherDaySheet instead.
 */
-export function MonthView({ date, now, events, weather, onPick, onSelect }) {
+export function MonthView({ date, now, events, weather, settings, onPick, onSelect }) {
   const { fillFor } = usePalette();
   const [showForecast, setShowForecast] = useState(false);
   const [forecastDay, setForecastDay] = useState(null);
@@ -133,7 +133,12 @@ export function MonthView({ date, now, events, weather, onPick, onSelect }) {
       </div>
 
       {forecastDay && (
-        <WeatherDaySheet day={forecastDay} now={now} onClose={() => setForecastDay(null)} />
+        <WeatherDaySheet
+          day={forecastDay}
+          now={now}
+          timeFormat={settings?.timeFormat}
+          onClose={() => setForecastDay(null)}
+        />
       )}
     </div>
   );

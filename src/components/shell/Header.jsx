@@ -54,6 +54,7 @@ export function Header({
   onToggleMember,
   filterTouched,
   onReset,
+  timeFormat,
 }) {
   const isToday = sameDay(anchor, now);
   const todayCount = events.filter((e) => !e.allDay && sameDay(e.start, now)).length;
@@ -72,8 +73,8 @@ export function Header({
           {todayCount === 0 ? "Nothing scheduled today" : `${todayCount} today`}
         </div>
         <div className="fb-headinfo">
-          <WeatherWidget now={now} snapshot={weather} />
-          <span className="fb-clock">{fmtClock(now)}</span>
+          <WeatherWidget now={now} snapshot={weather} timeFormat={timeFormat} />
+          <span className="fb-clock">{fmtClock(now, timeFormat)}</span>
         </div>
       </div>
 

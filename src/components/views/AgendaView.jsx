@@ -29,7 +29,7 @@ import { usePalette } from "../../state/PaletteContext.js";
   remaining day it spans (today through its inclusive `end`) before grouping,
   so a trip shows up on every day of the trip, same as Day/Week/Month.
 */
-export function AgendaView({ date, now, events, members, onSelect }) {
+export function AgendaView({ date, now, events, members, settings, onSelect }) {
   const { fillFor } = usePalette();
 
   const from = startOfDay(date);
@@ -81,7 +81,9 @@ export function AgendaView({ date, now, events, members, onSelect }) {
             {g.items.map((e) => (
               <button className="fb-arow" key={e.id} onClick={() => onSelect(e)}>
                 <span className="fb-abar" style={{ background: fillFor(e) }} />
-                <span className="fb-atime">{e.allDay ? "All day" : fmtTime(e.start)}</span>
+                <span className="fb-atime">
+                  {e.allDay ? "All day" : fmtTime(e.start, settings?.timeFormat)}
+                </span>
                 <span className="fb-atitle">{e.title}</span>
                 {e.location && <span className="fb-awhere">{e.location}</span>}
                 <span className="fb-awho">

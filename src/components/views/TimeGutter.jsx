@@ -8,12 +8,12 @@ import { fmtTime } from "../../lib/date.js";
   label column, styled by the existing `.fb-gutter`/`.fb-hours`/`.fb-hour`
   rules in styles/week.js.
 */
-export function TimeGutter({ hours, hourH }) {
+export function TimeGutter({ hours, hourH, timeFormat }) {
   return (
     <div className="fb-gutter fb-hours">
       {hours.map((h) => (
         <span className="fb-hour" style={{ height: hourH }} key={h}>
-          {fmtTime(new Date(2000, 0, 1, h))}
+          {fmtTime(new Date(2000, 0, 1, h), timeFormat)}
         </span>
       ))}
     </div>

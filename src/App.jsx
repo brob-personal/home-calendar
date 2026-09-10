@@ -252,6 +252,7 @@ export default function App() {
                   onToggleMember={toggleMember}
                   filterTouched={filterTouched}
                   onReset={resetFilter}
+                  timeFormat={settings.timeFormat}
                 />
 
                 {writeErrors.length > 0 && (
@@ -300,6 +301,7 @@ export default function App() {
                           now={now}
                           events={filtered}
                           weather={weather}
+                          settings={settings}
                           onPick={(d) => {
                             setAnchor(d);
                             setView("day");
@@ -315,6 +317,7 @@ export default function App() {
                           now={now}
                           events={filtered}
                           members={shownMembers}
+                          settings={settings}
                           onSelect={setSelectedEvent}
                         />
                       )}
@@ -379,13 +382,20 @@ export default function App() {
               )}
 
               {showSaver && (
-                <Screensaver now={now} art={monthArt} photos={settings.photos} events={filtered} />
+                <Screensaver
+                  now={now}
+                  art={monthArt}
+                  photos={settings.photos}
+                  events={filtered}
+                  timeFormat={settings.timeFormat}
+                />
               )}
               {dimmed && (
                 <SleepVeil
                   now={now}
                   opacity={settings.sleepStyle === "black" ? 0 : settings.sleepDim}
                   onWake={wake}
+                  timeFormat={settings.timeFormat}
                 />
               )}
             </div>

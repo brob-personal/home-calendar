@@ -12,11 +12,11 @@ import { fmtClock, DOW } from "../../lib/date.js";
   a completely invisible clock on a completely black screen would be
   indistinguishable from a dead device.
 */
-export function SleepVeil({ now, opacity, onWake }) {
+export function SleepVeil({ now, opacity, onWake, timeFormat }) {
   return (
     <button className="fb-veil" onClick={onWake} aria-label="Wake the board">
       <div className="fb-veilinner" style={{ opacity: Math.max(opacity, 0.02) }}>
-        <span className="fb-veilclock">{fmtClock(now)}</span>
+        <span className="fb-veilclock">{fmtClock(now, timeFormat)}</span>
         <span className="fb-veildate">
           {DOW[now.getDay()]} {now.getDate()}
         </span>
