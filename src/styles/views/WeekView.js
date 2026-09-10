@@ -26,7 +26,8 @@ export default `
   width: 100%; box-sizing: border-box; text-align: left;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.fb-weekbody { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.fb-weekbody { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+.fb-weekbody::-webkit-scrollbar { display: none; }
 .fb-weekgrid { display: flex; position: relative; }
 .fb-hours { display: flex; flex-direction: column; }
 .fb-hour {
