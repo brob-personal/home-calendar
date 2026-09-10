@@ -69,11 +69,11 @@ export function Header({
           {MONTH_ART[anchor.getMonth()].name} {anchor.getFullYear()}
         </div>
         <div className="fb-sub">
-          {todayCount === 0 ? "Nothing scheduled today" : `${todayCount} today`}
+          {todayCount === 0 ? "Nothing scheduled today" : `${todayCount} Events Today`}
         </div>
         <div className="fb-headinfo">
-          <WeatherWidget now={now} snapshot={weather} />
           <span className="fb-clock">{fmtClock(now)}</span>
+          <WeatherWidget now={now} snapshot={weather} />
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import { usePalette } from "../../state/PaletteContext.js";
 import { layoutOverlaps } from "../../lib/layout.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { PersonProgress } from "../shell/PersonProgress.jsx";
+import { MemberPicker } from "../shell/MemberPicker.jsx";
 import { TimeGutter } from "./TimeGutter.jsx";
 import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
 
@@ -50,10 +51,28 @@ import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
   week changes, so the board still opens on the 7am-ish window it always
   has, but scrolling up reaches midnight and scrolling down reaches the next
   midnight.
+
+  The home/member-picker icon now lives in `.fb-weekkey`'s gutter slot,
+  fixed to the left; `roster`/`isShown`/`onToggleMember`/`filterTouched`/
+  `onReset` are threaded straight through from App.jsx, the same values
+  Header used to receive. HeaderControls no longer renders its own copy
+  for this view.
 */
 const HOUR_H = 34;
 
-export function WeekView({ date, now, events, members, settings, onSelect }) {
+export function WeekView({
+  date,
+  now,
+  events,
+  members,
+  settings,
+  onSelect,
+  roster,
+  isShown,
+  onToggleMember,
+  filterTouched,
+  onReset,
+}) {
   const { fillFor } = usePalette();
 
   const start = startOfWeek(date);
@@ -78,18 +97,36 @@ export function WeekView({ date, now, events, members, settings, onSelect }) {
         Day's) makes no sense here — this key row is the equivalent: one
         avatar+colour+progress entry per shown member, read as a legend for
         the colours inside the grid rather than a label on any one column.
+
+        The gutter slot on the left hosts the home/member-picker icon, fixed
+        in place regardless of headcount; the items wrapper is flex:1 with
+        justify-content: space-around, so the avatar/colour entries spread
+        evenly across whatever width is left, however many are shown.
       */}
-      {members?.length > 0 && (
-        <div className="fb-weekkey">
-          {members.map((m) => (
-            <div className="fb-wkeyitem" key={m.id}>
-              <Avatar member={m} size={22} />
-              <span className="fb-wkeyname">{m.name}</span>
-              <PersonProgress member={m} events={events} now={now} />
-            </div>
-          ))}
+      <div className="fb-weekkey">
+        <div className="fb-gutter fb-headhome">
+          <MemberPicker
+            members={roster}
+            isShown={isShown}
+            onToggleMember={onToggleMember}
+            showReset={filterTouched}
+            onReset={onReset}
+            align="left"
+            compact
+          />
         </div>
-      )}
+        {members?.length > 0 && (
+          <div className="fb-weekkeyitems">
+            {members.map((m) => (
+              <div className="fb-wkeyitem" key={m.id}>
+                <Avatar member={m} size={22} />
+                <span className="fb-wkeyname">{m.name}</span>
+                <PersonProgress member={m} events={events} now={now} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="fb-weekhead">
         <span className="fb-gutter" />
@@ -108,7 +145,12 @@ export function WeekView({ date, now, events, members, settings, onSelect }) {
             {events
               .filter((e) => e.allDay && spansDay(e, d))
               .map((e) => (
-                <button key={e.id} className="fb-alldaychip" onClick={() => onSelect(e)}>
+                <button
+                  key={e.id}
+                  className="fb-alldaychip"
+                  style={{ background: fillFor(e) }}
+                  onClick={() => onSelect(e)}
+                >
                   {e.title}
                 </button>
               ))}

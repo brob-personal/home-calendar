@@ -101,12 +101,18 @@ time and filtered to the current hour onward. "Onward" because
 a `now` before sunrise is needed to see the sunrise row in a test; past noon,
 today's sunrise is correctly gone from the list.
 
-The panel is `position: fixed`, anchored near the header's right cluster.
-`.fb-device` (`src/styles/fit.js`) carries a CSS transform — the `<Fit>`
-scaler — which makes it the containing block for any `position: fixed`
-descendant. That pins the panel inside the 1080×810 canvas regardless of the
-real viewport, which is what keeps backlog item 4's "without overflowing"
-true without measuring the chip's position by hand.
+The panel is `position: absolute`, anchored to `.fb-weather`
+(`position: relative`) — the wrapper around the chip that opens it. It used
+to be `position: fixed` with a hardcoded top/right offset, relying on
+`.fb-device` (`src/styles/fit.js`) carrying a CSS transform — the `<Fit>`
+scaler — to make it the containing block for that fixed box, pinning it
+inside the 1080×810 canvas regardless of the real viewport. That kept it
+"without overflowing" per backlog item 4, but only because the chip itself
+always sat in that one corner; once the chip moved elsewhere in the header,
+the panel kept opening at the old fixed spot instead of near the chip.
+Anchoring to `.fb-weather` ties the panel to wherever the chip actually
+renders, and it still can't overflow the canvas in practice since the chip
+itself never sits close enough to an edge for the 300px panel to run off it.
 
 ---
 

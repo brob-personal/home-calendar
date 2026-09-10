@@ -14,14 +14,22 @@ import { Avatar } from "./Avatar.jsx";
   Reset does close it: it's a "done, back to default" action, not one more
   item in the list.
 */
-export function MemberPicker({ members, isShown, onToggleMember, showReset, onReset }) {
+export function MemberPicker({
+  members,
+  isShown,
+  onToggleMember,
+  showReset,
+  onReset,
+  align = "right",
+  compact = false,
+}) {
   const [open, setOpen] = useState(false);
   const shownCount = members.filter((m) => isShown(m.id)).length;
 
   return (
     <div className="fb-headdd">
       <button
-        className="fb-homebtn"
+        className={`fb-homebtn${compact ? " fb-homebtn-compact" : ""}`}
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -33,7 +41,10 @@ export function MemberPicker({ members, isShown, onToggleMember, showReset, onRe
       {open && (
         <>
           <div className="fb-ddscrim" onClick={() => setOpen(false)} />
-          <div className="fb-ddpop fb-homepop" role="listbox">
+          <div
+            className={`fb-ddpop fb-homepop${align === "left" ? " fb-ddpop-left" : ""}`}
+            role="listbox"
+          >
             {members.map((m) => {
               const on = isShown(m.id);
               return (

@@ -74,4 +74,19 @@ describe("HeaderControls", () => {
     screen.getByRole("button", { name: "Open settings" }).click();
     expect(onSettings).toHaveBeenCalled();
   });
+
+  it("hides its own home/member-picker icon for day, week, and month, which host their own", () => {
+    for (const view of ["day", "week", "month"]) {
+      const { unmount } = renderControls({ view });
+      expect(
+        screen.queryByRole("button", { name: /Choose whose calendars/ }),
+      ).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it("shows its own home/member-picker icon for views without their own avatar row", () => {
+    renderControls({ view: "agenda" });
+    expect(screen.getByRole("button", { name: /Choose whose calendars/ })).toBeInTheDocument();
+  });
 });

@@ -20,9 +20,25 @@ function ev(id, title, startH, startM, endH, endM) {
   };
 }
 
+const PICKER_PROPS = {
+  roster: MEMBERS,
+  isShown: () => true,
+  onToggleMember: () => {},
+  filterTouched: false,
+  onReset: () => {},
+};
+
 function renderDay(events, onSelect = () => {}) {
   return render(
-    <DayView date={DATE} now={NOW} events={events} members={MEMBERS} settings={SETTINGS} onSelect={onSelect} />,
+    <DayView
+      date={DATE}
+      now={NOW}
+      events={events}
+      members={MEMBERS}
+      settings={SETTINGS}
+      onSelect={onSelect}
+      {...PICKER_PROPS}
+    />,
   );
 }
 
@@ -117,7 +133,15 @@ describe("DayView now line", () => {
 
   it("renders exactly one now-line across all member columns", () => {
     const { container } = render(
-      <DayView date={DATE} now={NOW} events={[]} members={MULTI_MEMBERS} settings={SETTINGS} onSelect={() => {}} />,
+      <DayView
+        date={DATE}
+        now={NOW}
+        events={[]}
+        members={MULTI_MEMBERS}
+        settings={SETTINGS}
+        onSelect={() => {}}
+        {...PICKER_PROPS}
+      />,
     );
     expect(container.querySelectorAll(".fb-nowrow").length).toBe(1);
     expect(container.querySelectorAll(".fb-nowdot").length).toBe(1);
@@ -126,7 +150,15 @@ describe("DayView now line", () => {
   it("renders no now-line when the viewed day isn't today", () => {
     const otherDay = new Date(2026, 2, 16);
     const { container } = render(
-      <DayView date={otherDay} now={NOW} events={[]} members={MULTI_MEMBERS} settings={SETTINGS} onSelect={() => {}} />,
+      <DayView
+        date={otherDay}
+        now={NOW}
+        events={[]}
+        members={MULTI_MEMBERS}
+        settings={SETTINGS}
+        onSelect={() => {}}
+        {...PICKER_PROPS}
+      />,
     );
     expect(container.querySelectorAll(".fb-nowrow").length).toBe(0);
   });
