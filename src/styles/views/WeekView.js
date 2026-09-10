@@ -43,8 +43,8 @@ export default `
   border-radius: 6px; padding: 3px 6px; overflow: hidden;
   display: flex; color: var(--ink-on-color); text-align: left;
 }
-.fb-wblock.is-stacked { flex-direction: column; justify-content: center; align-items: flex-start; }
-.fb-wblock.is-compact { flex-direction: row; align-items: center; gap: 5px; }
+.fb-wblock.is-stacked { flex-direction: column; justify-content: flex-start; align-items: flex-start; }
+.fb-wblock.is-compact { flex-direction: row; align-items: flex-start; gap: 5px; }
 .fb-wbtitle {
   font-size: 12px; font-weight: 700; letter-spacing: -.012em; line-height: 1.15;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
