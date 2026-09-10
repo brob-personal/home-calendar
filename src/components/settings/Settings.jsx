@@ -580,7 +580,9 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           />
         </div>
         <p className="fb-note">
-          The idle screensaver rotates through images in this Drive folder in place of the
+          First, share the Drive folder you want to use with brianjrobinson03@gmail.com &mdash; it
+          does not need edit access, viewing access is enough, but it does need to be shared. The
+          idle screensaver rotates through images in this Drive folder in place of the
           month&apos;s artwork. Find the id in the folder&apos;s share link &mdash;
           drive.google.com/drive/folders/<b>this part</b>. Leave it empty to keep the month art.
           Only image files are shown; the board can read the folder but never edits it.
