@@ -39,10 +39,10 @@ import { TimeGutter } from "./TimeGutter.jsx";
 
   Overlap layout: two events for the same member at overlapping times used to
   stack directly on top of each other. `layoutOverlaps` (src/lib/layout.js,
-  shared with WeekView) now splits each lane's column width evenly across
-  whatever is overlapping at that moment, Google-Calendar style, purely as a
-  left/width on top of the existing top/height positioning — colouring and
-  content are untouched.
+  shared with WeekView) now cascades whatever is overlapping at that moment —
+  fixed readable width, staggered left offset, higher z-index for later
+  events — purely as left/width/zIndex on top of the existing top/height
+  positioning — colouring and content are untouched.
 */
 const HOUR_H = 34;
 
@@ -110,7 +110,7 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
                   const s = Math.max(minutesInto(e.start), spanStart);
                   const en = Math.min(minutesInto(e.end), spanEnd);
                   const shared = (e.memberIds || []).length > 1;
-                  const { left, width } = cols.get(e);
+                  const { left, width, z } = cols.get(e);
                   return (
                     <button
                       key={e.id}
@@ -121,6 +121,7 @@ export function DayView({ date, now, events, members, settings, onSelect }) {
                         left: `calc(${left}% + 6px)`,
                         width: `calc(${width}% - 12px)`,
                         right: "auto",
+                        zIndex: z,
                         background: variantColor(m.color, e.variant),
                       }}
                       onClick={() => onSelect(e)}
