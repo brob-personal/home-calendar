@@ -114,4 +114,17 @@ button.fb-shade.is-on { border-color: var(--ink); }
   border: 1px solid var(--line); border-radius: 9px; background: none; cursor: pointer;
 }
 .fb-hexrow { display: flex; align-items: center; gap: 9px; }
+
+.fb-timingfield {
+  font-size: 15px; font-weight: 600; color: var(--ink);
+  background: var(--surface); border-radius: 10px; padding: 10px 13px;
+}
+.fb-datepop { min-width: 260px; }
+.fb-datepop-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 8px; font-size: 13px; font-weight: 700; }
+.fb-datepop-dow { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 11px; color: var(--mute); padding-bottom: 4px; }
+.fb-datepop-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.fb-datepop-day { padding: 8px 0; border-radius: 8px; font-size: 13px; color: var(--ink); }
+.fb-datepop-day:hover:not(:disabled) { background: var(--surface); }
+.fb-datepop-day.is-on { background: var(--ink); color: var(--paper); }
+.fb-datepop-day:disabled { color: var(--mute); opacity: 0.4; }
 `;
