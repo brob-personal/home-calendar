@@ -41,23 +41,43 @@ function pct(style) {
   both share layoutOverlaps from src/lib/layout.js.
 */
 describe("WeekView overlap layout", () => {
-  it("splits two overlapping events side by side", () => {
+  it("cascades two overlapping events with a fixed width and offset", () => {
     renderWeek([ev("a", "Standup", 9, 0, 10, 0), ev("b", "Sync", 9, 30, 10, 30)]);
-    expect(pct(screen.getByRole("button", { name: /Standup/ }).style.left)).toBe(0);
-    expect(pct(screen.getByRole("button", { name: /Standup/ }).style.width)).toBeCloseTo(50);
-    expect(pct(screen.getByRole("button", { name: /Sync/ }).style.left)).toBeCloseTo(50);
-    expect(pct(screen.getByRole("button", { name: /Sync/ }).style.width)).toBeCloseTo(50);
+    const a = screen.getByRole("button", { name: /Standup/ });
+    const b = screen.getByRole("button", { name: /Sync/ });
+    expect(pct(a.style.left)).toBe(0);
+    expect(pct(a.style.width)).toBeCloseTo(60);
+    expect(a.style.zIndex).toBe("2");
+    expect(pct(b.style.left)).toBeCloseTo(40);
+    expect(pct(b.style.width)).toBeCloseTo(60);
+    expect(b.style.zIndex).toBe("3");
   });
 
-  it("splits three mutually-overlapping events into three lanes", () => {
+  it("cascades three mutually-overlapping events, compressing the step to fit", () => {
     renderWeek([
       ev("a", "One", 9, 0, 10, 0),
       ev("b", "Two", 9, 0, 10, 0),
       ev("c", "Three", 9, 0, 10, 0),
     ]);
-    for (const name of ["One", "Two", "Three"]) {
-      expect(pct(screen.getByRole("button", { name: new RegExp(name) }).style.width)).toBeCloseTo(100 / 3);
-    }
+    const one = screen.getByRole("button", { name: /One/ });
+    const two = screen.getByRole("button", { name: /Two/ });
+    const three = screen.getByRole("button", { name: /Three/ });
+    for (const btn of [one, two, three]) expect(pct(btn.style.width)).toBeCloseTo(60);
+    expect(pct(one.style.left)).toBeCloseTo(0);
+    expect(pct(two.style.left)).toBeCloseTo(20);
+    expect(pct(three.style.left)).toBeCloseTo(40);
+  });
+
+  it("compresses the step further for a 4-way overlap so the last event stays inside the column", () => {
+    renderWeek([
+      ev("a", "One", 9, 0, 10, 0),
+      ev("b", "Two", 9, 0, 10, 0),
+      ev("c", "Three", 9, 0, 10, 0),
+      ev("d", "Four", 9, 0, 10, 0),
+    ]);
+    const four = screen.getByRole("button", { name: /Four/ });
+    expect(pct(four.style.width)).toBeCloseTo(60);
+    expect(pct(four.style.left) + pct(four.style.width)).toBeCloseTo(100);
   });
 
   it("renders a non-overlapping pair at full width", () => {
