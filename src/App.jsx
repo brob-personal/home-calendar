@@ -9,6 +9,7 @@ import { useMemberFilter } from "./hooks/useMemberFilter.js";
 import { useSleep } from "./hooks/useSleep.js";
 import { useSwipePage } from "./hooks/useSwipePage.js";
 import { useDrivePhotos } from "./data/drive.js";
+import { useCalendarAccessSync } from "./data/google.js";
 import { useWeather } from "./components/weather/useWeather.js";
 import { PaletteContext, useBoardPalette } from "./state/PaletteContext.js";
 import { BoardContext } from "./state/BoardContext.js";
@@ -154,6 +155,17 @@ export default function App() {
   */
   useDrivePhotos(settings, data.setSettings);
 
+  /*
+    R8's write path, disclosed the same way the line above already is: the
+    board account's access to a member's calendar can be revoked at any
+    time, so Composer's warning (src/components/settings/Composer.jsx) needs
+    a periodically re-checked CalendarLink.accessRole, not just the one
+    fetched when Settings.jsx saves a calendar id. This hook is a no-op in
+    mock/dev mode (no VITE_BOARD_DEVICE_SECRET) and never touches events —
+    see its own header comment in src/data/google.js.
+  */
+  useCalendarAccessSync(settings, data.setSettings);
+
   const monthArt = MONTH_ART[now.getMonth()];
 
   /*
@@ -176,9 +188,16 @@ export default function App() {
     [filtered, now],
   );
 
+  const [writeErrors, setWriteErrors] = useState([]);
   const addEvent = async (draft) => {
-    await data.createEvent(draft);
+    const created = await data.createEvent(draft);
     setPanel(null);
+    /* Non-contract, transient — google.js attaches this only when at least
+       one member's calendar write failed while the others (and the local
+       save) still succeeded. Composer already warned about read-only/
+       unlinked members before save; this is the harder-to-predict case, a
+       write that was expected to work and didn't. */
+    setWriteErrors(created.writeErrors || []);
   };
 
   const cssVars = {
@@ -226,6 +245,19 @@ export default function App() {
                   onToday={() => setAnchor(startOfDay(new Date()))}
                   onSettings={() => setPanel("settings")}
                 />
+
+                {writeErrors.length > 0 && (
+                  <div className="fb-writewarn" role="status">
+                    <span>
+                      Saved, but couldn&apos;t add to{" "}
+                      {writeErrors
+                        .map((e) => members.find((m) => m.id === e.memberId)?.name || e.memberId)
+                        .join(", ")}
+                      &apos;s calendar.
+                    </span>
+                    <button onClick={() => setWriteErrors([])}>Dismiss</button>
+                  </div>
+                )}
 
                 {milestones.length > 0 && <Countdowns items={milestones} now={now} />}
 

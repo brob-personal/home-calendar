@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useState } from "react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, act } from "@testing-library/react";
 
-import { createGoogleSource } from "./google.js";
+import { createGoogleSource, fetchAccessRole, useCalendarAccessSync } from "./google.js";
 import { STORE_KEYS } from "../contracts/schema.js";
 import { DEFAULT_SETTINGS } from "../contracts/defaults.js";
 import { store } from "../lib/store.js";
@@ -119,71 +121,113 @@ describe("colour mapping", () => {
   });
 });
 
-describe("calendar selection on create", () => {
-  it("targets the calendar whose members match exactly", async () => {
-    await seedSettings([
-      { id: "brian@x.com", memberIds: ["brian"], enabled: true },
-      { id: "family@x.com", memberIds: ["brian", "rachel"], enabled: true },
-    ]);
+describe("per-member calendar writes on create", () => {
+  function stubInserts() {
     const posted = [];
+    let nextId = 1;
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url, init) => {
         if (init?.method === "POST") {
           const body = JSON.parse(init.body);
           posted.push(body);
-          return respond(200, { ok: true, item: { ...body.event, id: "evt-1", etag: '"e1"' } });
+          return respond(200, {
+            ok: true,
+            item: { ...body.event, id: `evt-${nextId++}`, etag: '"e1"' },
+          });
         }
         return respond(200, { ok: true, items: [] });
       }),
     );
+    return posted;
+  }
+
+  it("inserts once per selected member, into that member's own calendar", async () => {
+    await seedSettings([
+      { id: "brian@x.com", memberIds: ["brian"], enabled: true, accessRole: "writer" },
+      { id: "rachel@x.com", memberIds: ["rachel"], enabled: true, accessRole: "owner" },
+    ]);
+    const posted = stubInserts();
 
     const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
-    await source.create({
+    const created = await source.create({
       title: "Trivia",
       start: new Date("2026-09-09T19:00:00Z"),
       end: new Date("2026-09-09T21:00:00Z"),
       memberIds: ["brian", "rachel"],
     });
 
-    expect(posted[0].calendarId).toBe("family@x.com");
+    expect(posted).toHaveLength(2);
+    expect(posted.map((p) => p.calendarId).sort()).toEqual(["brian@x.com", "rachel@x.com"]);
+    expect(posted.every((p) => p.event.summary === "Trivia")).toBe(true);
+    expect(created.googleEventIds).toEqual({ brian: "evt-1", rachel: "evt-2" });
   });
 
-  it("falls back to a superset calendar when there is no exact match", async () => {
+  it("skips a read-only member and a member with no linked calendar, writing only for the writable one", async () => {
     await seedSettings([
-      { id: "kids@x.com", memberIds: ["david", "john", "tatyana"], enabled: true },
+      { id: "brian@x.com", memberIds: ["brian"], enabled: true, accessRole: "writer" },
+      { id: "rachel@x.com", memberIds: ["rachel"], enabled: true, accessRole: "reader" },
     ]);
-    const posted = [];
+    const posted = stubInserts();
+
+    const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
+    const created = await source.create({
+      title: "Piano",
+      start: new Date("2026-09-09T16:00:00Z"),
+      end: new Date("2026-09-09T17:00:00Z"),
+      memberIds: ["brian", "rachel", "david"], // rachel: reader; david: no calendar at all
+    });
+
+    expect(posted).toHaveLength(1);
+    expect(posted[0].calendarId).toBe("brian@x.com");
+    expect(created.googleEventIds).toEqual({ brian: "evt-1" });
+  });
+
+  it("does not throw when no member has a writable calendar — it just writes nothing", async () => {
+    await seedSettings([]);
+    const posted = stubInserts();
+
+    const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
+    const created = await source.create({ title: "x", memberIds: ["brian"] });
+
+    expect(posted).toHaveLength(0);
+    expect(created.googleEventIds ?? {}).toEqual({});
+  });
+
+  it("keeps the other members' writes when one member's insert fails, and reports the failure", async () => {
+    await seedSettings([
+      { id: "brian@x.com", memberIds: ["brian"], enabled: true, accessRole: "writer" },
+      { id: "rachel@x.com", memberIds: ["rachel"], enabled: true, accessRole: "writer" },
+      { id: "david@x.com", memberIds: ["david"], enabled: true, accessRole: "owner" },
+    ]);
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url, init) => {
         if (init?.method === "POST") {
           const body = JSON.parse(init.body);
-          posted.push(body);
-          return respond(200, { ok: true, item: { ...body.event, id: "evt-1", etag: '"e1"' } });
+          if (body.calendarId === "rachel@x.com") {
+            return respond(500, { ok: false, error: "Google is down" });
+          }
+          return respond(200, { ok: true, item: { ...body.event, id: `evt-${body.calendarId}` } });
         }
         return respond(200, { ok: true, items: [] });
       }),
     );
 
     const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
-    await source.create({
-      title: "Piano",
-      start: new Date("2026-09-09T16:00:00Z"),
-      end: new Date("2026-09-09T17:00:00Z"),
-      memberIds: ["david"],
+    const created = await source.create({
+      title: "Family dinner",
+      start: new Date("2026-09-09T18:00:00Z"),
+      end: new Date("2026-09-09T19:00:00Z"),
+      memberIds: ["brian", "rachel", "david"],
     });
 
-    expect(posted[0].calendarId).toBe("kids@x.com");
-  });
-
-  it("throws when no calendar is configured for the active mode", async () => {
-    await seedSettings([]);
-    vi.stubGlobal("fetch", vi.fn());
-    const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
-    await expect(source.create({ title: "x", memberIds: ["brian"] })).rejects.toThrow(
-      /no enabled google calendar/i,
-    );
+    expect(created.googleEventIds).toEqual({
+      brian: "evt-brian@x.com",
+      david: "evt-david@x.com",
+    });
+    expect(created.writeErrors).toHaveLength(1);
+    expect(created.writeErrors[0].memberId).toBe("rachel");
   });
 });
 
@@ -475,9 +519,137 @@ describe("degrading on failure", () => {
   });
 });
 
+describe("fetchAccessRole", () => {
+  it("resolves the board account's accessRole for a calendar", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        expect(new URL(url).pathname).toBe("/api/calendar/access");
+        expect(new URL(url).searchParams.get("calendarId")).toBe("rachel@example.com");
+        return respond(200, { ok: true, accessRole: "reader" });
+      }),
+    );
+
+    const role = await fetchAccessRole({
+      apiBase: API_BASE,
+      deviceSecret: SECRET,
+      calendarId: "rachel@example.com",
+    });
+    expect(role).toBe("reader");
+  });
+
+  it("resolves null rather than throwing on a network or server failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => respond(500, { ok: false, error: "down" })),
+    );
+
+    const role = await fetchAccessRole({
+      apiBase: API_BASE,
+      deviceSecret: SECRET,
+      calendarId: "rachel@example.com",
+    });
+    expect(role).toBeNull();
+  });
+});
+
+describe("useCalendarAccessSync", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function renderWithSettings(initial) {
+    return renderHook(
+      ({ deviceSecret }) => {
+        const [settings, setSettings] = useState(initial);
+        useCalendarAccessSync(settings, setSettings, { apiBase: API_BASE, deviceSecret });
+        return settings;
+      },
+      { initialProps: { deviceSecret: SECRET } },
+    );
+  }
+
+  it("does nothing without a device secret — mock/dev mode has no real backend to ask", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    renderHook(
+      ({ deviceSecret }) => {
+        const [settings, setSettings] = useState({
+          ...DEFAULT_SETTINGS,
+          mode: "personal",
+          calendars: { personal: [{ id: CAL, memberIds: ["brian"], enabled: true }], roommate: [] },
+        });
+        useCalendarAccessSync(settings, setSettings, { apiBase: API_BASE, deviceSecret });
+        return settings;
+      },
+      { initialProps: { deviceSecret: "" } },
+    );
+
+    await act(async () => {});
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("checks every enabled calendar's accessRole and merges the result into settings", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const calendarId = new URL(url).searchParams.get("calendarId");
+        const accessRole = calendarId === "brian@x.com" ? "owner" : "reader";
+        return respond(200, { ok: true, accessRole });
+      }),
+    );
+
+    const { result } = renderWithSettings({
+      ...DEFAULT_SETTINGS,
+      mode: "personal",
+      calendars: {
+        personal: [
+          { id: "brian@x.com", memberIds: ["brian"], enabled: true },
+          { id: "rachel@x.com", memberIds: ["rachel"], enabled: true },
+        ],
+        roommate: [],
+      },
+    });
+
+    await act(async () => {});
+
+    expect(result.current.calendars.personal.find((c) => c.id === "brian@x.com").accessRole).toBe(
+      "owner",
+    );
+    expect(result.current.calendars.personal.find((c) => c.id === "rachel@x.com").accessRole).toBe(
+      "reader",
+    );
+  });
+
+  it("re-checks on the same 5-minute cadence as the event poll", async () => {
+    vi.useFakeTimers();
+    let role = "writer";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => respond(200, { ok: true, accessRole: role })),
+    );
+
+    const { result } = renderWithSettings({
+      ...DEFAULT_SETTINGS,
+      mode: "personal",
+      calendars: { personal: [{ id: CAL, memberIds: ["brian"], enabled: true }], roommate: [] },
+    });
+
+    await act(async () => {});
+    expect(result.current.calendars.personal[0].accessRole).toBe("writer");
+
+    // Access revoked between checks — the next tick should pick it up.
+    role = "reader";
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+    });
+    expect(result.current.calendars.personal[0].accessRole).toBe("reader");
+  });
+});
+
 describe("write-back", () => {
-  it("round-trips memberIds and milestone through extendedProperties.private", async () => {
-    await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true }]);
+  it("round-trips milestone through extendedProperties.private on create, without claiming memberIds on the calendar", async () => {
+    await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true, accessRole: "owner" }]);
     let posted;
     vi.stubGlobal(
       "fetch",
@@ -501,16 +673,20 @@ describe("write-back", () => {
       variant: 2,
     });
 
-    expect(posted.event.extendedProperties.private.members).toBe("brian");
+    /* Not set: this calendar's own CalendarLink already carries exactly one
+       owner, so the read path infers memberIds without extendedProperties
+       saying so. */
+    expect(posted.event.extendedProperties.private.members).toBeUndefined();
     expect(posted.event.extendedProperties.private.milestone).toBe("1");
     expect(posted.event.colorId).toBe("3"); // variant 2 -> colorId 3
     expect(posted.event.start).toEqual({ date: "2026-10-01" });
     expect(created.milestone).toBe(true);
     expect(created.allDay).toBe(true);
+    expect(created.googleEventIds).toEqual({ brian: "evt-1" });
   });
 
   it("converts a multi-day all-day event's inclusive end to Google's exclusive end.date on write", async () => {
-    await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true }]);
+    await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true, accessRole: "owner" }]);
     let posted;
     vi.stubGlobal(
       "fetch",

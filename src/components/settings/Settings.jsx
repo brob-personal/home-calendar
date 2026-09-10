@@ -5,6 +5,7 @@ import { uid } from "../../lib/uid.js";
 import { THEMES } from "../../lib/theme.js";
 import { MODES } from "../../contracts/schema.js";
 import { useMode } from "../../state/ModeContext.js";
+import { fetchAccessRole } from "../../data/google.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { Sheet } from "../shell/Sheet.jsx";
 import { Field } from "../shell/Field.jsx";
@@ -131,6 +132,24 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
     .map((cal, i) => ({ cal, i }))
     .filter(({ cal, i }) => cal.memberIds.length !== 1 || pinnedJointRows.has(`${mode}-${i}`));
 
+  /*
+    The other half of the two check points src/contracts/schema.js's
+    CalendarLink.accessRole comment names: this one, on entry/save, so a
+    newly-linked calendar has a role before the first 5-minute poll ever
+    runs; useCalendarAccessSync (src/data/google.js, mounted from App.jsx)
+    is the periodic re-check for one already linked. A blank/mistyped id, or
+    running in mock/dev mode with no VITE_BOARD_DEVICE_SECRET, both resolve
+    to no-op via fetchAccessRole's own null-on-failure contract.
+  */
+  const checkCalendarAccess = (calendarId, apply) => {
+    const deviceSecret = import.meta.env.VITE_BOARD_DEVICE_SECRET || "";
+    if (!deviceSecret || !calendarId) return;
+    const apiBase = import.meta.env.VITE_API_BASE_URL || "";
+    fetchAccessRole({ apiBase, deviceSecret, calendarId }).then((accessRole) => {
+      if (accessRole) apply(accessRole);
+    });
+  };
+
   /* A member with no mode at all is invisible everywhere — the same
      invariant normalizeModes() enforces on load. Unchecking a person's only
      remaining mode here is refused rather than silently producing that
@@ -197,6 +216,12 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
                   className="fb-input fb-input-sm"
                   value={memberCalendarId(m.id)}
                   onChange={(e) => setMemberCalendarId(m.id, e.target.value)}
+                  onBlur={(e) =>
+                    checkCalendarAccess(e.target.value.trim(), (accessRole) => {
+                      const i = memberCalendarIndex(m.id);
+                      if (i !== -1) updateCalendarAt(i, { accessRole });
+                    })
+                  }
                   placeholder="Calendar ID"
                   spellCheck="false"
                 />
@@ -283,6 +308,11 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
                   className="fb-input fb-input-sm"
                   value={cal.id}
                   onChange={(e) => updateCalendarAt(i, { id: e.target.value.trim() })}
+                  onBlur={(e) =>
+                    checkCalendarAccess(e.target.value.trim(), (accessRole) =>
+                      updateCalendarAt(i, { accessRole }),
+                    )
+                  }
                   placeholder="you@gmail.com or calendar id"
                   spellCheck="false"
                 />

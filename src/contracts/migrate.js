@@ -43,6 +43,7 @@ import {
   DEFAULT_CALENDARS,
 } from "./defaults.js";
 import {
+  ACCESS_ROLES,
   MODES,
   SCHEMA_VERSION,
   SLEEP_STYLES,
@@ -362,6 +363,7 @@ function migrateCalendars(raw) {
         memberIds: Array.isArray(c.memberIds) ? c.memberIds.map(String) : [],
         ...(c.colorId === undefined ? {} : { colorId: Number(c.colorId) }),
         enabled: c.enabled === undefined ? true : Boolean(c.enabled),
+        ...(ACCESS_ROLES.includes(c.accessRole) ? { accessRole: c.accessRole } : {}),
       }))
       .filter((c) => c.id);
   }
