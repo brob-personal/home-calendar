@@ -1,11 +1,19 @@
 /*
-  The five weather icons, and only five — PLAN.md §R6 item 2: "Match the
-  existing hand-drawn inline-SVG idiom (Gear ...); do not add an icon
-  dependency." Same box, same stroke: 24x24 viewBox, no fill,
-  stroke="currentColor" at 1.7 so every icon inherits its container's colour
-  exactly like ../shell/icons.jsx does. Kept in this file rather than that one
-  — this directory is R6's exclusively; ../shell/icons.jsx is R2's.
+  The weather condition icons plus Clock (a column-header glyph, not a
+  condition) — PLAN.md §R6 item 2: "Match the existing hand-drawn inline-SVG
+  idiom (Gear ...); do not add an icon dependency." Same box, same stroke:
+  24x24 viewBox, no fill, stroke="currentColor" at 1.7 so every icon inherits
+  its container's colour exactly like ../shell/icons.jsx does. Kept in this
+  file rather than that one — this directory is R6's exclusively;
+  ../shell/icons.jsx is R2's.
 */
+
+export const Clock = () => (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <circle cx="12" cy="12" r="9.4" />
+    <path d="M12 7v5.2l3.6 2.1" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 export const Sunny = () => (
   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7">

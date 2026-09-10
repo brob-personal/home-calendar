@@ -3,7 +3,7 @@ import { useState } from "react";
 import { fmtTime } from "../../lib/date.js";
 import { useWeather } from "./useWeather.js";
 import { WeatherStyles } from "./WeatherStyles.jsx";
-import { Sunny, PartlyCloudy, Cloudy, Rain, Snow } from "./icons.jsx";
+import { Sunny, PartlyCloudy, Cloudy, Rain, Snow, Clock } from "./icons.jsx";
 
 /*
   The condition-to-icon map lives here, not in ./icons.jsx, so that file stays
@@ -99,6 +99,12 @@ export function WeatherWidget({ now }) {
           <div className="fb-weatherhilo">
             <span className="fb-weatherhi">H {fmt(snapshot.hi)}</span>
             <span className="fb-weatherlo">L {fmt(snapshot.lo)}</span>
+          </div>
+
+          <div className="fb-weathercols" aria-hidden="true">
+            <span className="fb-weatherrowtime"><Clock /></span>
+            <span className="fb-weatherrowtemp"><Sunny /></span>
+            <span className="fb-weatherrowprecip"><Rain /></span>
           </div>
 
           <ul className="fb-weatherlist">

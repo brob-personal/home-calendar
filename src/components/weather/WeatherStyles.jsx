@@ -63,6 +63,14 @@ const CSS = `
 .fb-weatherhilo { display: flex; gap: 16px; font-size: 20px; font-weight: 700; flex: none; }
 .fb-weatherlo { color: var(--mute); }
 
+.fb-weathercols {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 2px; color: var(--mute); flex: none;
+}
+.fb-weathercols .fb-weatherrowtime,
+.fb-weathercols .fb-weatherrowtemp { display: flex; }
+.fb-weathercols svg { width: 16px; height: 16px; }
+
 .fb-weatherlist {
   margin: 0; padding: 0; list-style: none;
   display: flex; flex-direction: column; gap: 2px;

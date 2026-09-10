@@ -18,6 +18,14 @@ export default `
 .fb-whead.is-today { color: var(--ink); border-bottom: 2px solid var(--now); }
 .fb-wdow { font-size: 13px; font-weight: 600; }
 .fb-wnum { font-size: 21px; font-weight: 700; letter-spacing: -.035em; }
+.fb-weekallday { display: flex; flex: none; padding: 6px 6px 0 0; }
+.fb-walldaycol {
+  flex: 1; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 0 3px;
+}
+.fb-walldaycol .fb-alldaychip {
+  width: 100%; box-sizing: border-box; text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .fb-weekbody { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
 .fb-weekbody::-webkit-scrollbar { display: none; }
 .fb-weekgrid { display: flex; position: relative; }

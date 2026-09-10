@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 import { DayView } from "./DayView.jsx";
@@ -20,10 +20,14 @@ function ev(id, title, startH, startM, endH, endM) {
   };
 }
 
-function renderDay(events) {
+function renderDay(events, onSelect = () => {}) {
   return render(
-    <DayView date={DATE} now={NOW} events={events} members={MEMBERS} settings={SETTINGS} onSelect={() => {}} />,
+    <DayView date={DATE} now={NOW} events={events} members={MEMBERS} settings={SETTINGS} onSelect={onSelect} />,
   );
+}
+
+function allDayEv(id, title, startDate, endDate) {
+  return { id, title, start: startDate, end: endDate, allDay: true, memberIds: ["brian"], variant: 0 };
 }
 
 function pct(style) {
@@ -92,5 +96,30 @@ describe("DayView overlap layout", () => {
     renderDay([ev("a", "Before", 9, 0, 10, 0), ev("b", "After", 10, 0, 11, 0)]);
     expect(pct(screen.getByRole("button", { name: /Before/ }).style.width)).toBe(100);
     expect(pct(screen.getByRole("button", { name: /After/ }).style.width)).toBe(100);
+  });
+});
+
+/*
+  Multi-day all-day events used to render their chip only on `e.start`'s
+  day — DATE (Mar 15 2026) is inside, not the start of, each trip below, so
+  these would have shown nothing before the `spansDay` fix.
+*/
+describe("DayView all-day chips", () => {
+  it("shows a chip for a multi-day event that spans, but doesn't start on, the viewed day", () => {
+    renderDay([allDayEv("t", "Kauai", new Date(2026, 2, 12), new Date(2026, 2, 19))]);
+    expect(screen.getByRole("button", { name: "Kauai" })).toBeInTheDocument();
+  });
+
+  it("does not show a chip for a multi-day event whose span doesn't reach the viewed day", () => {
+    renderDay([allDayEv("t", "Kauai", new Date(2026, 2, 1), new Date(2026, 2, 5))]);
+    expect(screen.queryByRole("button", { name: "Kauai" })).not.toBeInTheDocument();
+  });
+
+  it("opens the detail sheet when a chip is tapped", () => {
+    const onSelect = vi.fn();
+    const trip = allDayEv("t", "Kauai", new Date(2026, 2, 12), new Date(2026, 2, 19));
+    renderDay([trip], onSelect);
+    screen.getByRole("button", { name: "Kauai" }).click();
+    expect(onSelect).toHaveBeenCalledWith(trip);
   });
 });
