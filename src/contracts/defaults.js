@@ -36,11 +36,11 @@
 
 /** @type {import("./schema.js").Member[]} */
 export const DEFAULT_MEMBERS = [
-  { id: "brian", name: "Brian", color: "#7EB6E8", photo: "", onBoard: true, modes: ["personal"] },
-  { id: "rachel", name: "Rachel", color: "#F0A3B8", photo: "", onBoard: true, modes: ["personal"] },
-  { id: "david", name: "David", color: "#8ED9B2", photo: "", onBoard: true, modes: ["personal"] },
-  { id: "john", name: "John", color: "#F6C58A", photo: "", onBoard: true, modes: ["personal"] },
-  { id: "tatyana", name: "Tatyana", color: "#C2A8E8", photo: "", onBoard: true, modes: ["personal"] },
+  { id: "brian", name: "Brian", color: "#7EB6E8", photo: "", photoDriveFolderId: "", onBoard: true, modes: ["personal"] },
+  { id: "rachel", name: "Rachel", color: "#F0A3B8", photo: "", photoDriveFolderId: "", onBoard: true, modes: ["personal"] },
+  { id: "david", name: "David", color: "#8ED9B2", photo: "", photoDriveFolderId: "", onBoard: true, modes: ["personal"] },
+  { id: "john", name: "John", color: "#F6C58A", photo: "", photoDriveFolderId: "", onBoard: true, modes: ["personal"] },
+  { id: "tatyana", name: "Tatyana", color: "#C2A8E8", photo: "", photoDriveFolderId: "", onBoard: true, modes: ["personal"] },
 ];
 
 /*

@@ -299,3 +299,46 @@ describe("Settings' per-person calendar id field", () => {
     expect(updater({ ...DEFAULT_SETTINGS, calendars: existing }).calendars.personal).toEqual([]);
   });
 });
+
+describe("Settings' per-person Drive folder id field", () => {
+  it("shows each person's photoDriveFolderId, defaulting to blank", () => {
+    renderSettings();
+    const member = DEFAULT_MEMBERS[0];
+    const row = screen.getByDisplayValue(member.name).closest(".fb-memberrow");
+    const input = within(row).getByPlaceholderText("Drive folder id (photo)");
+    expect(input).toHaveValue("");
+  });
+
+  it("typing into a person's Drive folder id field calls setMember with the new id", async () => {
+    const user = userEvent.setup();
+    const setMembers = vi.fn();
+    const setSettings = vi.fn();
+    const modeState = {
+      mode: "personal",
+      setMode: vi.fn(),
+      roster: [],
+      views: [],
+      isRoommate: false,
+    };
+    render(
+      <ModeContext.Provider value={modeState}>
+        <Settings
+          settings={DEFAULT_SETTINGS}
+          setSettings={setSettings}
+          members={DEFAULT_MEMBERS}
+          setMembers={setMembers}
+          onClose={vi.fn()}
+        />
+      </ModeContext.Provider>,
+    );
+
+    const member = DEFAULT_MEMBERS[0];
+    const row = screen.getByDisplayValue(member.name).closest(".fb-memberrow");
+    const input = within(row).getByPlaceholderText("Drive folder id (photo)");
+    await user.type(input, "x");
+
+    const updater = setMembers.mock.calls.at(-1)[0];
+    const result = updater(DEFAULT_MEMBERS);
+    expect(result.find((m) => m.id === member.id).photoDriveFolderId).toBe("x");
+  });
+});

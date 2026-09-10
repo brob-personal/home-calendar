@@ -165,6 +165,10 @@ export function normalizeEvent(raw) {
  * @property {string}   name     Display name. `initialOf` derives the avatar letter.
  * @property {string}   color    Hex hue, e.g. "#7EB6E8".
  * @property {string}   photo    Avatar image URL. "" falls back to the initial.
+ * @property {string}   photoDriveFolderId  Drive folder id whose first image, sorted
+ *                                alphabetically by filename, becomes the avatar. Takes
+ *                                priority over `photo` when both are set. "" falls back
+ *                                to `photo`, then the initial.
  * @property {boolean}  onBoard  Whether the avatar appears in the footer filter row.
  * @property {string[]} modes    Modes this person belongs to. R10 narrows; default is both.
  */
@@ -180,6 +184,7 @@ export function normalizeMember(raw) {
     name: typeof m.name === "string" ? m.name : "",
     color: typeof m.color === "string" && m.color ? m.color : "#9AA3AF",
     photo: typeof m.photo === "string" ? m.photo : "",
+    photoDriveFolderId: typeof m.photoDriveFolderId === "string" ? m.photoDriveFolderId : "",
     /*
       `onBoard: true` when absent repeats the default the load effect already
       applied inline (`m.map(x => ({ onBoard: true, ...x }))`). It lives here

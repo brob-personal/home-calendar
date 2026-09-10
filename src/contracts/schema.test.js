@@ -174,6 +174,14 @@ describe("normalizeMember", () => {
     expect(normalizeMember({ id: "a", color: "" }).color).toBeTruthy();
     expect(normalizeMember({ id: "a", color: "#7EB6E8" }).color).toBe("#7EB6E8");
   });
+
+  it("defaults photoDriveFolderId to empty but keeps a real one", () => {
+    expect(normalizeMember({ id: "a" }).photoDriveFolderId).toBe("");
+    expect(normalizeMember({ id: "a", photoDriveFolderId: 42 }).photoDriveFolderId).toBe("");
+    expect(normalizeMember({ id: "a", photoDriveFolderId: "1a2B3c" }).photoDriveFolderId).toBe(
+      "1a2B3c",
+    );
+  });
 });
 
 describe("normalizeModes", () => {
