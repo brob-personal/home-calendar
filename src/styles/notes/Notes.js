@@ -27,9 +27,16 @@
   and flex gap. --dock-bottom in tokens.js derives it from the same
   --footer-h / --board-gap / --board-pad-b those two owners already
   declare, so the three values can't drift apart.
+
+  .fb-fab used to open the note window directly. It's now a menu toggle:
+  tap it to reveal .fb-fabopt (the old footer "New event" button and the
+  note-window opener, reunited as one menu), tap again — or the scrim — to
+  collapse. The plus glyph rotates 45deg via .is-open to read as a close X,
+  so the button never needs a second icon.
 */
 export default `
-/* Sticky notes */
+/* Sticky notes + the combined add menu */
+.fb-fabscrim { position: fixed; inset: 0; z-index: 29; }
 .fb-dock {
   position: absolute; right: 24px; bottom: var(--dock-bottom); z-index: 30;
   display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
@@ -39,12 +46,19 @@ export default `
   background: var(--note-paper); box-shadow: 0 4px 16px var(--shadow-peek);
   transform: rotate(-1.4deg);
 }
+.fb-fabopt {
+  min-height: var(--tap-min); padding: 0 20px; border-radius: 999px;
+  background: var(--surface); color: var(--ink); font-size: 15px; font-weight: 700;
+  white-space: nowrap; box-shadow: 0 6px 20px var(--shadow-fab);
+}
 .fb-fab {
   width: 56px; height: 56px; border-radius: 50%;
   display: grid; place-items: center;
   background: var(--ink); color: var(--paper);
   box-shadow: 0 6px 20px var(--shadow-fab);
 }
+.fb-fab svg { transition: transform .15s ease; }
+.fb-fab.is-open svg { transform: rotate(45deg); }
 .fb-notewrap {
   position: absolute; z-index: 45;
   background: var(--note-paper); border-radius: 14px; overflow: hidden;
