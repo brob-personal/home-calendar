@@ -45,6 +45,14 @@ function weatherSnapshot() {
   };
 }
 
+const PICKER_PROPS = {
+  roster: [],
+  isShown: () => true,
+  onToggleMember: () => {},
+  filterTouched: false,
+  onReset: () => {},
+};
+
 function renderForecastMonth(props = {}) {
   const onPick = vi.fn();
   const onSelect = vi.fn();
@@ -57,6 +65,7 @@ function renderForecastMonth(props = {}) {
         weather={null}
         onPick={onPick}
         onSelect={onSelect}
+        {...PICKER_PROPS}
         {...props}
       />
     </PaletteContext.Provider>,
@@ -128,6 +137,7 @@ function renderMonth(events, onSelect = () => {}) {
         weather={null}
         onPick={() => {}}
         onSelect={onSelect}
+        {...PICKER_PROPS}
       />
     </PaletteContext.Provider>,
   );

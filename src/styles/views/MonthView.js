@@ -2,7 +2,7 @@
 export default `
 /* Month */
 .fb-monthwrap { display: flex; flex-direction: column; height: 100%; gap: 7px; }
-.fb-monthtoolbar { display: flex; justify-content: flex-end; }
+.fb-monthtoolbar { display: flex; align-items: center; justify-content: space-between; }
 .fb-monthweather {
   width: var(--tap-min); height: var(--tap-min);
   display: grid; place-items: center; border-radius: 999px; border: none;

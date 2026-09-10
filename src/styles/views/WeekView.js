@@ -9,7 +9,9 @@
 export default `
 /* Week */
 .fb-week { display: flex; flex-direction: column; height: 100%; gap: 6px; }
-.fb-weekkey { display: flex; flex-wrap: wrap; gap: 14px; flex: none; }
+.fb-weekkey { display: flex; align-items: center; gap: 10px; flex: none; }
+.fb-headhome { display: flex; align-items: center; justify-content: center; }
+.fb-weekkeyitems { flex: 1; display: flex; flex-wrap: wrap; justify-content: space-around; gap: 14px; }
 .fb-wkeyitem { display: flex; align-items: center; gap: 6px; }
 .fb-wkeyname { font-size: 12px; font-weight: 600; color: var(--mute); }
 .fb-weekhead { display: flex; flex: none; padding-right: 6px; }

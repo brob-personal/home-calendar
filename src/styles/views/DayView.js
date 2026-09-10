@@ -28,6 +28,7 @@ export default `
   background: var(--surface); border-radius: 8px; color: var(--mute);
 }
 .fb-dayhead { display: flex; flex: none; padding-right: 6px; }
+.fb-headhome { display: flex; align-items: center; justify-content: center; }
 .fb-dhead {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   padding: 2px 0 8px; color: var(--ink); border-bottom: 1px solid var(--line);

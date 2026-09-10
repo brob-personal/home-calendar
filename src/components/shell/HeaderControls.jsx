@@ -11,6 +11,11 @@ import { MemberPicker } from "./MemberPicker.jsx";
   thing that used to live in it and doesn't live here is "New event", which
   NoteDock's own FAB menu already offered as a second way in — see
   ../notes/NoteDock.jsx.
+
+  MemberPicker only renders here for views without their own avatar row
+  (Agenda, and anything else that isn't day/week/month) — Day, Week, and
+  Month each host their own copy, fixed to the left of their per-view head
+  row, so `showHome` hides this one to avoid a duplicate.
 */
 export function HeaderControls({
   degraded,
@@ -29,6 +34,7 @@ export function HeaderControls({
   onSettings,
 }) {
   const page = (dir) => setAnchor(stepAnchor(view, anchor, dir));
+  const showHome = !["day", "week", "month"].includes(view);
 
   return (
     <div className="fb-headright">
@@ -51,13 +57,15 @@ export function HeaderControls({
         </button>
       </div>
       <ViewSwitcher view={view} setView={setView} views={views} />
-      <MemberPicker
-        members={roster}
-        isShown={isShown}
-        onToggleMember={onToggleMember}
-        showReset={filterTouched}
-        onReset={onReset}
-      />
+      {showHome && (
+        <MemberPicker
+          members={roster}
+          isShown={isShown}
+          onToggleMember={onToggleMember}
+          showReset={filterTouched}
+          onReset={onReset}
+        />
+      )}
       <button className="fb-icon" onClick={onSettings} aria-label="Open settings">
         <Gear />
       </button>
