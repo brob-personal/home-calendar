@@ -50,7 +50,7 @@ export function DateField({ value, onChange, minDate, ariaLabel }) {
             <div className="fb-datepop-head">
               <button
                 type="button"
-                className="fb-ghost-sm"
+                className="fb-ghost fb-ghost-sm"
                 onClick={() => setViewMonth((m) => stepAnchor("month", m, -1))}
                 aria-label="Previous month"
               >
@@ -61,7 +61,7 @@ export function DateField({ value, onChange, minDate, ariaLabel }) {
               </span>
               <button
                 type="button"
-                className="fb-ghost-sm"
+                className="fb-ghost fb-ghost-sm"
                 onClick={() => setViewMonth((m) => stepAnchor("month", m, 1))}
                 aria-label="Next month"
               >
