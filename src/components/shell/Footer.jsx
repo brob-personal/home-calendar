@@ -37,7 +37,6 @@ export function Footer({
   onToggleMember,
   showReset,
   onReset,
-  onCompose,
 }) {
   const page = (dir) => setAnchor(stepAnchor(view, anchor, dir));
 
@@ -84,9 +83,6 @@ export function Footer({
         </button>
         <button className="fb-icon" onClick={() => page(1)} aria-label="Next">
           <Chevron dir="right" />
-        </button>
-        <button className="fb-primary" onClick={onCompose}>
-          New event
         </button>
       </div>
     </footer>

@@ -348,6 +348,21 @@ export function normalizeRoutine(raw) {
  * @property {number} temp          °F or °C per Settings.weather.units.
  * @property {number} precipChance  0-100.
  *
+ * One forecast day, today included. `daily[0]` is always the same day the
+ * top-level `hi`/`lo`/`sunrise`/`sunset`/`uvPeak`/`hourly` fields describe —
+ * those top-level fields exist so Day/Week and the header chip, which only
+ * ever care about today, don't need to reach into `daily[0]` themselves.
+ *
+ * @typedef {object} WeatherDay
+ * @property {Date}   date
+ * @property {string} condition
+ * @property {number} hi
+ * @property {number} lo
+ * @property {Date}   sunrise
+ * @property {Date}   sunset
+ * @property {{at: Date, index: number}|null} uvPeak
+ * @property {WeatherHour[]} hourly
+ *
  * @typedef {object} WeatherSnapshot
  * @property {Date}   fetchedAt
  * @property {{label: string, lat: number, lon: number}} location
@@ -360,6 +375,7 @@ export function normalizeRoutine(raw) {
  * @property {Date}   sunset
  * @property {{at: Date, index: number}|null} uvPeak
  * @property {WeatherHour[]} hourly
+ * @property {WeatherDay[]} daily     Today plus up to 15 more days, in order.
  */
 
 /**
