@@ -33,7 +33,8 @@ export default `
   padding: 2px 0 8px; color: var(--ink); border-bottom: 1px solid var(--line);
 }
 .fb-dname { font-size: 15px; font-weight: 600; letter-spacing: -.015em; }
-.fb-daybody { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.fb-daybody { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+.fb-daybody::-webkit-scrollbar { display: none; }
 .fb-daygrid { display: flex; position: relative; }
 .fb-dcol { position: relative; flex: 1; border-left: 1px solid var(--line); }
 .fb-dcol:last-child { border-right: 1px solid var(--line); }
