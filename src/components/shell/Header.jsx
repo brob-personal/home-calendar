@@ -41,7 +41,7 @@ export function Header({ now, anchor, events, degraded, onToday, onSettings }) {
           {MONTH_ART[anchor.getMonth()].name} {anchor.getFullYear()}
         </div>
         <div className="fb-sub">
-          {todayCount === 0 ? "Nothing scheduled today" : `${todayCount} today`}
+          {todayCount === 0 ? "Nothing scheduled today" : `${todayCount} Events Today`}
         </div>
       </div>
       <div className="fb-headright">
