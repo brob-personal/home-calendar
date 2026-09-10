@@ -295,7 +295,15 @@ describe("migrateMembers", () => {
   it("keeps a real roster and normalizes each member", () => {
     const members = migrateMembers([{ id: "sam", name: "Sam", modes: ["roommate", "roommate"] }]);
     expect(members).toEqual([
-      { id: "sam", name: "Sam", color: "#9AA3AF", photo: "", onBoard: true, modes: ["roommate"] },
+      {
+        id: "sam",
+        name: "Sam",
+        color: "#9AA3AF",
+        photo: "",
+        photoDriveFolderId: "",
+        onBoard: true,
+        modes: ["roommate"],
+      },
     ]);
   });
 });
