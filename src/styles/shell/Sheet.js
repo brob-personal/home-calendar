@@ -127,4 +127,11 @@ button.fb-shade.is-on { border-color: var(--ink); }
 .fb-datepop-day:hover:not(:disabled) { background: var(--surface); }
 .fb-datepop-day.is-on { background: var(--ink); color: var(--paper); }
 .fb-datepop-day:disabled { color: var(--mute); opacity: 0.4; }
+
+.fb-timepop { max-height: 260px; overflow-y: auto; min-width: 200px; }
+.fb-timeopt { display: flex; justify-content: space-between; width: 100%; }
+.fb-timeopt-dur { color: var(--mute); font-weight: 500; }
+.fb-timingrow { display: flex; align-items: center; gap: 10px; }
+.fb-timingdash { color: var(--mute); }
+.fb-timingend { display: flex; align-items: center; gap: 10px; padding-left: 30px; }
 `;

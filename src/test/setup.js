@@ -43,3 +43,15 @@ if (!("storage" in globalThis)) {
     },
   };
 }
+
+/*
+  jsdom ships no layout engine, so it has no Element.prototype.scrollIntoView
+  either. TimeField (src/components/shell/TimeField.jsx) calls it on the
+  active row when its popover opens; without a stub every open() in a test
+  throws "scrollIntoView is not a function". A no-op is enough — like Fit's
+  ResizeObserver stub above, there is no real scroll position to assert on
+  under jsdom anyway.
+*/
+if (!("scrollIntoView" in Element.prototype)) {
+  Element.prototype.scrollIntoView = function scrollIntoView() {};
+}
