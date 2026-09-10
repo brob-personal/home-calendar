@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { clampHex, variantColor, VARIATION_COUNT } from "../../lib/color.js";
 import { uid } from "../../lib/uid.js";
 import { THEMES } from "../../lib/theme.js";
@@ -51,6 +53,20 @@ const MODE_LABELS = { personal: "Personal", roommate: "Roommate" };
 export function Settings({ settings, setSettings, members, setMembers, onClose }) {
   const { mode, setMode } = useMode();
 
+  /* A calendar with exactly one member below is reclassified out of "Joint
+     calendars" and into that person's own row (see the comment above
+     jointCalendars). Every calendar starts life at 0 members, so the very
+     first checkbox click on a brand-new row would otherwise immediately drop
+     its count to 1 and yank the row out from under the user before they can
+     check a second name — making an actual 2+-person joint calendar
+     impossible to build by clicking checkboxes one at a time. Rows the user
+     has touched this session stay put in Joint calendars regardless of
+     member count until Settings is closed and reopened, at which point a
+     row that settled on exactly one member correctly reappears only on that
+     person's own row. Keyed by `${mode}-${i}` so a mode switch can't make a
+     stale index from one mode's list pin the wrong row in the other's. */
+  const [pinnedJointRows, setPinnedJointRows] = useState(() => new Set());
+
   const set = (k, v) => setSettings((s) => ({ ...s, [k]: v }));
   const setMember = (id, patch) =>
     setMembers((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
@@ -61,10 +77,27 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
     setSettings((s) => ({ ...s, calendars: { ...s.calendars, [mode]: list } }));
   const updateCalendarAt = (i, patch) =>
     setCalendars(calendarList.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
-  const removeCalendarAt = (i) => setCalendars(calendarList.filter((_, idx) => idx !== i));
+  const removeCalendarAt = (i) => {
+    setCalendars(calendarList.filter((_, idx) => idx !== i));
+    setPinnedJointRows((prev) => {
+      const next = new Set();
+      for (const key of prev) {
+        const [m, idxStr] = key.split("-");
+        const idx = Number(idxStr);
+        if (m !== mode) next.add(key);
+        else if (idx < i) next.add(key);
+        else if (idx > i) next.add(`${m}-${idx - 1}`);
+      }
+      return next;
+    });
+  };
   const toggleCalendarMember = (i, memberId) => {
     const cal = calendarList[i];
     const has = cal.memberIds.includes(memberId);
+    setPinnedJointRows((prev) => {
+      const rowKey = `${mode}-${i}`;
+      return prev.has(rowKey) ? prev : new Set(prev).add(rowKey);
+    });
     updateCalendarAt(i, {
       memberIds: has ? cal.memberIds.filter((x) => x !== memberId) : [...cal.memberIds, memberId],
     });
@@ -96,7 +129,7 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
   };
   const jointCalendars = calendarList
     .map((cal, i) => ({ cal, i }))
-    .filter(({ cal }) => cal.memberIds.length !== 1);
+    .filter(({ cal, i }) => cal.memberIds.length !== 1 || pinnedJointRows.has(`${mode}-${i}`));
 
   /* A member with no mode at all is invisible everywhere — the same
      invariant normalizeModes() enforces on load. Unchecking a person's only

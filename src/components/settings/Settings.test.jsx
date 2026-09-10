@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -5,6 +6,37 @@ import userEvent from "@testing-library/user-event";
 import { Settings } from "./Settings.jsx";
 import { ModeContext } from "../../state/ModeContext.js";
 import { DEFAULT_SETTINGS, DEFAULT_MEMBERS } from "../../contracts/defaults.js";
+
+/*
+  Unlike renderSettings() below, this wrapper keeps `settings` in real state
+  so that a sequence of clicks compounds the way it does in the running app —
+  needed to reproduce bugs that only show up across multiple interactions
+  with the same still-mounted Settings instance.
+*/
+function renderStatefulSettings(settingsOverrides = {}, mode = "personal") {
+  const modeState = {
+    mode,
+    setMode: vi.fn(),
+    roster: [],
+    views: [],
+    isRoommate: mode === "roommate",
+  };
+  function Wrapper() {
+    const [settings, setSettings] = useState({ ...DEFAULT_SETTINGS, ...settingsOverrides });
+    return (
+      <ModeContext.Provider value={modeState}>
+        <Settings
+          settings={settings}
+          setSettings={setSettings}
+          members={DEFAULT_MEMBERS}
+          setMembers={vi.fn()}
+          onClose={vi.fn()}
+        />
+      </ModeContext.Provider>
+    );
+  }
+  return render(<Wrapper />);
+}
 
 function renderSettings(settingsOverrides = {}, mode = "personal") {
   const setSettings = vi.fn();
@@ -151,6 +183,34 @@ describe("Settings' Calendars section", () => {
         "shared@x.com",
       ),
     ).toBeInTheDocument();
+  });
+
+  /*
+    Regression guard: a brand-new joint calendar starts at 0 members, so
+    checking the very first person used to drop it to exactly 1 member and
+    the jointCalendars filter (memberIds.length !== 1) instantly hid the row
+    — before the user could check a second name to make it actually joint.
+    The row must stay put through that first click, and only settle into a
+    single owner's row once Settings is closed and reopened.
+  */
+  it("checking a first name doesn't yank a new joint-calendar row out from under you", async () => {
+    const user = userEvent.setup();
+    renderStatefulSettings({ calendars: { personal: [], roommate: [] } });
+    const jointField = screen.getByText("Joint calendars").closest(".fb-field");
+    await user.click(within(jointField).getByRole("button", { name: "Add calendar" }));
+
+    const first = DEFAULT_MEMBERS[0];
+    const second = DEFAULT_MEMBERS[1];
+    const row = within(jointField)
+      .getByRole("checkbox", { name: first.name })
+      .closest(".fb-memberblock");
+
+    await user.click(within(row).getByRole("checkbox", { name: first.name }));
+    expect(within(jointField).getByRole("checkbox", { name: first.name })).toBeInTheDocument();
+
+    await user.click(within(row).getByRole("checkbox", { name: second.name }));
+    expect(within(row).getByRole("checkbox", { name: first.name })).toBeChecked();
+    expect(within(row).getByRole("checkbox", { name: second.name })).toBeChecked();
   });
 });
 
