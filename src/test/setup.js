@@ -17,9 +17,11 @@ afterEach(() => {
 
   <Fit> used to be the other caller, and the reason this stub had to never
   fire — a 0x0 measurement there computed scale 0. It no longer constructs an
-  observer at all: it reads window.innerWidth/innerHeight, which jsdom does
-  report, so src/components/shell/Fit.test.jsx can set a viewport and assert
-  the scale that falls out of it.
+  observer at all; it measures .fb-fit on mount and on window resize, and
+  falls back to window.innerWidth/innerHeight when that rect is 0x0, which is
+  always the case here. jsdom does report those, so
+  src/components/shell/Fit.test.jsx can set a viewport and assert the scale
+  that falls out of it.
 */
 if (!("ResizeObserver" in globalThis)) {
   globalThis.ResizeObserver = class ResizeObserver {
