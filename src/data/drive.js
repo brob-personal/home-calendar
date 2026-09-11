@@ -15,7 +15,8 @@
   ever talks to that proxy, never to Google directly.
 
   Two Drive endpoints, both under api/drive/**:
-    - GET /api/drive/photos?folderId=  -> { ok, files: [{id, name}] }
+    - GET /api/drive/photos?folderId=
+          -> { ok, files: [{id, name, mimeType, thumbnailLink}] }
         A metadata list. No image bytes, so no auth headers needed on the
         <img>/background-image consumer.
     - GET /api/drive/photo?id=&secret= -> the image bytes, proxied
@@ -26,6 +27,20 @@
         already supports, and exactly why VITE_BOARD_DEVICE_SECRET is
         documented in .env.example as "unavoidably visible to anyone with the
         device or the bundle" — it identifies the board, not a Google account.
+
+  HEIC is why the list carries `thumbnailLink` and why the byte proxy is now
+  the fallback rather than the default. The proxy streams a file's original
+  bytes with its original Content-Type, and a Chromium kiosk cannot decode
+  `image/heic` — every photo the iPad itself shot was a blank frame, and only
+  jpg/png ever painted. Drive will hand back a server-generated JPEG preview
+  for anything it can preview, HEIC and HEIF included, and that preview URL is
+  pre-signed: no Authorization header, so nothing about using it from the
+  board weakens the "the Google token never reaches the iPad" property above.
+
+  The cost is that those URLs expire. That makes them safe to hold in memory
+  and for one poll cycle on disk, and unsafe to treat as durable — hence
+  CACHE_TTL_MS below, and hence nothing here writes them anywhere but the one
+  cache key it already owned.
 
   Photos are not persisted here as bytes — only the resolved proxy URL list is
   cached (localStorage, via ../lib/store.js), the same "aggressive cache,
@@ -44,6 +59,55 @@ import { store } from "../lib/store.js";
 
 const CACHE_KEY = "drivePhotoCache";
 const POLL_MS = 30 * 60 * 1000;
+
+/*
+  How long a cached list may still be served on the degrade path.
+
+  The cache exists so a network blip does not blank a rotating screensaver,
+  and before thumbnailLink it could be served forever — proxy URLs are ours
+  and never expire. A signed Drive preview URL does, on a window Google does
+  not document, so "forever" would trade a blank frame for a broken one.
+
+  45 minutes is one full POLL_MS cycle plus headroom: a single failed poll
+  still rotates photos, two in a row falls back to month art via Screensaver's
+  own `hasPhoto` branch. An entry written before this field existed has no
+  `at`, so the comparison is NaN and it reads as stale — which is what we
+  want, since those hold proxy URLs from the previous shape.
+*/
+const CACHE_TTL_MS = 45 * 60 * 1000;
+
+/*
+  The canvas is 1080x810 CSS px, 2160x1620 at the iPad's 2x scale (see
+  ../lib/canvas.js), and Screensaver paints photos with `background-size:
+  cover` — so the image is upscaled to fill whichever axis is short. Drive's
+  default 220px thumbnail is visibly mushy at that size.
+
+  1920 is the ceiling worth asking for: it covers the canvas on a 2x panel
+  with almost nothing left over, while asking for the full 2160 buys pixels
+  the JPEG re-encode has already thrown away and costs a slower first paint
+  on every rotation.
+*/
+const THUMB_SIZE = 1920;
+
+/*
+  Avatars are the other consumer of this file and have the opposite problem:
+  ../components/shell/Avatar.jsx renders at most 44 CSS px (88 at 2x), so
+  asking for a screensaver-sized rendition would pull ~1MB to paint a thumb
+  the size of a fingernail. 128 covers the largest avatar on a 2x panel.
+*/
+const AVATAR_THUMB_SIZE = 128;
+
+/*
+  Drive returns the size two different ways depending on which thumbnail host
+  the file lands on, so sizedThumbnail both replaces and appends rather than
+  assuming one shape:
+
+    lh3.googleusercontent.com/<opaque>=s220   an `=`-delimited option suffix
+    docs.google.com/feeds/vt?gd=true&sz=s220  a query parameter
+
+  and a link carrying no size marker at all gets one appended.
+*/
+const SIZE_SUFFIX = /=[a-z]\d+(?:-[a-z0-9]+)*$/i;
 
 /*
   Per-member avatars have no poll cycle — Family section notes there is no
@@ -79,6 +143,31 @@ function photoUrl(id) {
   return `${apiBase()}/drive/photo?${params.toString()}`;
 }
 
+/**
+ * Rewrites a Drive thumbnailLink to ask for `size` px on its longest edge
+ * instead of the ~220 Drive hands back by default.
+ *
+ * @param {string} link
+ * @param {number} [size]
+ * @returns {string}
+ */
+export function sizedThumbnail(link, size = THUMB_SIZE) {
+  if (!link) return "";
+
+  try {
+    const url = new URL(link);
+    if (url.searchParams.has("sz")) {
+      url.searchParams.set("sz", `s${size}`);
+      return url.toString();
+    }
+  } catch {
+    /* Not an absolute URL — fall through to the suffix forms. */
+  }
+
+  if (SIZE_SUFFIX.test(link)) return link.replace(SIZE_SUFFIX, `=s${size}`);
+  return `${link}=s${size}`;
+}
+
 /*
   Warms the browser's own HTTP cache so the 30s rotation in Screensaver never
   lands on a URL it has to wait on. A personal photo folder is tens of images,
@@ -101,8 +190,14 @@ function preload(urls) {
  * straight mapping, same split as fetchWeatherSnapshot/getWeather in
  * ./weather.js.
  *
+ * Prefers Drive's own thumbnailLink — a JPEG rendition of any previewable
+ * file, which is the whole reason HEIC paints — and falls back to the byte
+ * proxy for a file Drive has not generated a preview for yet. That fallback
+ * is not dead code: a photo uploaded seconds ago can list before its
+ * thumbnail exists, and for a jpg the proxy renders it perfectly well.
+ *
  * @param {string} folderId
- * @returns {Promise<string[]>} proxied image URLs, newest first
+ * @returns {Promise<string[]>} image URLs, newest first
  */
 export async function listDrivePhotos(folderId) {
   const params = new URLSearchParams({ folderId });
@@ -112,7 +207,7 @@ export async function listDrivePhotos(folderId) {
   if (!res.ok) throw new Error(`Drive list failed: ${res.status}`);
   const json = await res.json();
   const files = Array.isArray(json.files) ? json.files : [];
-  return files.map((f) => photoUrl(f.id));
+  return files.map((f) => (f.thumbnailLink ? sizedThumbnail(f.thumbnailLink) : photoUrl(f.id)));
 }
 
 /**
@@ -123,8 +218,9 @@ export async function listDrivePhotos(folderId) {
  * as "show month art". A successful call (including an empty folder) is
  * cached and returned. A failed one falls back to whatever was last cached
  * *for this folder id* — switching folders during an outage must not show
- * stale photos from the previous folder — or `[]` if there is nothing to
- * fall back to.
+ * stale photos from the previous folder — and only while that entry is still
+ * inside CACHE_TTL_MS, because the URLs in it are signed and do expire.
+ * Anything else resolves `[]`.
  *
  * @param {string} folderId
  * @returns {Promise<string[]>}
@@ -135,7 +231,7 @@ export async function getDrivePhotos(folderId) {
     const photos = await listDrivePhotos(folderId);
     preload(photos);
     try {
-      await store.set(CACHE_KEY, { folderId, photos });
+      await store.set(CACHE_KEY, { folderId, photos, at: Date.now() });
     } catch {
       /* Swallowed deliberately — see the doc comment above. */
     }
@@ -143,7 +239,8 @@ export async function getDrivePhotos(folderId) {
   } catch {
     try {
       const cached = await store.get(CACHE_KEY);
-      return cached?.folderId === folderId ? cached.photos : [];
+      if (cached?.folderId !== folderId) return [];
+      return Date.now() - cached.at < CACHE_TTL_MS ? cached.photos : [];
     } catch {
       return [];
     }
@@ -160,7 +257,12 @@ async function fetchFirstDrivePhotoUrl(folderId) {
   const files = Array.isArray(json.files) ? json.files : [];
   if (!files.length) return null;
   const first = [...files].sort((a, b) => a.name.localeCompare(b.name))[0];
-  return photoUrl(first.id);
+  // Same HEIC reasoning as listDrivePhotos — an avatar folder holding a photo
+  // straight off an iPhone is exactly the case that used to render blank —
+  // but at avatar scale rather than screensaver scale.
+  return first.thumbnailLink
+    ? sizedThumbnail(first.thumbnailLink, AVATAR_THUMB_SIZE)
+    : photoUrl(first.id);
 }
 
 /**
