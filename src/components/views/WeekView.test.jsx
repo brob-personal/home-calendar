@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { WeekView } from "./WeekView.jsx";
 import { PaletteContext } from "../../state/PaletteContext.js";
@@ -52,49 +52,20 @@ function pct(style) {
 
 /*
   Same overlap-layout coverage as DayView.test.jsx, but through WeekView's
-  per-day columns (`.fb-wblock`) rather than DayView's per-member ones —
-  both share layoutOverlaps from src/lib/layout.js.
+  per-day columns (`.fb-wblock`) rather than DayView's per-member ones — both
+  share layoutOverlaps from src/lib/layout.js.
+
+  Week is the narrow case, and the one the bug was reported against: seven
+  columns out of a 940px track is 134px each, which fits exactly one lane
+  above the 96px min-width floor. So *any* overlap here collapses to one
+  readable block plus a "+N" chip. That is the intended trade — two 67px
+  half-columns cannot render "Test 3" and "10:00 - 11a" without wrapping and
+  being sheared off by the block's height, which is the defect. Lower
+  MIN_EVENT_COL_W in src/lib/layout.js if two-up Week columns are wanted back.
 */
+const WEEK_COL_W = 940 / 7;
+
 describe("WeekView overlap layout", () => {
-  it("cascades two overlapping events with a fixed width and offset", () => {
-    renderWeek([ev("a", "Standup", 9, 0, 10, 0), ev("b", "Sync", 9, 30, 10, 30)]);
-    const a = screen.getByRole("button", { name: /Standup/ });
-    const b = screen.getByRole("button", { name: /Sync/ });
-    expect(pct(a.style.left)).toBe(0);
-    expect(pct(a.style.width)).toBeCloseTo(60);
-    expect(a.style.zIndex).toBe("2");
-    expect(pct(b.style.left)).toBeCloseTo(40);
-    expect(pct(b.style.width)).toBeCloseTo(60);
-    expect(b.style.zIndex).toBe("3");
-  });
-
-  it("cascades three mutually-overlapping events, compressing the step to fit", () => {
-    renderWeek([
-      ev("a", "One", 9, 0, 10, 0),
-      ev("b", "Two", 9, 0, 10, 0),
-      ev("c", "Three", 9, 0, 10, 0),
-    ]);
-    const one = screen.getByRole("button", { name: /One/ });
-    const two = screen.getByRole("button", { name: /Two/ });
-    const three = screen.getByRole("button", { name: /Three/ });
-    for (const btn of [one, two, three]) expect(pct(btn.style.width)).toBeCloseTo(60);
-    expect(pct(one.style.left)).toBeCloseTo(0);
-    expect(pct(two.style.left)).toBeCloseTo(20);
-    expect(pct(three.style.left)).toBeCloseTo(40);
-  });
-
-  it("compresses the step further for a 4-way overlap so the last event stays inside the column", () => {
-    renderWeek([
-      ev("a", "One", 9, 0, 10, 0),
-      ev("b", "Two", 9, 0, 10, 0),
-      ev("c", "Three", 9, 0, 10, 0),
-      ev("d", "Four", 9, 0, 10, 0),
-    ]);
-    const four = screen.getByRole("button", { name: /Four/ });
-    expect(pct(four.style.width)).toBeCloseTo(60);
-    expect(pct(four.style.left) + pct(four.style.width)).toBeCloseTo(100);
-  });
-
   it("renders a non-overlapping pair at full width", () => {
     renderWeek([ev("a", "Morning", 9, 0, 10, 0), ev("b", "Afternoon", 14, 0, 15, 0)]);
     expect(pct(screen.getByRole("button", { name: /Morning/ }).style.width)).toBe(100);
@@ -105,6 +76,49 @@ describe("WeekView overlap layout", () => {
     renderWeek([ev("a", "Before", 9, 0, 10, 0), ev("b", "After", 10, 0, 11, 0)]);
     expect(pct(screen.getByRole("button", { name: /Before/ }).style.width)).toBe(100);
     expect(pct(screen.getByRole("button", { name: /After/ }).style.width)).toBe(100);
+  });
+
+  it("collapses an overlapping pair to one readable block plus a chip", () => {
+    renderWeek([ev("a", "Standup", 9, 0, 10, 0), ev("b", "Sync", 9, 30, 10, 30)]);
+    const a = screen.getByRole("button", { name: /Standup/ });
+    expect(pct(a.style.left)).toBe(0);
+    expect(pct(a.style.width)).toBeCloseTo(75);
+    expect((pct(a.style.width) / 100) * WEEK_COL_W).toBeGreaterThanOrEqual(96);
+    expect(screen.queryByRole("button", { name: /Sync/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /1 more event,/ })).toBeTruthy();
+  });
+
+  it("does not shrink the block further as the overlap deepens", () => {
+    // The whole point of the floor: a 2-way and a 4-way overlap render the
+    // surviving block at exactly the same width. Only the chip's count grows.
+    renderWeek([
+      ev("a", "One", 9, 0, 10, 0),
+      ev("b", "Two", 9, 0, 10, 0),
+      ev("c", "Three", 9, 0, 10, 0),
+      ev("d", "Four", 9, 0, 10, 0),
+    ]);
+    const one = screen.getByRole("button", { name: /One/ });
+    expect(pct(one.style.left)).toBe(0);
+    expect(pct(one.style.width)).toBeCloseTo(75);
+    expect(screen.getByRole("button", { name: /3 more events/ })).toBeTruthy();
+  });
+
+  it("puts the chip lane flush against the column's right edge", () => {
+    renderWeek([ev("a", "Standup", 9, 0, 10, 0), ev("b", "Sync", 9, 30, 10, 30)]);
+    const chip = screen.getByRole("button", { name: /1 more event,/ });
+    expect(pct(chip.style.left) + pct(chip.style.width)).toBeCloseTo(100);
+  });
+
+  it("opens the whole slot when the chip is tapped, and routes a row to onSelect", () => {
+    const onSelect = vi.fn();
+    const events = [ev("a", "Standup", 9, 0, 10, 0), ev("b", "Sync", 9, 30, 10, 30)];
+    renderWeek(events, onSelect);
+    fireEvent.click(screen.getByRole("button", { name: /1 more event,/ }));
+    const sheet = screen.getByRole("dialog");
+    expect(within(sheet).getByRole("button", { name: /Standup/ })).toBeTruthy();
+    fireEvent.click(within(sheet).getByRole("button", { name: /Sync/ }));
+    expect(onSelect).toHaveBeenCalledWith(events[1]);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
 

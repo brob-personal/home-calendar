@@ -58,5 +58,11 @@ export default `
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 .fb-dblock.is-compact .fb-blocktitle { flex: 0 1 auto; min-width: 0; max-width: none; }
-.fb-blocktime { font-size: 11px; font-weight: 600; opacity: .66; white-space: nowrap; flex: none; }
+.fb-blocktime {
+  font-size: 11px; font-weight: 600; opacity: .66; flex: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+/* .fb-moreblock itself is declared in week.js with the rest of the shared
+   Day/Week grid rules; Day only matches .fb-dblock's softer corner. */
+.fb-dcol .fb-moreblock { border-radius: 8px; }
 `;
