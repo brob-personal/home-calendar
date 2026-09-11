@@ -1,12 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { sameDay, spansDay, minutesInto, fmtTime, fmtRange } from "../../lib/date.js";
 import { variantColor } from "../../lib/color.js";
-import { layoutOverlaps } from "../../lib/layout.js";
+import { layoutOverlaps, trackColumnWidth } from "../../lib/layout.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { PersonProgress } from "../shell/PersonProgress.jsx";
 import { MemberPicker } from "../shell/MemberPicker.jsx";
 import { TimeGutter } from "./TimeGutter.jsx";
-import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
+import { SlotOverflowSheet } from "./SlotOverflowSheet.jsx";
+import { SHORT_MIN, MORE_MIN_H, eventTier } from "../../lib/eventBox.js";
 
 /*
   Day — rebuilt by R7 (PLAN.md §R7) from the version moved verbatim off
@@ -51,11 +52,18 @@ import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
   view instead of only this one.
 
   Overlap layout: two events for the same member at overlapping times used to
-  stack directly on top of each other. `layoutOverlaps` (src/lib/layout.js,
-  shared with WeekView) now cascades whatever is overlapping at that moment —
-  fixed readable width, staggered left offset, higher z-index for later
-  events — purely as left/width/zIndex on top of the existing top/height
-  positioning — colouring and content are untouched.
+  stack directly on top of each other, and the two fixes after that were each
+  too narrow to read (see src/lib/layout.js for the history).
+  `layoutOverlaps` (shared with WeekView) now splits the column evenly but
+  never below a px floor, and hands back the events that no longer fit
+  separately — those render as the `.fb-moreblock` "+N" chips below rather
+  than as slivers, and open <SlotOverflowSheet> with the whole slot in it.
+  Still purely left/width/zIndex on top of the existing top/height
+  positioning; colouring and content are untouched.
+
+  `colW` is what makes the px floor enforceable from percentages: Day's
+  columns are one per shown member, so their width is 940/N of the fixed
+  canvas (no measurement — the board is letterboxed, not responsive).
 
   The grid always spans the full midnight-to-midnight day now — `dayStart`
   only picks where the view scrolls to by default, not what's clipped out.
@@ -89,6 +97,14 @@ export function DayView({
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = settings.dayStart * HOUR_H;
   }, [date, settings.dayStart]);
+
+  /* Which "+N" chip is open, and whose column it belongs to — the member
+     supplies the row colours the sheet's bars use, same as the blocks. */
+  const [moreSlot, setMoreSlot] = useState(null);
+
+  /* Day's columns are one per shown member, so the px width the overlap
+     floor is measured against changes with headcount. */
+  const colW = trackColumnWidth(members.length);
 
   const timed = events.filter((e) => sameDay(e.start, date) && !e.allDay);
   const allDay = events.filter((e) => e.allDay && spansDay(e, date));
@@ -156,7 +172,7 @@ export function DayView({
 
           {members.map((m) => {
             const mine = timed.filter((e) => e.memberIds?.includes(m.id));
-            const cols = layoutOverlaps(mine);
+            const { boxes, overflow } = layoutOverlaps(mine, colW);
             return (
               <div className="fb-dcol" key={m.id}>
                 {hours.map((h) => (
@@ -164,10 +180,15 @@ export function DayView({
                 ))}
                 {mine.length === 0 && <span className="fb-laneempty">Free</span>}
                 {mine.map((e) => {
+                  const box = boxes.get(e);
+                  /* Absent from the layout means this event lost its column
+                     to the min-width floor: one of the `overflow` chips
+                     below stands in for it rather than a sliver of a box. */
+                  if (!box) return null;
                   const s = Math.max(minutesInto(e.start), spanStart);
                   const en = Math.min(minutesInto(e.end), spanEnd);
                   const shared = (e.memberIds || []).length > 1;
-                  const { left, width, z } = cols.get(e);
+                  const { left, width, z } = box;
                   const durMin = en - s;
                   const tier = eventTier(durMin);
                   const height =
@@ -197,11 +218,52 @@ export function DayView({
                     </button>
                   );
                 })}
+                {overflow.map((slot) => {
+                  const s = Math.max(minutesInto(slot.start), spanStart);
+                  const en = Math.min(minutesInto(slot.end), spanEnd);
+                  const n = slot.hidden.length;
+                  return (
+                    <button
+                      key={slot.key}
+                      className="fb-moreblock"
+                      style={{
+                        top: ((s - spanStart) / 60) * HOUR_H,
+                        height: Math.max(((en - s) / 60) * HOUR_H, MORE_MIN_H),
+                        left: `calc(${slot.left}% + 2px)`,
+                        width: `calc(${slot.width}% - 4px)`,
+                        right: "auto",
+                        zIndex: slot.z,
+                      }}
+                      aria-label={`${n} more event${n === 1 ? "" : "s"}, ${fmtRange(
+                        slot.start,
+                        slot.end,
+                        settings.timeFormat,
+                      )}`}
+                      onClick={() => setMoreSlot({ slot, member: m })}
+                    >
+                      +{n}
+                    </button>
+                  );
+                })}
               </div>
             );
           })}
         </div>
       </div>
+
+      {moreSlot && (
+        <SlotOverflowSheet
+          slot={moreSlot.slot}
+          members={members}
+          timeFormat={settings.timeFormat}
+          colorFor={(e) => variantColor(moreSlot.member.color, e.variant)}
+          onSelect={(e) => {
+            setMoreSlot(null);
+            onSelect(e);
+          }}
+          onClose={() => setMoreSlot(null)}
+        />
+      )}
     </div>
   );
 }

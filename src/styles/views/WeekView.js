@@ -71,8 +71,28 @@ export default `
 .fb-wblock.is-compact { flex-direction: row; align-items: flex-start; gap: 5px; }
 .fb-wbtitle {
   font-size: 12px; font-weight: 700; letter-spacing: -.012em; line-height: 1.15;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
-.fb-wblock.is-compact .fb-wbtitle { flex: 0 1 auto; min-width: 0; }
-.fb-wbtime { font-size: 10px; font-weight: 600; opacity: .64; white-space: nowrap; flex: none; }
+.fb-wblock.is-compact .fb-wbtitle { flex: 0 1 auto; min-width: 0; max-width: none; }
+.fb-wbtime {
+  font-size: 10px; font-weight: 600; opacity: .64; flex: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+
+/* The "+N" overflow chip, shared with Day (same as .fb-gutter/.fb-hourline/
+   .fb-nowrow above — the Day/Week grid rules live here once rather than
+   twice). It stands in for the events that a crowded slot had no readable
+   column left for; src/lib/layout.js reserves its lane on the right of the
+   column and hands the view its left/width/top/height. Reads as a control
+   rather than an event: the surface grey and muted ink of MonthView's
+   .fb-cellmore, not a member colour, so it never looks like a calendar
+   nobody owns. */
+.fb-moreblock {
+  position: absolute; z-index: 3;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--line);
+  font-size: 10px; font-weight: 700; color: var(--mute);
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
 `;
