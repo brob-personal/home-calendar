@@ -13,18 +13,29 @@ poll loop, or the idle/sleep paths.
 Worth knowing before watching for anomalies — these are all expected to fire
 forever, not leaks:
 
-| Interval | What | Where |
-|---|---|---|
-| 1s (typically) | Clock tick driving the now-line and countdown | `src/hooks/useNow.js` |
-| 30s | Screensaver photo rotation, while idle | `src/components/idle/Screensaver.jsx` |
-| 5 min | Calendar poll (sync-token delta) | `src/data/google.js` (`POLL_MS`) |
-| per `useSleep`/`useIdle` config | Bedtime/wake and idle-timeout checks | `src/hooks/useSleep.js`, `src/hooks/useIdle.js` |
+| Interval                        | What                                          | Where                                           |
+| ------------------------------- | --------------------------------------------- | ----------------------------------------------- |
+| 1s (typically)                  | Clock tick driving the now-line and countdown | `src/hooks/useNow.js`                           |
+| 30s                             | Screensaver photo rotation, while idle        | `src/components/idle/Screensaver.jsx`           |
+| 5 min                           | Calendar poll (sync-token delta)              | `src/data/google.js` (`POLL_MS`)                |
+| 30 min                          | Drive photo list re-fetch                     | `src/data/drive.js` (`POLL_MS`)                 |
+| per `useSleep`/`useIdle` config | Bedtime/wake and idle-timeout checks          | `src/hooks/useSleep.js`, `src/hooks/useIdle.js` |
 
 The 5-minute calendar poll is the one to pay closest attention to: R12's own
 note in `PLAN.md` records a real bug here (a wholesale cache replace on every
 sync-token delta was silently erasing unrelated events every 5 minutes) that
 only a running board — not a unit test — actually surfaced. Trust actual
 multi-day behavior over "the tests pass" for anything touching this path.
+
+The 30-minute Drive poll is the second one to watch, for a different reason.
+Photos are painted from Drive's `thumbnailLink`, which is a signed URL with a
+validity window Google does not document. The poll is what keeps a fresh one
+in hand, and `src/data/drive.js` gives its offline cache a 45-minute TTL so a
+stale signature can never outlive it — past that the screensaver falls back to
+month art. A multi-day soak is the only thing that surfaces the failure mode
+worth knowing about: photos that render on day one and turn into blank or
+broken frames later would mean the real expiry is shorter than the poll, and
+`POLL_MS` here needs to come down.
 
 ## Setup
 
@@ -80,4 +91,4 @@ multi-day behavior over "the tests pass" for anything touching this path.
 Flat (not monotonically growing) memory across the full run, a clock that
 never drifted, sleep/wake firing on schedule every night, and events staying
 correct and current throughout — matching PLAN.md §R12's own acceptance
-line: *"a multi-day soak run shows flat memory."*
+line: _"a multi-day soak run shows flat memory."_
