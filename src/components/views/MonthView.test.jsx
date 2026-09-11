@@ -112,7 +112,15 @@ const DATE = new Date(2026, 2, 15); // March 2026
 const NOW = DATE;
 
 function allDayEv(id, title, startDate, endDate) {
-  return { id, title, start: startDate, end: endDate, allDay: true, memberIds: ["brian"], variant: 0 };
+  return {
+    id,
+    title,
+    start: startDate,
+    end: endDate,
+    allDay: true,
+    memberIds: ["brian"],
+    variant: 0,
+  };
 }
 
 function timedEv(id, title, day, startH, endH) {
@@ -127,7 +135,7 @@ function timedEv(id, title, day, startH, endH) {
   };
 }
 
-function renderMonth(events, onSelect = () => {}) {
+function renderMonth(events, onSelect = () => {}, onPick = () => {}) {
   return render(
     <PaletteContext.Provider value={palette}>
       <MonthView
@@ -135,7 +143,7 @@ function renderMonth(events, onSelect = () => {}) {
         now={NOW}
         events={events}
         weather={null}
-        onPick={() => {}}
+        onPick={onPick}
         onSelect={onSelect}
         {...PICKER_PROPS}
       />
@@ -144,27 +152,97 @@ function renderMonth(events, onSelect = () => {}) {
 }
 
 /*
-  MonthView used to filter every cell with `sameDay(e.start, d)`, so a
-  multi-day all-day event (a trip, a holiday) only ever showed a chip on the
-  first day's cell. `spansDay` fixes that; these lock the fix in.
+  MonthView used to filter every cell independently and stack its own chips,
+  so a multi-day event drew an identical chip in each cell it touched with
+  nothing linking them. It now draws one bar spanning those days, clipped at
+  each week boundary — March 2026's grid starts Sun Mar 1, so a Thu Mar 12 -
+  Sun Mar 15 trip crosses from the Mar 8 week into the Mar 15 one and is two
+  bars, one per row, not one per day.
+
+  Bars carry their placement in a calc() percentage of the row; `cols` reads
+  the column count back out of it.
 */
-describe("MonthView multi-day chips", () => {
-  it("shows a chip in every cell an all-day event spans", () => {
+function cols(expr) {
+  const m = expr.match(/calc\(([\d.]+)%/);
+  return m ? Math.round((Number(m[1]) / 100) * 7) : null;
+}
+
+describe("MonthView multi-day bars", () => {
+  it("draws one bar per week row, not one chip per day", () => {
     renderMonth([allDayEv("t", "Kauai", new Date(2026, 2, 12), new Date(2026, 2, 15))]);
-    expect(screen.getAllByText("Kauai")).toHaveLength(4);
+    const bars = screen.getAllByText("Kauai");
+    expect(bars).toHaveLength(2);
+
+    // Thu Mar 12 - Sat Mar 14 in the first row: column 4, three wide.
+    expect(cols(bars[0].style.left)).toBe(4);
+    expect(cols(bars[0].style.width)).toBe(3);
+    // Sun Mar 15 alone in the next row.
+    expect(cols(bars[1].style.left)).toBe(0);
+    expect(cols(bars[1].style.width)).toBe(1);
+  });
+
+  it("squares the edges where a bar carries over a week boundary", () => {
+    renderMonth([allDayEv("t", "Kauai", new Date(2026, 2, 12), new Date(2026, 2, 15))]);
+    const [first, second] = screen.getAllByText("Kauai");
+    expect(first.className).toContain("is-cont-after");
+    expect(first.className).not.toContain("is-cont-before");
+    expect(second.className).toContain("is-cont-before");
+    expect(second.className).not.toContain("is-cont-after");
+  });
+
+  it("draws a single-day all-day event as one bar in its own column", () => {
+    renderMonth([allDayEv("h", "Holiday", new Date(2026, 2, 17), new Date(2026, 2, 17))]);
+    const bar = screen.getByText("Holiday");
+    expect(cols(bar.style.left)).toBe(2); // Tuesday
+    expect(cols(bar.style.width)).toBe(1);
   });
 
   it("still shows a timed event only on its own day", () => {
     renderMonth([timedEv("s", "Standup", 12, 9, 10)]);
-    expect(screen.getAllByText("Standup")).toHaveLength(1);
+    const bars = screen.getAllByText("Standup");
+    expect(bars).toHaveLength(1);
+    expect(cols(bars[0].style.width)).toBe(1);
   });
 
-  it("opens the detail sheet when a chip from a spanned day is tapped", () => {
+  it("opens the detail sheet when a bar is tapped", () => {
     const onSelect = vi.fn();
     const trip = allDayEv("t", "Kauai", new Date(2026, 2, 12), new Date(2026, 2, 15));
     renderMonth([trip], onSelect);
-    // Tap the chip rendered on the 14th, not the trip's start day.
-    screen.getAllByText("Kauai")[2].click();
+    // Tap the continuation bar in the second row, not the trip's start day.
+    screen.getAllByText("Kauai")[1].click();
     expect(onSelect).toHaveBeenCalledWith(trip);
+  });
+
+  it("does not fire the cell's onPick when a bar is tapped", () => {
+    const onPick = vi.fn();
+    const holiday = allDayEv("h", "Holiday", new Date(2026, 2, 17), new Date(2026, 2, 17));
+    renderMonth([holiday], () => {}, onPick);
+    fireEvent.click(screen.getByText("Holiday"));
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it("stacks two events sharing a day into different lanes", () => {
+    renderMonth([
+      allDayEv("a", "Trip", new Date(2026, 2, 16), new Date(2026, 2, 18)),
+      allDayEv("b", "Visitors", new Date(2026, 2, 17), new Date(2026, 2, 19)),
+    ]);
+    expect(screen.getByText("Trip").style.top).toBe("0px");
+    expect(Number(screen.getByText("Visitors").style.top.replace("px", ""))).toBeGreaterThan(0);
+  });
+
+  it("collapses a day's overflow into a '+N more' that navigates to that day", () => {
+    const onPick = vi.fn();
+    // Five events on one day against the three-lane fallback: two bars draw,
+    // the third lane becomes the count.
+    const events = ["a", "b", "c", "d", "e"].map((id) =>
+      allDayEv(id, `Ev ${id}`, new Date(2026, 2, 17), new Date(2026, 2, 17)),
+    );
+    renderMonth(events, () => {}, onPick);
+    const more = screen.getByRole("button", { name: "3 more" });
+    expect(cols(more.style.left)).toBe(2);
+
+    fireEvent.click(more);
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick.mock.calls[0][0].getDate()).toBe(17);
   });
 });

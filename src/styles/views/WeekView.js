@@ -24,14 +24,23 @@ export default `
 .fb-wdow { font-size: 13px; font-weight: 600; }
 .fb-wnum { font-size: 21px; font-weight: 700; letter-spacing: -.035em; }
 .fb-weekallday { display: flex; flex: none; padding: 2px 6px 0 0; }
-.fb-walldaycol {
-  flex: 1; display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 0;
-}
-.fb-walldaycol .fb-alldaychip {
-  width: 100%; box-sizing: border-box; text-align: left;
+/*
+  One positioned track across all seven days rather than seven stacked
+  columns: a multi-day event is a single bar spanning the days it covers,
+  placed by left/width/top from src/lib/spans.js. flex: 1 against the 56px
+  .fb-gutter is what keeps its columns aligned with .fb-whead's above.
+*/
+.fb-alldaytrack { position: relative; flex: 1; }
+.fb-alldaytrack .fb-alldaychip {
+  position: absolute; box-sizing: border-box; text-align: left;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  padding: 1px 6px; font-size: 11px; border-radius: 4px; color: var(--ink-on-color);
+  padding: 0 6px; font-size: 11px; height: 17px; line-height: 17px;
+  border-radius: 4px; color: var(--ink-on-color);
 }
+/* A bar running past the edge of the week squares off that end — the
+   event continues, so the shape should not read as finished there. */
+.fb-alldaychip.is-cont-before { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.fb-alldaychip.is-cont-after { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .fb-weekbody { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
 .fb-weekbody::-webkit-scrollbar { display: none; }
 .fb-weekgrid { display: flex; position: relative; }

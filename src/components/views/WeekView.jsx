@@ -1,7 +1,17 @@
 import { useEffect, useRef } from "react";
-import { addDays, sameDay, spansDay, startOfWeek, minutesInto, fmtTime, fmtRange, DOW } from "../../lib/date.js";
+import {
+  addDays,
+  sameDay,
+  startOfWeek,
+  minutesInto,
+  fmtTime,
+  fmtRange,
+  DOW,
+} from "../../lib/date.js";
 import { usePalette } from "../../state/PaletteContext.js";
 import { layoutOverlaps } from "../../lib/layout.js";
+import { layoutSpans, NO_LANE_CAP } from "../../lib/spans.js";
+import { SpanBar } from "./SpanBar.jsx";
 import { Avatar } from "../shell/Avatar.jsx";
 import { PersonProgress } from "../shell/PersonProgress.jsx";
 import { MemberPicker } from "../shell/MemberPicker.jsx";
@@ -38,11 +48,18 @@ import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
 
   All-day row: Week used to drop `allDay` events on the floor entirely — the
   timed `list` filter excluded them and nothing else rendered them. `fb-
-  weekallday` mirrors `fb-weekhead`'s gutter-plus-seven-columns layout, one
-  `fb-alldaychip` per day a given event spans (`spansDay`, not a single
-  `sameDay(e.start, d)` check), so a multi-day event repeats across the days
-  it covers rather than appearing once — the same chip idiom DayView already
-  used, not a spanning bar, so the two views keep reading as one system.
+  weekallday` mirrors `fb-weekhead`'s gutter-plus-seven-columns geometry,
+  but those seven columns are now one positioned track rather than seven
+  independent ones. A multi-day event draws a single bar across the days it
+  covers, the way Google Calendar does, instead of repeating an identical
+  chip in each day's column with nothing to say the chips were one event.
+
+  `layoutSpans` (src/lib/spans.js, shared with Month) does the clamping,
+  edge-flagging and lane packing. NO_LANE_CAP because this band has always
+  grown to fit its contents rather than truncating, and spanning is no
+  reason to change that. Its height is `lanes * LANE_H`, so the band takes
+  exactly the room its lanes need and disappears entirely in a week with no
+  all-day events — where the old flex row still reserved its padding.
 
   The grid always spans the full midnight-to-midnight day now — `dayStart`
   only picks where the view scrolls to by default, not what's clipped out.
@@ -59,6 +76,10 @@ import { SHORT_MIN, eventTier } from "../../lib/eventBox.js";
   for this view.
 */
 const HOUR_H = 34;
+/* .fb-alldaychip's height plus the gap beneath it; the band is `lanes` of
+   these. 17px is what 11px Archivo needs to clear its own descenders —
+   keep it in step with the height in styles/views/WeekView.js. */
+const LANE_H = 17 + 2;
 
 export function WeekView({
   date,
@@ -89,6 +110,11 @@ export function WeekView({
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
   const nowTop = ((minutesInto(now) - spanStart) / 60) * HOUR_H;
+  const allDay = layoutSpans(
+    events.filter((e) => e.allDay),
+    days,
+    { maxLanes: NO_LANE_CAP },
+  );
 
   return (
     <div className="fb-week">
@@ -138,25 +164,24 @@ export function WeekView({
         ))}
       </div>
 
-      <div className="fb-weekallday">
-        <span className="fb-gutter" />
-        {days.map((d, i) => (
-          <div className="fb-walldaycol" key={i}>
-            {events
-              .filter((e) => e.allDay && spansDay(e, d))
-              .map((e) => (
-                <button
-                  key={e.id}
-                  className="fb-alldaychip"
-                  style={{ background: fillFor(e) }}
-                  onClick={() => onSelect(e)}
-                >
-                  {e.title}
-                </button>
-              ))}
+      {allDay.lanes > 0 && (
+        <div className="fb-weekallday">
+          <span className="fb-gutter" />
+          <div className="fb-alldaytrack" style={{ height: allDay.lanes * LANE_H }}>
+            {allDay.bars.map((bar) => (
+              <SpanBar
+                key={bar.event.id}
+                bar={bar}
+                columns={days.length}
+                laneH={LANE_H}
+                className="fb-alldaychip"
+                fill={fillFor(bar.event)}
+                onSelect={onSelect}
+              />
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
       <div className="fb-weekbody" ref={bodyRef}>
         <div className="fb-weekgrid" style={{ height: gridH }}>
