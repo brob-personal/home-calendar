@@ -92,6 +92,25 @@ describe("board stylesheet", () => {
     expect(BOARD_CSS).not.toContain("--axis-margin");
   });
 
+  it("gives .fb-stage no surface of its own, so nothing frames the calendar", () => {
+    // The stage used to be a card: --paper fill, an 18px radius, and a
+    // ::before washing --stage-art at .22 against .fb-art's .85 on the
+    // board. On the wall that combination read as a grey border boxing the
+    // calendar in on all four sides — measured off a 1080x810 render, board
+    // #F5DBC6 against card #FAF9F7. The board's single .fb-art wash has to
+    // stay the only one, running unbroken behind the calendar.
+    const stage = countdowns.match(/\.fb-stage \{[^}]*\}/)[0];
+    expect(stage).not.toContain("background");
+    expect(stage).not.toContain("border-radius");
+    expect(countdowns).not.toContain(".fb-stage::before");
+    expect(BOARD_CSS).not.toContain("--stage-art");
+
+    // The padding is a layout contract (TRACK_W below), not decoration, so
+    // it survives the card — it just shows the same tinted board now.
+    expect(stage).toContain("padding: 16px 18px");
+    expect(stage).toContain("overflow: hidden");
+  });
+
   it("keeps the three insets layout.js derives the event-column track from", () => {
     // src/lib/layout.js computes TRACK_W from these numbers rather than
     // measuring the DOM — the canvas is letterboxed, not responsive — and

@@ -26,9 +26,12 @@ export default `
   outline: 2px solid var(--ink); outline-offset: 2px;
 }
 
-/* .85, not a fainter wash: this needs to visibly outweigh .fb-stage's own
-   ::before (Countdowns.js, .22) so the calendar card reads as a distinct
-   lighter surface rather than a continuation of the page behind it. */
+/* The board's one seasonal wash. It was raised to .85 to outweigh a second,
+   fainter wash on .fb-stage's ::before — that pairing is what made the
+   calendar read as a lighter rectangle framed against the board, so the
+   stage's copy is gone (Countdowns.js) and this is now the only one. It
+   covers the whole 1080x810 canvas, edge to edge and unbroken, including
+   behind the calendar. */
 .fb-art { position: absolute; inset: 0; opacity: .85; pointer-events: none; }
 
 .fb-board {
