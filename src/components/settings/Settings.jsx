@@ -225,6 +225,13 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
                   placeholder="Calendar ID"
                   spellCheck="false"
                 />
+                <input
+                  className="fb-input fb-input-sm"
+                  value={m.photoDriveFolderId || ""}
+                  onChange={(e) => setMember(m.id, { photoDriveFolderId: e.target.value.trim() })}
+                  placeholder="Drive folder id (photo)"
+                  spellCheck="false"
+                />
                 {members.length > 1 && (
                   <button
                     className="fb-ghost fb-ghost-sm"
@@ -275,6 +282,7 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
                   name: "New person",
                   color: "#A8D8D0",
                   photo: "",
+                  photoDriveFolderId: "",
                   onBoard: true,
                   modes: [...MODES],
                 },
@@ -296,6 +304,14 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           The strip beside each name is that person&apos;s eleven shades. Google&apos;s event colors
           1 to 11 land on these, so two of Brian&apos;s events can look different without either of
           them stopping looking like Brian.
+        </p>
+        <p className="fb-note">
+          Each person can have their own photo, too: share a Drive folder with
+          brianjrobinson03@gmail.com &mdash; viewing access is enough &mdash; and paste its id
+          here, the same way as the Photos folder below &mdash; find it in the folder&apos;s share
+          link, drive.google.com/drive/folders/<b>this part</b>. The board shows that
+          folder&apos;s first image, alphabetically by filename, as their avatar. Leave it empty
+          to keep their initial.
         </p>
       </Field>
 

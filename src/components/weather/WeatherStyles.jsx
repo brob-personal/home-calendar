@@ -20,12 +20,14 @@ import { memo } from "react";
   (App.jsx) — nothing new is invented, this file just doesn't travel through
   ../../styles/index.js to get them.
 
-  .fb-weatherpanel is `position: fixed`, not `absolute`. .fb-device
-  (../../styles/fit.js) carries a CSS transform (the <Fit> scaler), and a
-  transform establishes the containing block for its fixed-position
-  descendants — so a fixed box here resolves against the 1080x810 canvas, not
-  the real viewport, and cannot overflow it regardless of where the header
-  lands on the page.
+  .fb-weatherpanel is `position: absolute`, anchored to `.fb-weather`
+  (`position: relative`, just above) rather than the `position: fixed` +
+  hardcoded top/right offset it used to be — that hardcoded pair placed the
+  panel at a fixed spot on the 1080x810 canvas regardless of where the chip
+  itself sat, so a click on the chip popped the panel open somewhere else
+  entirely once the header stopped putting the chip in that one corner.
+  Anchoring to the chip's own positioned ancestor keeps the panel glued to
+  wherever the chip actually renders.
 
   The reduced-motion override for `@keyframes fb-weather-grow` needs no rule
   of its own: src/styles/motion.js's `.fb-root * { animation-duration: .01ms
@@ -46,18 +48,25 @@ const CSS = `
 .fb-weatherchip svg { flex: none; }
 
 .fb-weatherpanel {
-  position: fixed; top: 84px; right: 24px; z-index: 30;
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 30;
   width: 300px; max-height: 560px;
   display: flex; flex-direction: column; gap: 10px;
   padding: 16px; border-radius: 16px;
   background: var(--paper); color: var(--ink);
   box-shadow: 0 20px 60px rgba(24,28,36,.24);
-  transform-origin: top right;
+  transform-origin: top left;
   animation: fb-weather-grow .16s ease-out;
 }
 @keyframes fb-weather-grow {
   from { transform: scale(.85); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
+}
+.fb-weatherpanel--closing {
+  animation: fb-weather-shrink .16s ease-in forwards;
+}
+@keyframes fb-weather-shrink {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(.85); opacity: 0; }
 }
 
 .fb-weatherhilo { display: flex; gap: 16px; font-size: 20px; font-weight: 700; flex: none; }

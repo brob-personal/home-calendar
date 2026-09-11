@@ -45,6 +45,15 @@ import { store } from "../lib/store.js";
 const CACHE_KEY = "drivePhotoCache";
 const POLL_MS = 30 * 60 * 1000;
 
+/*
+  Per-member avatars have no poll cycle — Family section notes there is no
+  5-minute refresh for this, unlike settings.photos above. A folder id is
+  resolved once and kept for the life of the page; a failure is evicted so a
+  later call (e.g. Settings reopened) can retry instead of being stuck null
+  forever from one transient network blip.
+*/
+const firstPhotoCache = new Map(); // folderId -> Promise<string|null>
+
 function apiBase() {
   return import.meta.env.VITE_API_BASE_URL || "/api";
 }
@@ -139,6 +148,44 @@ export async function getDrivePhotos(folderId) {
       return [];
     }
   }
+}
+
+async function fetchFirstDrivePhotoUrl(folderId) {
+  const params = new URLSearchParams({ folderId });
+  const res = await fetch(`${apiBase()}/drive/photos?${params.toString()}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`Drive list failed: ${res.status}`);
+  const json = await res.json();
+  const files = Array.isArray(json.files) ? json.files : [];
+  if (!files.length) return null;
+  const first = [...files].sort((a, b) => a.name.localeCompare(b.name))[0];
+  return photoUrl(first.id);
+}
+
+/**
+ * The proxied URL of a Drive folder's first image file, sorted alphabetically
+ * by filename — Avatar.jsx's photo source when a member has a
+ * `photoDriveFolderId`. `null` covers every case Avatar.jsx should fall back
+ * from: no folder configured, an empty/inaccessible folder, or a failed list
+ * call.
+ *
+ * Unlike `listDrivePhotos`, this never throws — there is no `getDrivePhotos`
+ * equivalent wrapping it, so it degrades internally instead.
+ *
+ * @param {string} folderId
+ * @returns {Promise<string|null>}
+ */
+export function getFirstDrivePhotoUrl(folderId) {
+  if (!folderId) return Promise.resolve(null);
+  if (firstPhotoCache.has(folderId)) return firstPhotoCache.get(folderId);
+
+  const promise = fetchFirstDrivePhotoUrl(folderId).catch(() => null);
+  firstPhotoCache.set(folderId, promise);
+  promise.then((url) => {
+    if (url === null) firstPhotoCache.delete(folderId);
+  });
+  return promise;
 }
 
 function sameList(a, b) {

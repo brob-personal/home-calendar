@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 import { HeaderControls } from "./HeaderControls.jsx";
 
@@ -49,15 +49,17 @@ describe("HeaderControls", () => {
     expect(setAnchor).toHaveBeenCalledWith(new Date(2026, 0, 22));
   });
 
-  it("hides the Back to today chip when already on today", () => {
+  it("hides Return to Today in the view dropdown when already on today", () => {
     renderControls({ isToday: true });
-    expect(screen.queryByRole("button", { name: "Back to today" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Day/ }));
+    expect(screen.queryByRole("option", { name: "Return to Today" })).not.toBeInTheDocument();
   });
 
-  it("shows Back to today and calls onToday when paged away", () => {
+  it("offers Return to Today in the view dropdown and calls onToday when paged away", () => {
     const onToday = vi.fn();
     renderControls({ isToday: false, onToday });
-    screen.getByRole("button", { name: "Back to today" }).click();
+    fireEvent.click(screen.getByRole("button", { name: /Day/ }));
+    fireEvent.click(screen.getByRole("option", { name: "Return to Today" }));
     expect(onToday).toHaveBeenCalled();
   });
 
@@ -71,5 +73,20 @@ describe("HeaderControls", () => {
     renderControls({ onSettings });
     screen.getByRole("button", { name: "Open settings" }).click();
     expect(onSettings).toHaveBeenCalled();
+  });
+
+  it("hides its own home/member-picker icon for day, week, and month, which host their own", () => {
+    for (const view of ["day", "week", "month"]) {
+      const { unmount } = renderControls({ view });
+      expect(
+        screen.queryByRole("button", { name: /Choose whose calendars/ }),
+      ).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it("shows its own home/member-picker icon for views without their own avatar row", () => {
+    renderControls({ view: "agenda" });
+    expect(screen.getByRole("button", { name: /Choose whose calendars/ })).toBeInTheDocument();
   });
 });

@@ -5,6 +5,7 @@ import { usePalette } from "../../state/PaletteContext.js";
 import { WEATHER_ICONS } from "../weather/weatherIcons.js";
 import { WeatherDaySheet } from "../weather/WeatherDaySheet.jsx";
 import { fmtTemp } from "../weather/weatherRows.js";
+import { MemberPicker } from "../shell/MemberPicker.jsx";
 
 /*
   Month — moved from family-board.jsx:931-974.
@@ -37,6 +38,14 @@ import { fmtTemp } from "../weather/weatherRows.js";
   (`spansDay`) rather than only its start day — otherwise a multi-day event
   (a trip, a holiday) only ever showed a chip on the first cell it touched.
 
+  The home/member-picker icon sits at the left of `.fb-monthtoolbar`,
+  directly across from the weather toggle on the right — the toolbar row
+  now always renders (it used to be gated on `weather`) since the home icon
+  needs a home regardless of whether a weather location is configured.
+  `roster`/`isShown`/`onToggleMember`/`filterTouched`/`onReset` are threaded
+  straight through from App.jsx, the same values Header used to receive;
+  HeaderControls no longer renders its own copy for this view.
+
   The forecast toggle and per-day breakdown, added alongside R6's Month-view
   extension: `weather` is the same WeatherSnapshot Header's chip shows
   (App.jsx makes the one `useWeather()` call and threads it to both), so no
@@ -48,7 +57,20 @@ import { fmtTemp } from "../weather/weatherRows.js";
   number/empty cell still navigates via `onPick`, tapping H/L opens that
   day's WeatherDaySheet instead.
 */
-export function MonthView({ date, now, events, weather, settings, onPick, onSelect }) {
+export function MonthView({
+  date,
+  now,
+  events,
+  weather,
+  settings,
+  onPick,
+  onSelect,
+  roster,
+  isShown,
+  onToggleMember,
+  filterTouched,
+  onReset,
+}) {
   const { fillFor } = usePalette();
   const [showForecast, setShowForecast] = useState(false);
   const [forecastDay, setForecastDay] = useState(null);
@@ -64,8 +86,16 @@ export function MonthView({ date, now, events, weather, settings, onPick, onSele
 
   return (
     <div className="fb-monthwrap">
-      {weather && (
-        <div className="fb-monthtoolbar">
+      <div className="fb-monthtoolbar">
+        <MemberPicker
+          members={roster}
+          isShown={isShown}
+          onToggleMember={onToggleMember}
+          showReset={filterTouched}
+          onReset={onReset}
+          align="left"
+        />
+        {weather && (
           <button
             className="fb-monthweather"
             onClick={() => setShowForecast((v) => !v)}
@@ -74,8 +104,8 @@ export function MonthView({ date, now, events, weather, settings, onPick, onSele
           >
             <TodayIcon />
           </button>
-        </div>
-      )}
+        )}
+      </div>
       <div className="fb-monthhead">
         {DOW.map((d) => (
           <span key={d}>{d}</span>

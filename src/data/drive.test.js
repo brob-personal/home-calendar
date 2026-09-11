@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-import { listDrivePhotos, getDrivePhotos } from "./drive.js";
+import { listDrivePhotos, getDrivePhotos, getFirstDrivePhotoUrl } from "./drive.js";
 
 /*
   PLAN.md §R9: item 2 (list via the proxy), item 3 (cache so rotation never
@@ -83,5 +83,55 @@ describe("getDrivePhotos", () => {
   it("caches and returns an empty list for a folder that is reachable but empty", async () => {
     mockFetchOnce({ ok: true, files: [] });
     expect(await getDrivePhotos("folder-1")).toEqual([]);
+  });
+});
+
+describe("getFirstDrivePhotoUrl", () => {
+  it("resolves null without fetching when no folder id is given", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    expect(await getFirstDrivePhotoUrl("")).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("resolves the alphabetically-first file's photo URL, not the API's own order", async () => {
+    mockFetchOnce({
+      ok: true,
+      files: [
+        { id: "zzz", name: "zebra.jpg" },
+        { id: "aaa", name: "apple.jpg" },
+        { id: "mmm", name: "mango.jpg" },
+      ],
+    });
+
+    const url = await getFirstDrivePhotoUrl("avatar-folder-alpha");
+
+    expect(url).toMatch(/\/drive\/photo\?/);
+    expect(url).toContain("id=aaa");
+  });
+
+  it("resolves null for a folder with no image files", async () => {
+    mockFetchOnce({ ok: true, files: [] });
+    expect(await getFirstDrivePhotoUrl("avatar-folder-empty")).toBeNull();
+  });
+
+  it("resolves null, rather than throwing, when the list call fails", async () => {
+    mockFetchOnce({}, { ok: false, status: 401 });
+    expect(await getFirstDrivePhotoUrl("avatar-folder-fail")).toBeNull();
+  });
+
+  it("caches a resolved URL per folder id instead of re-fetching", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, files: [{ id: "abc", name: "one.jpg" }] }),
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const first = await getFirstDrivePhotoUrl("avatar-folder-cache");
+    const second = await getFirstDrivePhotoUrl("avatar-folder-cache");
+
+    expect(first).toBe(second);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });

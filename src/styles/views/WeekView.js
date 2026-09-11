@@ -9,7 +9,9 @@
 export default `
 /* Week */
 .fb-week { display: flex; flex-direction: column; height: 100%; gap: 6px; }
-.fb-weekkey { display: flex; flex-wrap: wrap; gap: 14px; flex: none; }
+.fb-weekkey { display: flex; align-items: center; gap: 10px; flex: none; }
+.fb-headhome { display: flex; align-items: center; justify-content: center; }
+.fb-weekkeyitems { flex: 1; display: flex; flex-wrap: wrap; justify-content: space-around; gap: 14px; }
 .fb-wkeyitem { display: flex; align-items: center; gap: 6px; }
 .fb-wkeyname { font-size: 12px; font-weight: 600; color: var(--mute); }
 .fb-weekhead { display: flex; flex: none; padding-right: 6px; }
@@ -21,13 +23,14 @@ export default `
 .fb-whead.is-today { color: var(--ink); border-bottom: 2px solid var(--now); }
 .fb-wdow { font-size: 13px; font-weight: 600; }
 .fb-wnum { font-size: 21px; font-weight: 700; letter-spacing: -.035em; }
-.fb-weekallday { display: flex; flex: none; padding: 6px 6px 0 0; }
+.fb-weekallday { display: flex; flex: none; padding: 2px 6px 0 0; }
 .fb-walldaycol {
-  flex: 1; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 0 3px;
+  flex: 1; display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 0;
 }
 .fb-walldaycol .fb-alldaychip {
   width: 100%; box-sizing: border-box; text-align: left;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding: 1px 6px; font-size: 11px; border-radius: 4px; color: var(--ink-on-color);
 }
 .fb-weekbody { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
 .fb-weekbody::-webkit-scrollbar { display: none; }
@@ -40,7 +43,7 @@ export default `
 }
 .fb-wcol { position: relative; flex: 1; border-left: 1px solid var(--line); }
 .fb-wcol:last-child { border-right: 1px solid var(--line); }
-.fb-wcol.is-today { background: var(--surface); }
+.fb-wcol.is-today { background: var(--paper); }
 .fb-hourline { border-bottom: 1px solid var(--line); }
 .fb-nowrow {
   position: absolute; left: 0; right: 0; height: 2px;

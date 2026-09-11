@@ -11,6 +11,42 @@
   flush to the bottom edge. The reserved strip this margin creates is where
   NoteDock's floating FAB (../notes/NoteDock.jsx) lives — see --dock-bottom
   in tokens.js.
+
+  .fb-stage carries its own card now — the active view (Day/Week/Month/
+  Agenda) reads as a contained panel instead of raw content bleeding to
+  the board edges. border-radius + overflow: hidden (Sheet.js's card
+  pattern) means whatever a view scrolls internally (`.fb-daybody`/
+  `.fb-weekbody`/`.fb-agenda`, each still owning its own overflow-y:
+  auto) is clipped by the rounded corners rather than cutting off
+  square.
+
+  The card's own background is --paper (the active theme's off-white —
+  paper/cream/mist/sage/blush, whichever THEMES entry is selected), not
+  --surface: a flat grey card read as its own disconnected box, where a
+  paper-toned one reads as the same "paper" the rest of the board sits
+  on, just lifted into a card. --stage-art (set inline by App.jsx from
+  MONTH_ART[now.getMonth()], the same seasonal gradient `.fb-art`
+  washes the whole board with, or "none" when Settings' "Tint the board
+  with this month's artwork" checkbox is off) layers on top via ::before
+  at reduced opacity so the card picks up a soft seasonal tint rather
+  than sitting flat. z-index: 0 on .fb-stage pins that ::before's
+  z-index: -1 to this box specifically (CSS's
+  negative-z-index-escapes-an-unrooted-ancestor trap) so the tint stays
+  behind this card's own content, not some further-out ancestor's.
+
+  This card's ::before sits at .22 opacity, well under .fb-art's .85
+  (Root.js) — the board background and the card used to wash the same
+  gradient at close to the same strength, so the card's rounded corner
+  was the only thing marking where the calendar started. Making the
+  board wash strong and the card wash faint keeps the card reading as
+  its own lighter surface instead of a continuation of the page behind
+  it.
+
+  MonthView's `.fb-cell`, WeekView's `.fb-wcol.is-today`, DayView's
+  `.fb-alldaychip`, and MonthView's `.fb-monthweather` all stay on flat
+  --paper (not the tinted card background) so they still read as
+  distinct panels sitting on top of the tinted card instead of
+  blending into it.
 */
 export default `
 /* Countdowns — 46px */
@@ -20,5 +56,14 @@ export default `
 .fb-cdunit { font-size: 13px; color: var(--mute); }
 .fb-cdlabel { font-size: 15px; font-weight: 500; }
 
-.fb-stage { flex: 1; min-height: 0; margin-bottom: var(--stage-gap-b); }
+.fb-stage {
+  position: relative; z-index: 0;
+  flex: 1; min-height: 0; margin-bottom: var(--stage-gap-b);
+  background: var(--paper); border-radius: 18px; overflow: hidden;
+  padding: 16px 18px;
+}
+.fb-stage::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background-image: var(--stage-art); opacity: .22; pointer-events: none;
+}
 `;

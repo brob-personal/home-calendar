@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useExpandable } from "../../hooks/useExpandable.js";
 import { Home } from "./icons.jsx";
 import { Avatar } from "./Avatar.jsx";
 
@@ -14,14 +15,23 @@ import { Avatar } from "./Avatar.jsx";
   Reset does close it: it's a "done, back to default" action, not one more
   item in the list.
 */
-export function MemberPicker({ members, isShown, onToggleMember, showReset, onReset }) {
+export function MemberPicker({
+  members,
+  isShown,
+  onToggleMember,
+  showReset,
+  onReset,
+  align = "right",
+  compact = false,
+}) {
   const [open, setOpen] = useState(false);
+  const { mounted, closing } = useExpandable(open, 160);
   const shownCount = members.filter((m) => isShown(m.id)).length;
 
   return (
     <div className="fb-headdd">
       <button
-        className="fb-homebtn"
+        className={`fb-homebtn${compact ? " fb-homebtn-compact" : ""}`}
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -30,10 +40,13 @@ export function MemberPicker({ members, isShown, onToggleMember, showReset, onRe
         <Home />
         <span className="fb-homecount">{shownCount}</span>
       </button>
-      {open && (
+      {mounted && (
         <>
           <div className="fb-ddscrim" onClick={() => setOpen(false)} />
-          <div className="fb-ddpop fb-homepop" role="listbox">
+          <div
+            className={`fb-ddpop fb-homepop${align === "left" ? " fb-ddpop-left" : ""}${closing ? " fb-ddpop--closing" : ""}`}
+            role="listbox"
+          >
             {members.map((m) => {
               const on = isShown(m.id);
               return (

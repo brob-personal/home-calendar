@@ -1,7 +1,13 @@
 import { sameDay, fmtClock, DOW_LONG } from "../../lib/date.js";
 import { MONTH_ART } from "../../lib/theme.js";
+import { useAnchorDirection } from "../../hooks/useAnchorDirection.js";
 import { WeatherWidget } from "../weather/WeatherWidget.jsx";
 import { HeaderControls } from "./HeaderControls.jsx";
+import { Roller } from "./Roller.jsx";
+
+/* Every date the roller could ever show, purely to reserve max width — see
+   .fb-roller in styles/shell/Header.js. */
+const DATE_DIGITS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 
 /*
   Header redesign: the left side is now purely static "what day is it"
@@ -19,7 +25,7 @@ import { HeaderControls } from "./HeaderControls.jsx";
   big date reads from `anchor` (whatever day you have paged to) while the
   clock and the event count read from `now`. The count is "how many things are
   on today", not "on the day you are looking at" — so paging away leaves it
-  alone and surfaces the "Back to today" chip instead.
+  alone; the view dropdown surfaces a "Return to Today" option instead.
 
   MONTH_ART is imported for its twelve month *names*, not its gradients. That
   coupling came with the move; R5 may want to separate the two when the art
@@ -34,8 +40,8 @@ import { HeaderControls } from "./HeaderControls.jsx";
   R12 item 4: `degraded` is one boolean covering both of useBoardData's
   failure signals — a source that fell back to cached events, or a storage
   write that failed — so the board says so quietly instead of pretending
-  everything is fine. Reuses `.fb-chip`, the same pill "Back to today"
-  already uses, rather than introducing a second visual language for status.
+  everything is fine. Reuses `.fb-chip`, the same pill the Offline status
+  uses, rather than introducing a second visual language for status.
 */
 export function Header({
   now,
@@ -58,23 +64,31 @@ export function Header({
 }) {
   const isToday = sameDay(anchor, now);
   const todayCount = events.filter((e) => !e.allDay && sameDay(e.start, now)).length;
+  const dir = useAnchorDirection(anchor);
 
   return (
     <header className="fb-head">
       <div className="fb-datestack">
-        <span className="fb-dow">{DOW_LONG[anchor.getDay()]}</span>
-        <span className="fb-num">{anchor.getDate()}</span>
+        <Roller className="fb-dow" value={DOW_LONG[anchor.getDay()]} allValues={DOW_LONG} dir={dir} />
+        <Roller className="fb-num" value={String(anchor.getDate())} allValues={DATE_DIGITS} dir={dir} />
       </div>
       <div className="fb-headmeta">
         <div className="fb-month">
-          {MONTH_ART[anchor.getMonth()].name} {anchor.getFullYear()}
+          <span className="fb-monthname">
+            {MONTH_ART.map((m, i) => (
+              <span key={m.name} className={i === anchor.getMonth() ? "is-active" : undefined}>
+                {m.name}
+              </span>
+            ))}
+          </span>{" "}
+          {anchor.getFullYear()}
         </div>
         <div className="fb-sub">
-          {todayCount === 0 ? "Nothing scheduled today" : `${todayCount} today`}
+          {todayCount === 0 ? "Nothing scheduled today" : `${todayCount} Events Today`}
         </div>
         <div className="fb-headinfo">
-          <WeatherWidget now={now} snapshot={weather} timeFormat={timeFormat} />
           <span className="fb-clock">{fmtClock(now, timeFormat)}</span>
+          <WeatherWidget now={now} snapshot={weather} timeFormat={timeFormat} />
         </div>
       </div>
 
