@@ -25,12 +25,14 @@ export default `
 
 /*
   .fb-roller backs items 1-3's day-of-week/date-number "odometer" (see
-  Roller.jsx) and, just as importantly, item 3's fixed-width header: every
-  possible value is stacked in the same grid cell via .fb-roller-size (kept
-  in-flow with visibility:hidden rather than removed, so it still counts
-  toward the grid track's intrinsic width), which means .fb-roller's own
-  width is always the widest any value could be and never changes as you
-  page — the reason .fb-headright stops shifting horizontally.
+  Roller.jsx) — and now the month and year beside them, which roll the same
+  way and in the same direction — and, just as importantly, item 3's
+  fixed-width header: every possible value is stacked in the same grid cell
+  via .fb-roller-size (kept in-flow with visibility:hidden rather than
+  removed, so it still counts toward the grid track's intrinsic width),
+  which means .fb-roller's own width is always the widest any value could be
+  and never changes as you page — the reason .fb-headright stops shifting
+  horizontally.
 
   Only one level of grid nesting, with a plain text span as the first grid
   item (one of the .fb-roller-size copies): a grid container's synthesized
@@ -54,9 +56,14 @@ export default `
 
 .fb-headmeta { align-self: flex-start; margin-top: 25px; }
 .fb-month { font-size: 19px; font-weight: 600; letter-spacing: -.012em; }
-.fb-monthname { display: inline-grid; }
-.fb-monthname > span { grid-area: 1 / 1; white-space: nowrap; visibility: hidden; }
-.fb-monthname > span.is-active { visibility: visible; }
+/*
+  Month and year are <Roller>s too, so .fb-roller already gives them the
+  stacked sizers that used to be .fb-monthname's own hand-rolled copy of that
+  trick. The year has no enumerable value set to stack, so tabular-nums is
+  what makes its single "0000" sizer honest: every four-digit year is then
+  exactly as wide as that sample.
+*/
+.fb-year { font-variant-numeric: tabular-nums; }
 .fb-sub { font-size: 14px; color: var(--mute); margin-top: 2px; }
 .fb-headinfo { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
 .fb-clock { font-size: 20px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--mute); }
