@@ -43,7 +43,15 @@ function renderWeek(events, onSelect = () => {}) {
 }
 
 function allDayEv(id, title, startDate, endDate) {
-  return { id, title, start: startDate, end: endDate, allDay: true, memberIds: ["brian"], variant: 0 };
+  return {
+    id,
+    title,
+    start: startDate,
+    end: endDate,
+    allDay: true,
+    memberIds: ["brian"],
+    variant: 0,
+  };
 }
 
 function pct(style) {
@@ -124,22 +132,66 @@ describe("WeekView overlap layout", () => {
 
 /*
   Week used to drop allDay events on the floor entirely — no banner row
-  existed at all, so these events rendered nowhere in this view.
+  existed at all, so these events rendered nowhere in this view. When the
+  band landed it drew one chip per spanned day; a multi-day event is now a
+  single bar across those days instead, so these assert geometry rather
+  than a chip count.
+
+  Week's track has no gap between columns, so SpanBar's percentage is a
+  clean n/7 and `cols` reads the column count back out of it. Asserting a
+  column count rather than the literal calc string keeps these readable and
+  survives a change to how the pixel half is formatted.
 */
+function cols(expr) {
+  const m = expr.match(/calc\(([\d.]+)%/);
+  return m ? Math.round((Number(m[1]) / 100) * 7) : null;
+}
+
 describe("WeekView all-day row", () => {
-  it("shows a single-day all-day event once, in its own day's column", () => {
+  it("draws a single-day all-day event as a one-column bar on its own day", () => {
     renderWeek([allDayEv("h", "Holiday", new Date(2026, 2, 16), new Date(2026, 2, 16))]);
-    expect(screen.getAllByRole("button", { name: "Holiday" })).toHaveLength(1);
+    const bar = screen.getByRole("button", { name: "Holiday" });
+    expect(cols(bar.style.left)).toBe(1); // Monday is index 1
+    expect(cols(bar.style.width)).toBe(1);
   });
 
-  it("repeats a multi-day all-day event's chip across every day it spans within the visible week", () => {
+  it("draws a multi-day all-day event as one bar spanning its days, not a chip per day", () => {
+    // Mon Mar 16 - Thu Mar 19, entirely inside the Sun Mar 15 week.
+    renderWeek([allDayEv("t", "Kauai", new Date(2026, 2, 16), new Date(2026, 2, 19))]);
+    const bars = screen.getAllByRole("button", { name: "Kauai" });
+    expect(bars).toHaveLength(1);
+    expect(cols(bars[0].style.left)).toBe(1);
+    expect(cols(bars[0].style.width)).toBe(4);
+  });
+
+  it("clips a bar to the visible week and squares the edge it runs past", () => {
     // Fri Mar 13 - Wed Mar 18; the visible week is Sun Mar 15 - Sat Mar 21,
     // so only 4 of the trip's 6 days (15, 16, 17, 18) fall in this week.
     renderWeek([allDayEv("t", "Kauai", new Date(2026, 2, 13), new Date(2026, 2, 18))]);
-    expect(screen.getAllByRole("button", { name: "Kauai" })).toHaveLength(4);
+    const bar = screen.getByRole("button", { name: "Kauai" });
+    expect(cols(bar.style.left)).toBe(0);
+    expect(cols(bar.style.width)).toBe(4);
+    expect(bar.className).toContain("is-cont-before");
+    expect(bar.className).not.toContain("is-cont-after");
   });
 
-  it("opens the detail sheet when an all-day chip is tapped", () => {
+  it("stacks two overlapping all-day events into separate lanes", () => {
+    renderWeek([
+      allDayEv("a", "Trip", new Date(2026, 2, 15), new Date(2026, 2, 17)),
+      allDayEv("b", "Visitors", new Date(2026, 2, 16), new Date(2026, 2, 18)),
+    ]);
+    const trip = screen.getByRole("button", { name: "Trip" });
+    const visitors = screen.getByRole("button", { name: "Visitors" });
+    expect(trip.style.top).toBe("0px");
+    expect(Number(visitors.style.top.replace("px", ""))).toBeGreaterThan(0);
+  });
+
+  it("omits the band entirely in a week with no all-day events", () => {
+    const { container } = renderWeek([ev("a", "Standup", 9, 0, 10, 0)]);
+    expect(container.querySelector(".fb-weekallday")).toBeNull();
+  });
+
+  it("opens the detail sheet when an all-day bar is tapped", () => {
     const onSelect = vi.fn();
     const holiday = allDayEv("h", "Holiday", new Date(2026, 2, 16), new Date(2026, 2, 16));
     renderWeek([holiday], onSelect);
