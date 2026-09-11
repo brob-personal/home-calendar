@@ -42,8 +42,21 @@
       /*
         Minimal page reset only. All board styling lives in the prototype's own
         stylesheet (R5 will own it as src/styles/). Nothing here may restyle
-        .fb-* — this exists purely so .fb-fit's `width:100%; height:100vh`
-        resolves to the real viewport with no margin, scrollbar or bounce.
+        .fb-* — this exists purely so the page contributes no margin, scrollbar
+        or bounce around the board.
+
+        `height: 100%` here and on #root no longer sizes anything: .fb-fit is
+        position: fixed and takes its size from Fit.jsx's measurement of
+        window.innerWidth/innerHeight. That is deliberate. These heights used
+        to be the *other* half of a mismatch — 100% resolves against the layout
+        viewport, which viewport-fit=cover grows to the full screen, while
+        .fb-fit was 100dvh, and on iPad 7th gen the 20pt difference showed as
+        grey on every edge of the board. They stay only so a pre-mount page has
+        a defined box; nothing inside the board measures against them.
+
+        The background below is that same frame grey, and it is now only ever
+        visible before React mounts — .fb-fit covers the viewport from the
+        first paint onward.
       */
       html,
       body {
