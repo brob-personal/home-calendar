@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 import { BOARD_CSS } from "./index.js";
+import { CANVAS_W } from "../lib/canvas.js";
+import { TRACK_W } from "../lib/layout.js";
 import fit from "./shell/Fit.js";
 import root from "./shell/Root.js";
 import header from "./shell/Header.js";
@@ -88,6 +90,31 @@ describe("board stylesheet", () => {
     // .fb-axis it measured) along with the old lane-name column.
     expect(BOARD_CSS).not.toContain("164px");
     expect(BOARD_CSS).not.toContain("--axis-margin");
+  });
+
+  it("keeps the three insets layout.js derives the event-column track from", () => {
+    // src/lib/layout.js computes TRACK_W from these numbers rather than
+    // measuring the DOM — the canvas is letterboxed, not responsive — and
+    // enforces its min event-column width against the result. If any of them
+    // moves here, overlaps start collapsing at the wrong depth with nothing
+    // else to catch it.
+    expect(root).toContain("padding: 22px 24px var(--board-pad-b)");
+    expect(countdowns).toContain("padding: 16px 18px");
+    expect(week).toContain(".fb-gutter { width: 56px;");
+    expect(TRACK_W).toBe(CANVAS_W - 2 * 24 - 2 * 18 - 56);
+  });
+
+  it("clips event title and time text rather than letting it wrap", () => {
+    // The backstop under the column-width maths: however narrow a block ends
+    // up, its two text lines ellipse on one line instead of wrapping and
+    // being sheared off mid-word by the block's duration-derived height.
+    for (const rule of [".fb-wbtitle", ".fb-wbtime", ".fb-blocktitle", ".fb-blocktime"]) {
+      const decl = (day + week).match(new RegExp(`\\${rule} \\{[^}]*\\}`))[0];
+      expect(decl).toContain("white-space: nowrap");
+      expect(decl).toContain("overflow: hidden");
+      expect(decl).toContain("text-overflow: ellipsis");
+      expect(decl).toContain("max-width: 100%");
+    }
   });
 
   it("has no hardcoded colour literal outside tokens.js", () => {
