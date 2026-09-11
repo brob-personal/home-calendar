@@ -5,9 +5,15 @@ import { WeatherWidget } from "../weather/WeatherWidget.jsx";
 import { HeaderControls } from "./HeaderControls.jsx";
 import { Roller } from "./Roller.jsx";
 
-/* Every date the roller could ever show, purely to reserve max width — see
-   .fb-roller in styles/shell/Header.js. */
+/* Every date and month name the rollers could ever show, purely to reserve
+   max width — see .fb-roller in styles/shell/Header.js. */
 const DATE_DIGITS = Array.from({ length: 31 }, (_, i) => String(i + 1));
+const MONTH_NAMES = MONTH_ART.map((m) => m.name);
+
+/* The year's sizer can't enumerate its values the way the others do, so it
+   reserves one four-digit sample instead — .fb-year is tabular-nums, so every
+   four-digit year is exactly that wide. */
+const YEAR_WIDTH = ["0000"];
 
 /*
   Header redesign: the left side is now purely static "what day is it"
@@ -74,14 +80,8 @@ export function Header({
       </div>
       <div className="fb-headmeta">
         <div className="fb-month">
-          <span className="fb-monthname">
-            {MONTH_ART.map((m, i) => (
-              <span key={m.name} className={i === anchor.getMonth() ? "is-active" : undefined}>
-                {m.name}
-              </span>
-            ))}
-          </span>{" "}
-          {anchor.getFullYear()}
+          <Roller className="fb-monthname" value={MONTH_NAMES[anchor.getMonth()]} allValues={MONTH_NAMES} dir={dir} />{" "}
+          <Roller className="fb-year" value={String(anchor.getFullYear())} allValues={YEAR_WIDTH} dir={dir} />
         </div>
         <div className="fb-sub">
           {todayCount === 0 ? "Nothing scheduled today" : `${todayCount} Events Today`}
