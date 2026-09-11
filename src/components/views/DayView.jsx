@@ -146,7 +146,7 @@ export function DayView({
 
       <div className="fb-daybody" ref={bodyRef}>
         <div className="fb-daygrid" style={{ height: gridH }}>
-          <TimeGutter hours={hours} hourH={HOUR_H} />
+          <TimeGutter hours={hours} hourH={HOUR_H} timeFormat={settings.timeFormat} />
 
           {showNow && (
             <div className="fb-nowrow fb-nowrow-day" style={{ top: nowTop }}>
@@ -189,7 +189,9 @@ export function DayView({
                     >
                       <span className="fb-blocktitle">{e.title}</span>
                       <span className="fb-blocktime">
-                        {tier === "stacked" ? fmtRange(e.start, e.end) : fmtTime(e.start)}
+                        {tier === "stacked"
+                          ? fmtRange(e.start, e.end, settings.timeFormat)
+                          : fmtTime(e.start, settings.timeFormat)}
                         {shared ? " with family" : ""}
                       </span>
                     </button>

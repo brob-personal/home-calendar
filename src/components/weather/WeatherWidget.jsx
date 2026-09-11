@@ -24,7 +24,7 @@ const STALE_MS = 45 * 60 * 1000;
  * and two independent pollers would mean two Open-Meteo requests every
  * fifteen minutes for one board.
  */
-export function WeatherWidget({ now, snapshot }) {
+export function WeatherWidget({ now, snapshot, timeFormat }) {
   const [open, setOpen] = useState(false);
   const { mounted, closing } = useExpandable(open, 160);
 
@@ -61,9 +61,13 @@ export function WeatherWidget({ now, snapshot }) {
             <span className="fb-weatherlo">L {fmt(snapshot.lo)}</span>
           </div>
 
-          <WeatherRowList rows={rows} />
+          <WeatherRowList rows={rows} timeFormat={timeFormat} />
 
-          {stale && <div className="fb-weatherstale">Updated {fmtTime(snapshot.fetchedAt)} — offline</div>}
+          {stale && (
+            <div className="fb-weatherstale">
+              Updated {fmtTime(snapshot.fetchedAt, timeFormat)} — offline
+            </div>
+          )}
         </div>
       )}
     </div>

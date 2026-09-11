@@ -12,7 +12,7 @@ import { fmtTemp as fmt, buildWeatherRows as buildRows } from "./weatherRows.js"
  * `day` is today, to keep the "current hour onward" trim consistent with the
  * header widget rather than showing hours that have already passed.
  */
-export function WeatherDaySheet({ day, now, onClose }) {
+export function WeatherDaySheet({ day, now, timeFormat, onClose }) {
   const rows = buildRows(day, now);
 
   return (
@@ -22,7 +22,7 @@ export function WeatherDaySheet({ day, now, onClose }) {
         <span className="fb-weatherhi">H {fmt(day.hi)}</span>
         <span className="fb-weatherlo">L {fmt(day.lo)}</span>
       </div>
-      <WeatherRowList rows={rows} />
+      <WeatherRowList rows={rows} timeFormat={timeFormat} />
     </Sheet>
   );
 }

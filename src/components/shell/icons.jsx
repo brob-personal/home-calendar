@@ -102,3 +102,60 @@ export const Home = () => (
     <path d="M10 19v-5h4v5" />
   </svg>
 );
+
+export const Clock = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="20"
+    height="20"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+  >
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3.2 2" />
+  </svg>
+);
+
+export const Person = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="20"
+    height="20"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+  >
+    <circle cx="12" cy="8" r="3.6" />
+    <path d="M4.5 20c0-4.1 3.4-7 7.5-7s7.5 2.9 7.5 7" />
+  </svg>
+);
+
+export const Pin = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="20"
+    height="20"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+  >
+    <path d="M12 21s7-6.3 7-11.5A7 7 0 0 0 5 9.5C5 14.7 12 21 12 21z" />
+    <circle cx="12" cy="9.5" r="2.4" />
+  </svg>
+);
+
+export const Notebook = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="20"
+    height="20"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+  >
+    <rect x="4" y="3.5" width="13" height="17" rx="1.6" />
+    <path d="M7 8h7M7 12h7M7 16h4" />
+    <path d="M17.2 14.2 20.5 17.5 18 20l-3.3-3.3z" />
+  </svg>
+);

@@ -62,6 +62,7 @@ export function MonthView({
   now,
   events,
   weather,
+  settings,
   onPick,
   onSelect,
   roster,
@@ -162,7 +163,12 @@ export function MonthView({
       </div>
 
       {forecastDay && (
-        <WeatherDaySheet day={forecastDay} now={now} onClose={() => setForecastDay(null)} />
+        <WeatherDaySheet
+          day={forecastDay}
+          now={now}
+          timeFormat={settings?.timeFormat}
+          onClose={() => setForecastDay(null)}
+        />
       )}
     </div>
   );

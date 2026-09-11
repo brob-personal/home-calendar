@@ -109,6 +109,7 @@ export const ACCESS_ROLES = ["owner", "writer", "reader", "freeBusyReader"];
  * @property {number}   variant    0-10, a shade inside the owner's hue. `(colorId - 1) % 11`.
  * @property {boolean}  milestone  Feeds the countdown ticker.
  * @property {string}   location   Free text. "" when absent.
+ * @property {string}   description Free text. "" when absent.
  * @property {string}   [calendarId] Source calendar. R8 sets it; the mock leaves it undefined.
  * @property {string}   [etag]     Google concurrency token, for R8's incremental sync.
  * @property {Record<string, string>} [googleEventIds] One entry per member calendar this
@@ -144,6 +145,7 @@ export function normalizeEvent(raw) {
     variant: clampVariant(e.variant),
     milestone: Boolean(e.milestone),
     location: typeof e.location === "string" ? e.location : "",
+    description: typeof e.description === "string" ? e.description : "",
   };
   /* Optional fields stay absent rather than arriving as "" — R8 compares
      etags for its incremental sync and an empty string is not a missing one. */
@@ -435,6 +437,7 @@ export function normalizeCondition(condition) {
  * @property {boolean} monthArt        Month artwork behind the board.
  * @property {string[]} photos         Screensaver image URLs. R9 fills these from Drive.
  * @property {"personal"|"roommate"} mode  Active mode. R10's ModeContext reads and writes it.
+ * @property {"12"|"24"} timeFormat  12-hour ("8:00 PM") or 24-hour ("20:00") display.
  * @property {Record<string, CalendarLink[]>} calendars  Per-mode calendar sets, keyed by mode.
  * @property {{label: string, lat: number|null, lon: number|null, units: "F"|"C"}} weather
  * @property {{folderId: string}} drive

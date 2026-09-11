@@ -12,7 +12,7 @@ import { Clock, Sunny, Rain } from "./icons.jsx";
   columns) lives here rather than only in WeatherWidget, so WeatherDaySheet's
   per-day breakdown gets the same column labels for free.
 */
-export function WeatherRowList({ rows }) {
+export function WeatherRowList({ rows, timeFormat }) {
   return (
     <>
       <div className="fb-weathercols" aria-hidden="true">
@@ -31,20 +31,20 @@ export function WeatherRowList({ rows }) {
           <li key={i} className={`fb-weatherrow fb-weatherrow-${r.type}`}>
             {r.type === "hour" && (
               <>
-                <span className="fb-weatherrowtime">{fmtTime(r.at)}</span>
+                <span className="fb-weatherrowtime">{fmtTime(r.at, timeFormat)}</span>
                 <span className="fb-weatherrowtemp">{fmt(r.temp)}</span>
                 <span className="fb-weatherrowprecip">{Math.round(r.precipChance)}%</span>
               </>
             )}
             {r.type === "sunrise" && (
-              <span className="fb-weatherrowlabel">Sunrise · {fmtTime(r.at)}</span>
+              <span className="fb-weatherrowlabel">Sunrise · {fmtTime(r.at, timeFormat)}</span>
             )}
             {r.type === "sunset" && (
-              <span className="fb-weatherrowlabel">Sunset · {fmtTime(r.at)}</span>
+              <span className="fb-weatherrowlabel">Sunset · {fmtTime(r.at, timeFormat)}</span>
             )}
             {r.type === "uv" && (
               <span className="fb-weatherrowlabel">
-                Peak UV · {fmtTime(r.at)} · index {Math.round(r.index)}
+                Peak UV · {fmtTime(r.at, timeFormat)} · index {Math.round(r.index)}
               </span>
             )}
           </li>

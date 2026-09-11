@@ -174,7 +174,23 @@ describe("migrateSettings — clamps and repairs", () => {
     expect(migrateSettings({ mode: "office" }).mode).toBe("personal");
     expect(migrateSettings({ sleepStyle: "sepia" }).sleepStyle).toBe(DEFAULT_SETTINGS.sleepStyle);
   });
+});
 
+describe("migrateSettings — timeFormat", () => {
+  it("defaults to 12-hour when absent", () => {
+    expect(migrateSettings({}).timeFormat).toBe("12");
+  });
+
+  it("keeps an explicit 24-hour choice", () => {
+    expect(migrateSettings({ timeFormat: "24" }).timeFormat).toBe("24");
+  });
+
+  it("falls back to 12-hour for a garbage value", () => {
+    expect(migrateSettings({ timeFormat: "banana" }).timeFormat).toBe("12");
+  });
+});
+
+describe("migrateSettings — keeps calendar links", () => {
   it("keeps calendar links per mode and drops the unusable ones", () => {
     const settings = migrateSettings({
       calendars: {

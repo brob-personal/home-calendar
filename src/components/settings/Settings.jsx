@@ -528,6 +528,23 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
         </div>
       </Field>
 
+      <Field label="Time format">
+        <div className="fb-pills">
+          {[
+            { key: "12", label: "12-hour" },
+            { key: "24", label: "24-hour" },
+          ].map((opt) => (
+            <button
+              key={opt.key}
+              className={`fb-pill${settings.timeFormat === opt.key ? " is-on" : ""}`}
+              onClick={() => set("timeFormat", opt.key)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </Field>
+
       <Field label="Weather">
         <div className="fb-inline">
           <span className="fb-inlabel">Location name</span>

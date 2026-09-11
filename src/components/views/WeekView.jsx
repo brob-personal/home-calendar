@@ -160,7 +160,7 @@ export function WeekView({
 
       <div className="fb-weekbody" ref={bodyRef}>
         <div className="fb-weekgrid" style={{ height: gridH }}>
-          <TimeGutter hours={hours} hourH={HOUR_H} />
+          <TimeGutter hours={hours} hourH={HOUR_H} timeFormat={settings.timeFormat} />
 
           {days.map((d, i) => {
             const today = sameDay(d, now);
@@ -203,7 +203,9 @@ export function WeekView({
                     >
                       <span className="fb-wbtitle">{e.title}</span>
                       <span className="fb-wbtime">
-                        {tier === "stacked" ? fmtRange(e.start, e.end) : fmtTime(e.start)}
+                        {tier === "stacked"
+                          ? fmtRange(e.start, e.end, settings.timeFormat)
+                          : fmtTime(e.start, settings.timeFormat)}
                       </span>
                     </button>
                   );

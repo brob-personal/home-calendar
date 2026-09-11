@@ -22,7 +22,7 @@ import { fmtClock, fmtTime, DOW_LONG } from "../../lib/date.js";
   index. Harmless on a screensaver; worth knowing if R9 refetches the list on
   a timer.
 */
-export function Screensaver({ now, art, photos, events }) {
+export function Screensaver({ now, art, photos, events, timeFormat }) {
   const [i, setI] = useState(0);
   useEffect(() => {
     if (!photos?.length) return;
@@ -46,13 +46,13 @@ export function Screensaver({ now, art, photos, events }) {
     <div className={`fb-saver${hasPhoto ? " has-photo" : ""}`} style={bg}>
       {hasPhoto && <div className="fb-saverscrim" />}
       <div className="fb-savertext">
-        <span className="fb-saverclock">{fmtClock(now)}</span>
+        <span className="fb-saverclock">{fmtClock(now, timeFormat)}</span>
         <span className="fb-saverdate">
           {DOW_LONG[now.getDay()]}, {art.name} {now.getDate()}
         </span>
         {next && (
           <span className="fb-savernext">
-            Next up is {next.title} at {fmtTime(next.start)}
+            Next up is {next.title} at {fmtTime(next.start, timeFormat)}
           </span>
         )}
       </div>

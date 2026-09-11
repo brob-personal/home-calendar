@@ -204,6 +204,7 @@ export function createGoogleSource(options = {}) {
       end: allDay && raw.end?.date ? dateOnlyPlusDays(raw.end.date, -1) : raw.end?.dateTime,
       allDay,
       location: raw.location || "",
+      description: raw.description || "",
       memberIds,
       variant: (colorId - 1) % VARIATION_COUNT,
       milestone: raw.extendedProperties?.private?.milestone === "1",
@@ -216,6 +217,7 @@ export function createGoogleSource(options = {}) {
     const body = {};
     if (fields.title !== undefined) body.summary = fields.title;
     if (fields.location !== undefined) body.location = fields.location;
+    if (fields.description !== undefined) body.description = fields.description;
 
     if (fields.start !== undefined || fields.end !== undefined || fields.allDay !== undefined) {
       const allDay = Boolean(fields.allDay);
