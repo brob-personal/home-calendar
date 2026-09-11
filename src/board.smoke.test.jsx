@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -26,7 +26,17 @@ import FamilyBoard from "./App.jsx";
 
 const VIEWS = ["Day", "Week", "Month", "Agenda"];
 
+// jsdom's innerWidth/innerHeight are plain writable properties on window, so
+// <Fit>'s only input can be set directly. Restored after each test by the
+// afterEach below — jsdom's own defaults are 1024x768.
+function setViewport(w, h) {
+  window.innerWidth = w;
+  window.innerHeight = h;
+}
+
 describe("Family Board scaffold smoke", () => {
+  afterEach(() => setViewport(1024, 768));
+
   it("mounts and renders the board shell", async () => {
     const user = userEvent.setup();
     render(<FamilyBoard />);
@@ -47,6 +57,12 @@ describe("Family Board scaffold smoke", () => {
   });
 
   it("renders the fixed canvas inside the Fit scaler", async () => {
+    // Pinned to the real device's viewport so the scale below is the device
+    // contract rather than an artefact of jsdom's 1024x768 default. Fit now
+    // measures window.innerWidth/innerHeight instead of reading back a
+    // CSS-sized box, so this is the input that decides the scale.
+    setViewport(1080, 810);
+
     const { container } = render(<FamilyBoard />);
     await screen.findByRole("button", { name: "Day" });
 
@@ -60,9 +76,7 @@ describe("Family Board scaffold smoke", () => {
     expect(fit).toContainElement(device);
     expect(device).toContainElement(root);
 
-    // Fit starts at scale 1, which is what the real 1080x810 device resolves
-    // to. jsdom reports 0x0 for getBoundingClientRect, so the stubbed
-    // ResizeObserver never fires a measurement that would clobber it.
+    // On a 1080x810 viewport the canvas is 1:1 — no letterbox on either axis.
     expect(device.getAttribute("style")).toContain("scale(1)");
   });
 

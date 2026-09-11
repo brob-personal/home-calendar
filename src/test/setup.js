@@ -7,14 +7,19 @@ afterEach(() => {
 });
 
 /*
-  jsdom ships no ResizeObserver, and <Fit> (src/components/shell/Fit.jsx) constructs one
-  on mount to scale the 1080x810 canvas. Without a stub every render throws.
+  jsdom ships no ResizeObserver. MonthView (src/components/views/MonthView.jsx)
+  constructs one to measure its grid; without a stub those renders throw.
 
   The stub deliberately never fires its callback: jsdom reports 0x0 for
-  getBoundingClientRect, so a measurement would compute scale 0 and tell us
-  nothing. Fit's initial state is already scale 1, which is what the board
-  resolves to on the real device. Tests that need real layout belong in R13's
-  fixed-viewport 1080x810 visual pass, not in jsdom.
+  getBoundingClientRect, so a measurement would tell us nothing. Tests that
+  need real layout belong in R13's fixed-viewport 1080x810 visual pass, not in
+  jsdom.
+
+  <Fit> used to be the other caller, and the reason this stub had to never
+  fire — a 0x0 measurement there computed scale 0. It no longer constructs an
+  observer at all: it reads window.innerWidth/innerHeight, which jsdom does
+  report, so src/components/shell/Fit.test.jsx can set a viewport and assert
+  the scale that falls out of it.
 */
 if (!("ResizeObserver" in globalThis)) {
   globalThis.ResizeObserver = class ResizeObserver {
