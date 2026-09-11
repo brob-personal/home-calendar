@@ -206,7 +206,9 @@ export default function App() {
     "--ink": palette.ink,
     "--mute": palette.mute,
     "--now": ACCENT_NOW,
-    "--stage-art": settings.monthArt ? monthArt.art : "none",
+    // No --stage-art: .fb-stage no longer washes its own copy of the
+    // seasonal gradient. The board's single .fb-art layer below is the
+    // only one, and it already runs behind the calendar.
   };
 
   return (
