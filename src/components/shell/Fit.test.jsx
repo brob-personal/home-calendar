@@ -1,29 +1,36 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 
-import { Fit } from "./Fit.jsx";
+import { Fit, fitFor } from "./Fit.jsx";
 import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
 
 /*
   Regression cover for the grey border that framed the board on iPad 7th gen.
 
-  The cause was two different height sources in one chain: #root is
-  `height: 100%` (the layout viewport, which viewport-fit=cover grows to the
-  full screen) while .fb-fit was `height: 100dvh`. On the device those
-  disagree by the 20pt status bar, and that 20px surfaced as frame grey on
-  all four edges at once — sides from a scale derived off the short box, a
-  top sliver from .fb-device overflowing a grid row that top-aligns, and a
-  bottom band from body showing below a .fb-fit shorter than its parent.
+  It was fixed in two passes. The first removed a ~10px grey sliver above the
+  board (.fb-device's 1080x810 layout box overflowing a grid row that
+  top-aligns) and four wedges of frame grey clipped out of the corners by a
+  4px border-radius. What it left behind, and what these cover, is the grey
+  the user still saw on the left, right and bottom:
 
-  So the assertions below are all about one property: whatever the viewport,
-  .fb-fit is exactly that size and the canvas is centred in it with the
-  letterbox on at most one axis. jsdom has no layout engine, so these check
-  the values <Fit> computes — the inline size and transform it writes — which
-  is precisely where the old version went wrong.
+    - sides, because a single uniform `Math.min` scale letterboxes whenever
+      the frame is not exactly 4:3, and it never quite is;
+    - bottom, because .fb-fit was sized to window.innerHeight and pinned at
+      top: 0, so an innerHeight 20px short of the screen left body's
+      identical #d9dbe0 showing in the gap beneath it.
+
+  So the property every assertion below is about: the canvas covers the frame
+  exactly on both axes at anything near the device's aspect, and the frame is
+  the viewport itself rather than a measured size that can come up short.
+
+  jsdom has no layout engine, so getBoundingClientRect is 0x0 and <Fit> falls
+  back to window.innerWidth/innerHeight — which is what setViewport drives.
+  These check the values <Fit> computes, which is precisely where it went
+  wrong. The flush-to-the-glass result itself belongs to R13's fixed-viewport
+  visual pass.
 */
 
-// jsdom's innerWidth/innerHeight are plain writable window properties, and
-// they are <Fit>'s only input now.
+// jsdom's innerWidth/innerHeight are plain writable window properties.
 function setViewport(w, h) {
   window.innerWidth = w;
   window.innerHeight = h;
@@ -41,49 +48,91 @@ const renderFit = () => {
   };
 };
 
-const scaleOf = (device) => Number(device.style.transform.match(/scale\(([^)]+)\)/)[1]);
+// scale(s) and scale(sx, sy) both land here, as [sx, sy].
+const scalesOf = (device) => {
+  const args = device.style.transform.match(/scale\(([^)]+)\)/)[1].split(",");
+  const x = Number(args[0]);
+  return [x, args.length > 1 ? Number(args[1]) : x];
+};
 
 afterEach(() => setViewport(1024, 768));
 
-describe("Fit", () => {
-  it("resolves to scale 1 on the real device's 1080x810 viewport", () => {
-    setViewport(CANVAS_W, CANVAS_H);
-    const { fit, device } = renderFit();
-
-    expect(scaleOf(device)).toBe(1);
-    expect(fit.style.width).toBe("1080px");
-    expect(fit.style.height).toBe("810px");
+describe("fitFor", () => {
+  it("resolves to 1:1 on the real device's 1080x810 viewport", () => {
+    expect(fitFor(CANVAS_W, CANVAS_H)).toEqual({ x: 1, y: 1 });
   });
 
-  it("sizes .fb-fit to the viewport, so no ancestor height can show behind it", () => {
-    // The device case that produced the bug: the canvas is 810 tall but the
-    // viewport is 790, because viewport-fit=cover put the 20pt status bar in
-    // the layout viewport. .fb-fit must be 790 — when it was `100dvh` against
-    // a `100%` parent this is where body's identical grey leaked through.
+  it("covers both axes when the height is short of the canvas", () => {
+    // The regression: 20px of status bar off the height. A uniform fit would
+    // scale both axes to 790/810 and leave ~13px of frame grey down each
+    // side. Each axis has to reach its own edge instead.
+    const fit = fitFor(1080, 790);
+    expect(fit.x * CANVAS_W).toBeCloseTo(1080, 6);
+    expect(fit.y * CANVAS_H).toBeCloseTo(790, 6);
+  });
+
+  it("covers both axes when the width is short of the canvas", () => {
+    const fit = fitFor(1024, 810);
+    expect(fit.x * CANVAS_W).toBeCloseTo(1024, 6);
+    expect(fit.y * CANVAS_H).toBeCloseTo(810, 6);
+  });
+
+  it("still covers exactly in a Safari tab, the worst on-device aspect", () => {
+    // Board opened as a tab rather than from the home screen: tab strip plus
+    // toolbar, ~11% off-aspect. Inside tolerance, so it still covers.
+    const fit = fitFor(1080, 730);
+    expect(fit.x * CANVAS_W).toBeCloseTo(1080, 6);
+    expect(fit.y * CANVAS_H).toBeCloseTo(730, 6);
+  });
+
+  it("letterboxes an off-aspect desktop window rather than stretching it", () => {
+    // A 16:9 laptop window is a dev preview, not the wall. A uniform scale
+    // keeps the preview honest about the real layout.
+    const fit = fitFor(1512, 850);
+    expect(fit.x).toBe(fit.y);
+    expect(fit.x).toBeCloseTo(850 / CANVAS_H, 10);
+    expect(CANVAS_W * fit.x).toBeLessThan(1512);
+  });
+
+  it("never scales to zero on a frame it cannot measure", () => {
+    expect(fitFor(0, 0)).toEqual({ x: 1, y: 1 });
+  });
+});
+
+describe("Fit", () => {
+  it("renders the canvas at scale 1 on the device viewport", () => {
+    setViewport(CANVAS_W, CANVAS_H);
+    const { device } = renderFit();
+
+    expect(scalesOf(device)).toEqual([1, 1]);
+  });
+
+  it("leaves the frame's size to the stylesheet, so nothing can show behind it", () => {
+    // The bottom band: .fb-fit used to carry an inline height measured from
+    // window.innerHeight, which put body's grey in the gap whenever that came
+    // up short. `position: fixed; inset: 0` in Fit.js owns the size now, and
+    // is the layout viewport by definition — so there must be no inline size
+    // here to contradict it.
     setViewport(1080, 790);
     const { fit } = renderFit();
 
-    expect(fit.style.height).toBe("790px");
-    expect(fit.style.width).toBe("1080px");
+    expect(fit.style.width).toBe("");
+    expect(fit.style.height).toBe("");
   });
 
-  it("letterboxes on at most one axis — the binding axis fits exactly", () => {
+  it("covers the frame on both axes rather than letterboxing the sides", () => {
     setViewport(1080, 790);
     const { device } = renderFit();
-    const scale = scaleOf(device);
+    const [sx, sy] = scalesOf(device);
 
-    // Height is the binding axis here, so the scaled canvas is exactly as
-    // tall as the viewport: zero grey above or below, rather than the ~10px
-    // sliver the old grid overflow left at the top.
-    expect(scale).toBeCloseTo(790 / CANVAS_H, 10);
-    expect(CANVAS_H * scale).toBeCloseTo(790, 6);
-    expect(CANVAS_W * scale).toBeLessThan(1080);
+    expect(CANVAS_W * sx).toBeCloseTo(1080, 6);
+    expect(CANVAS_H * sy).toBeCloseTo(790, 6);
   });
 
-  it("scales before translating, so the canvas stays centred at any scale", () => {
+  it("scales before translating, so the canvas lands flush at any scale", () => {
     // The transform list composes as scale x translate, so -50% is scaled
-    // with it and the canvas centres on .fb-fit's midpoint for every scale.
-    // Written translate-first it would only be centred at scale 1.
+    // with it, per axis. Written translate-first it would only be right at
+    // scale 1.
     setViewport(900, 900);
     const { device } = renderFit();
     const transform = device.style.transform;
@@ -92,27 +141,21 @@ describe("Fit", () => {
     expect(transform.indexOf("scale(")).toBeLessThan(transform.indexOf("translate("));
   });
 
-  it("re-measures on resize, which the old ResizeObserver could not see", () => {
-    // The previous version observed .fb-fit's own box. A viewport change that
-    // did not resize that element left the scale stale; window events do not.
+  it("re-measures on resize", () => {
     setViewport(CANVAS_W, CANVAS_H);
-    const { fit, device } = renderFit();
-    expect(scaleOf(device)).toBe(1);
+    const { device } = renderFit();
+    expect(scalesOf(device)).toEqual([1, 1]);
 
     setViewport(540, 405);
     fireEvent(window, new Event("resize"));
 
-    expect(scaleOf(device)).toBe(0.5);
-    expect(fit.style.height).toBe("405px");
+    expect(scalesOf(device)).toEqual([0.5, 0.5]);
   });
 
-  it("falls back to the stylesheet's size when the viewport reports zero", () => {
-    // Nothing trustworthy to scale against yet: leave .fb-fit on its CSS
-    // 100dvh fallback rather than collapsing it to 0x0.
+  it("falls back to scale 1 when the frame reports zero", () => {
     setViewport(0, 0);
-    const { fit, device } = renderFit();
+    const { device } = renderFit();
 
-    expect(fit.getAttribute("style")).toBeNull();
-    expect(scaleOf(device)).toBe(1);
+    expect(scalesOf(device)).toEqual([1, 1]);
   });
 });
