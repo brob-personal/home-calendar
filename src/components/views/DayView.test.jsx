@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { DayView } from "./DayView.jsx";
 import { trackColumnWidth, MIN_EVENT_COL_W, MORE_LANE_W } from "../../lib/layout.js";
+import { PaletteContext } from "../../state/PaletteContext.js";
 
 const MEMBERS = [{ id: "brian", name: "Brian", color: "#7EB6E8" }];
 const SETTINGS = { dayStart: 7, dayEnd: 21 };
@@ -29,8 +30,20 @@ const PICKER_PROPS = {
   onReset: () => {},
 };
 
+/*
+  DayView reads `fillFor` off PaletteContext for its all-day chips — those
+  chips sit above the member columns, so unlike the timed blocks they have no
+  lane owner whose hue they could take instead. Every render below goes
+  through the provider for that reason; WeekView.test.jsx does the same.
+*/
+const palette = { fillFor: () => "#7EB6E8", firstColor: () => "#7EB6E8", byId: {}, palette: {} };
+
+function renderWithPalette(ui) {
+  return render(<PaletteContext.Provider value={palette}>{ui}</PaletteContext.Provider>);
+}
+
 function renderDay(events, onSelect = () => {}) {
-  return render(
+  return renderWithPalette(
     <DayView
       date={DATE}
       now={NOW}
@@ -148,7 +161,7 @@ const CROWD = [
 ];
 
 function renderCrowdedDay(events, onSelect = () => {}) {
-  return render(
+  return renderWithPalette(
     <DayView
       date={DATE}
       now={NOW}
@@ -247,7 +260,7 @@ describe("DayView now line", () => {
   ];
 
   it("renders exactly one now-line across all member columns", () => {
-    const { container } = render(
+    const { container } = renderWithPalette(
       <DayView
         date={DATE}
         now={NOW}
@@ -264,7 +277,7 @@ describe("DayView now line", () => {
 
   it("renders no now-line when the viewed day isn't today", () => {
     const otherDay = new Date(2026, 2, 16);
-    const { container } = render(
+    const { container } = renderWithPalette(
       <DayView
         date={otherDay}
         now={NOW}
@@ -283,6 +296,19 @@ describe("DayView all-day chips", () => {
   it("shows a chip for a multi-day event that spans, but doesn't start on, the viewed day", () => {
     renderDay([allDayEv("t", "Kauai", new Date(2026, 2, 12), new Date(2026, 2, 19))]);
     expect(screen.getByRole("button", { name: "Kauai" })).toBeInTheDocument();
+  });
+
+  /*
+    The chips are <button>s, and Root.js's reset — `.fb-root button {
+    background: none }` at specificity (0,1,1) — outranks any single-class
+    rule the stylesheet could give them, so they shipped as bare unfilled
+    text above the columns. The fill has to arrive inline to win, which is
+    also what makes it assertable here without a layout engine.
+  */
+  it("fills each chip with its owner's colour rather than leaving it bare", () => {
+    renderDay([allDayEv("t", "Kauai", new Date(2026, 2, 12), new Date(2026, 2, 19))]);
+    const chip = screen.getByRole("button", { name: "Kauai" });
+    expect(chip.style.background).not.toBe("");
   });
 
   it("does not show a chip for a multi-day event whose span doesn't reach the viewed day", () => {

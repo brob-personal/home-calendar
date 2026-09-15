@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { sameDay, spansDay, minutesInto, fmtTime, fmtRange } from "../../lib/date.js";
 import { variantColor } from "../../lib/color.js";
 import { layoutOverlaps, trackColumnWidth } from "../../lib/layout.js";
+import { usePalette } from "../../state/PaletteContext.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { PersonProgress } from "../shell/PersonProgress.jsx";
 import { MemberPicker } from "../shell/MemberPicker.jsx";
@@ -106,6 +107,13 @@ export function DayView({
      floor is measured against changes with headcount. */
   const colW = trackColumnWidth(members.length);
 
+  /* Only the all-day chips need this. The timed blocks below stay on
+     `variantColor(m.color, e.variant)` per lane, for the reason spelled out
+     at the top of this file — but the chips sit in one row above the member
+     columns, not in a lane, so there is no lane owner to take a hue from and
+     the shared `fillFor` split is exactly right, same as Week's band. */
+  const { fillFor } = usePalette();
+
   const timed = events.filter((e) => sameDay(e.start, date) && !e.allDay);
   const allDay = events.filter((e) => e.allDay && spansDay(e, date));
 
@@ -140,7 +148,16 @@ export function DayView({
       {allDay.length > 0 && (
         <div className="fb-allday">
           {allDay.map((e) => (
-            <button key={e.id} className="fb-alldaychip" onClick={() => onSelect(e)}>
+            <button
+              key={e.id}
+              className="fb-alldaychip"
+              /* Inline, like Week's band and Month's bars: the chip carries its
+                 owner's colour, and an inline style is also the one thing
+                 Root.js's `.fb-root button { background: none }` cannot
+                 outrank. */
+              style={{ background: fillFor(e) }}
+              onClick={() => onSelect(e)}
+            >
               {e.title}
             </button>
           ))}

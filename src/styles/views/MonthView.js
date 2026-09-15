@@ -48,23 +48,38 @@ export default `
 */
 .fb-rowevents { position: absolute; left: 0; right: 0; pointer-events: none; overflow: hidden; }
 .fb-rowevents > * { position: absolute; pointer-events: auto; }
-/* height and line-height match at 17px rather than padding around a short
-   line-height, which is what keeps a descender's tail from being cut off
-   against the bar's own overflow. The bar geometry is deliberately held at
-   17px now that the type inside it is 8px rather than 11px: the line box is
-   generous instead of exact, the title centres in it, and MonthView.jsx's
-   lane arithmetic does not move. These two must stay equal, and
-   MonthView.jsx's LANE_H must stay 17 + its gap. */
-.fb-cellev {
-  font-size: 8px; font-weight: 600; color: var(--ink-on-color);
+/*
+  Scoped under .fb-rowevents, and it has to be. SpanBar renders each bar as a
+  button element, and Root.js's reset -- "button { font: inherit; color:
+  inherit; background: none }" -- is specificity (0,1,1), which outranks a
+  bare .fb-cellev at (0,1,0). A bare rule here therefore lost every font
+  longhand it declared (font is a shorthand, so inheriting it resets size,
+  weight AND line-height) and the bars rendered at the inherited 16px/400 in a
+  normal line box clipped by their own 17px height -- a visibly different,
+  much larger face than Day's and Week's titles, which are spans the reset
+  never matches. The descendant selector takes this to (0,2,0) and the
+  declarations below actually apply. Keep it scoped.
+
+  height and line-height match at 17px rather than padding around a short
+  line-height, which is what keeps a descender's tail from being cut off
+  against the bar's own overflow. The bar geometry is deliberately held at
+  17px now that the type inside it is 7px: the line box is generous instead of
+  exact, the title centres in it, and MonthView.jsx's lane arithmetic does not
+  move. These two must stay equal, and MonthView.jsx's LANE_H must stay
+  17 + its gap.
+*/
+.fb-rowevents .fb-cellev {
+  font-size: 7px; font-weight: 600; color: var(--ink-on-color);
   padding: 0 6px; border-radius: 4px; height: 17px; line-height: 17px;
   text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 /* A bar running on into the week before or after squares off that end. */
 .fb-cellev.is-cont-before { border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .fb-cellev.is-cont-after { border-top-right-radius: 0; border-bottom-right-radius: 0; }
-.fb-cellmore {
-  font-size: 8px; font-weight: 600; color: var(--mute); height: 17px; line-height: 17px;
+/* A button element too, so scoped for the same reason as .fb-cellev above --
+   a bare rule lost both its size and its --mute ink to the reset. */
+.fb-rowevents .fb-cellmore {
+  font-size: 7px; font-weight: 600; color: var(--mute); height: 17px; line-height: 17px;
   padding-left: 2px; text-align: left; white-space: nowrap; overflow: hidden;
 }
 `;
