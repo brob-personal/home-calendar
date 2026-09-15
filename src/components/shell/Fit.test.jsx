@@ -1,55 +1,117 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 
-import { Fit, fitFor } from "./Fit.jsx";
+import { Fit, fitFor, glassAgrees, frameHeight } from "./Fit.jsx";
 import { CANVAS_W, CANVAS_H, DEVICE_W, DEVICE_H } from "../../lib/canvas.js";
 
 /*
-  Regression cover for the grey border that framed the board on iPad 7th gen.
+  Regression cover for the grey band along the bottom of the board on iPad 7th
+  gen, and for the derivation that finally explains it.
 
-  It was fixed in two passes. The first removed a ~10px grey sliver above the
-  board (.fb-device's 1080x810 layout box overflowing a grid row that
-  top-aligns) and four wedges of frame grey clipped out of the corners by a
-  4px border-radius. What it left behind, and what these cover, is the grey
-  the user still saw on the left, right and bottom:
+  Nine passes. The first eight each tuned a number inside an assumed
+  mechanism, and what these tests asserted for all eight of them was "the
+  canvas covers the frame exactly on both axes" — a property that stayed green
+  the entire time the band was on screen. It had to: both sides of that
+  comparison came from the same measurement, so a frame short of the glass
+  satisfies it just as neatly as a frame that is not. An internally consistent
+  invariant cannot catch a systematically wrong input.
 
-    - sides, because a single uniform `Math.min` scale letterboxes whenever
-      the frame is not exactly 4:3, and it never quite is;
-    - bottom, because .fb-fit was sized to window.innerHeight and pinned at
-      top: 0, so an innerHeight 20px short of the screen left body's
-      identical #d9dbe0 showing in the gap beneath it.
+  The instrumented build (c5ad5f3) found the wrong input. On the device,
+  standalone and landscape:
 
-  "The canvas covers the frame exactly on both axes" was the property these
-  asserted for six passes, and it is the wrong one. It is satisfied just as
-  well by a frame that is short of the glass as by one that is not, so every
-  pass could hold it and still leave grey along the bottom — and the pass that
-  finally closed the band by padding the frame satisfied it too, while pushing
-  the calendar's last row and the note FAB off the screen.
+    window.innerHeight   790      screen.availHeight   810
+    doc.clientHeight     790      safe-area-inset-top   20
+    visualViewport       790
+    .fb-fit rect         790
 
-  The property now is narrower and does not mention the frame: on a
-  device-shaped frame, the canvas is DEVICE_H tall and starts at the frame's
-  top edge. The panel is 2160x1620 at 2x, so the glass is 810 CSS px, and a
-  675px canvas at 810/675 is 810 screen px from y=0 — the bottom edge lands on
-  the bottom of the glass by construction rather than by measurement. The
-  height assertions below are therefore about the scale *ignoring* what it was
-  handed, which is the opposite of what they used to check.
+  Every viewport API agrees on 790 and they are all wrong by exactly the top
+  inset: iPadOS paints the standalone web view full-bleed from the top of the
+  glass while reporting a layout viewport 20pt short. 790 + 20 = 810, and the
+  only two signals that witness 810 are not viewport APIs at all.
 
-  The width is still measured and still has to cover, which is what the
-  remaining covering assertions are for. 900x675 onto 1080x810 must also come
-  out a uniform 1.2x: non-uniform would mean the canvas and the panel aspects
-  had drifted apart and the board was being stretched.
+  So the height is now derived rather than reduced, and these tests split in
+  two accordingly:
 
-  jsdom has no layout engine, so getBoundingClientRect is 0x0 and <Fit> falls
-  back to window.innerWidth/innerHeight — which is what setViewport drives.
-  These check the values <Fit> computes, which is precisely where it went
-  wrong. The flush-to-the-glass result itself belongs to R13's fixed-viewport
-  visual pass.
+    - glassAgrees / frameHeight: does the code take availHeight, and does it
+      take it *only* when the insets corroborate the gap? This is the half
+      that is actually new, and the agreement test is the thing under test —
+      not the 810 that comes out of it. A derivation that fires on the wrong
+      device is a ninth guess with extra steps.
+
+    - fitFor: given a frame height, is the scale exactly that height over the
+      canvas, with nothing clamping it? The previous pass floored this at
+      DEVICE_H / CANVAS_H to force the scale past a measurement it did not
+      trust. The floor is gone, and several assertions below invert because of
+      it — that is the intended change, and the reason is that a floor
+      silently absorbs the next short measurement instead of showing it.
+
+  jsdom has no layout engine, so getBoundingClientRect is 0x0, env() resolves
+  to nothing and screen.availHeight is 0. The default in here is therefore the
+  *fallback* path — no glass corroboration, scale to the viewport — which is
+  what setViewport drives. withGlass() below emulates the two witnesses when a
+  test needs the device's actual signature.
 */
 
 // jsdom's innerWidth/innerHeight are plain writable window properties.
 function setViewport(w, h) {
   window.innerWidth = w;
   window.innerHeight = h;
+}
+
+/*
+  The device's two witnesses, faked at the only two places the code reads them.
+
+  screen.availHeight is a prototype getter in jsdom, so it needs
+  defineProperty; navigator.standalone does not exist there at all, so it needs
+  defining rather than overwriting.
+
+  The insets are the interesting one. safeAreaInsets() measures env() by
+  setting it as a throwaway element's height and asking the layout engine what
+  that resolved to — the right way to read an inset, and completely inert in
+  jsdom, which has no layout engine and drops the `env()` assignment as an
+  unparseable height in the first place.
+
+  Rather than mock the module — which would take the real probe out of the test,
+  and the probe is half of what is being asserted — this patches
+  getBoundingClientRect to answer for exactly that element. The probe tags
+  itself with `data-fb-inset` naming the side it is currently measuring, which
+  is the only thing about it that survives jsdom's parser, so that is what the
+  fixture keys off. Every other rect in the page falls through to jsdom's own
+  zero.
+*/
+const ZERO_RECT = { x: 0, y: 0, top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0 };
+
+function withGlass({ availHeight, insets = {}, standalone = true }) {
+  const origRect = Element.prototype.getBoundingClientRect;
+  const hadStandalone = "standalone" in window.navigator;
+  const origStandalone = window.navigator.standalone;
+
+  Object.defineProperty(window.screen, "availHeight", {
+    value: availHeight,
+    configurable: true,
+  });
+  Object.defineProperty(window.navigator, "standalone", {
+    value: standalone,
+    configurable: true,
+  });
+  Element.prototype.getBoundingClientRect = function patched() {
+    const side = this.dataset?.fbInset;
+    if (side) return { ...ZERO_RECT, height: insets[side] ?? 0 };
+    return origRect.call(this);
+  };
+
+  return () => {
+    Element.prototype.getBoundingClientRect = origRect;
+    Object.defineProperty(window.screen, "availHeight", { value: 0, configurable: true });
+    if (hadStandalone) {
+      Object.defineProperty(window.navigator, "standalone", {
+        value: origStandalone,
+        configurable: true,
+      });
+    } else {
+      delete window.navigator.standalone;
+    }
+  };
 }
 
 const renderFit = () => {
@@ -73,6 +135,101 @@ const scalesOf = (device) => {
 
 afterEach(() => setViewport(1024, 768));
 
+/*
+  The wall iPad's exact reported signature, standalone and landscape. Named
+  once because most of the assertions below are about what happens when one
+  field of it is different, and the point of each of those is the single
+  difference.
+*/
+const DEVICE_SIGNATURE = { standalone: true, innerH: 790, availH: 810, insetSum: 20 };
+
+describe("glassAgrees", () => {
+  it("accepts this panel's exact signature", () => {
+    // The one case that must be true, and the arithmetic that makes it true:
+    // the gap between the two witnesses is the inset sum, to the pixel.
+    expect(glassAgrees(DEVICE_SIGNATURE)).toBe(true);
+    expect(DEVICE_SIGNATURE.availH - DEVICE_SIGNATURE.innerH).toBe(DEVICE_SIGNATURE.insetSum);
+  });
+
+  it("refuses a viewport with no insets to explain the gap", () => {
+    // A plain Safari tab: shorter than the screen because the browser chrome
+    // really is there, and env() reports 0 because none of it is a safe area.
+    // Treating that gap as glass would scale the board under the chrome, which
+    // is the overshoot failure the earlier passes produced.
+    expect(glassAgrees({ ...DEVICE_SIGNATURE, insetSum: 0 })).toBe(false);
+    expect(glassAgrees({ standalone: true, innerH: 730, availH: 810, insetSum: 0 })).toBe(false);
+  });
+
+  it("refuses a viewport that is not shorter than the glass", () => {
+    // If iPadOS ever reports the layout viewport honestly, this is the branch
+    // that keeps the fix from becoming a bug: nothing to correct, so nothing
+    // is corrected, and behaviour is identical to the pass before this one.
+    expect(glassAgrees({ ...DEVICE_SIGNATURE, innerH: 810 })).toBe(false);
+    expect(glassAgrees({ ...DEVICE_SIGNATURE, innerH: 830 })).toBe(false);
+  });
+
+  it("refuses a gap the insets cannot account for", () => {
+    // The load-bearing half. A gap larger than the insets means the premise
+    // underneath the derivation does not hold on this device, whatever else is
+    // true — so the code declines to act on availHeight rather than adopting a
+    // number it cannot explain.
+    //   gap 110 -> nothing like the insets, refused
+    //   gap  22 -> one px past the slack, refused
+    //   gap  21 -> the slack boundary, accepted
+    //   gap  20 -> the insets exactly, accepted
+    expect(glassAgrees({ standalone: true, innerH: 700, availH: 810, insetSum: 20 })).toBe(false);
+    expect(glassAgrees({ standalone: true, innerH: 788, availH: 810, insetSum: 20 })).toBe(false);
+    expect(glassAgrees({ standalone: true, innerH: 789, availH: 810, insetSum: 20 })).toBe(true);
+    expect(glassAgrees({ standalone: true, innerH: 790, availH: 810, insetSum: 20 })).toBe(true);
+  });
+
+  it("refuses anything that is not a home-screen app", () => {
+    expect(glassAgrees({ ...DEVICE_SIGNATURE, standalone: false })).toBe(false);
+    expect(glassAgrees({ ...DEVICE_SIGNATURE, standalone: undefined })).toBe(false);
+  });
+
+  it("refuses a witness that is missing rather than treating it as zero", () => {
+    // screen.availHeight is absent in older engines and 0 in jsdom, and an
+    // absent witness is not evidence of anything. NaN from an unresolvable
+    // inset is the same case.
+    expect(glassAgrees({ ...DEVICE_SIGNATURE, availH: undefined })).toBe(false);
+    expect(glassAgrees({ ...DEVICE_SIGNATURE, availH: 0 })).toBe(false);
+    expect(glassAgrees({ ...DEVICE_SIGNATURE, insetSum: NaN })).toBe(false);
+  });
+
+  it("allows float slack on the inset sum but nothing an inset could hide in", () => {
+    // The +1 is for a resolved 19.999 against a reported 20, not for tuning.
+    expect(glassAgrees({ standalone: true, innerH: 790, availH: 810, insetSum: 19.5 })).toBe(true);
+    expect(glassAgrees({ standalone: true, innerH: 790, availH: 810, insetSum: 18.5 })).toBe(false);
+  });
+});
+
+describe("frameHeight", () => {
+  it("returns the glass on this panel and the viewport everywhere else", () => {
+    // Always one of the two measurements, never a blend and never a constant.
+    expect(frameHeight(DEVICE_SIGNATURE)).toBe(810);
+    expect(frameHeight({ ...DEVICE_SIGNATURE, standalone: false })).toBe(790);
+    expect(frameHeight({ ...DEVICE_SIGNATURE, insetSum: 0 })).toBe(790);
+    expect(frameHeight({ standalone: true, innerH: 810, availH: 810, insetSum: 20 })).toBe(810);
+  });
+
+  it("puts the canvas on a 1.2x scale from the device's own numbers", () => {
+    // The whole fix, end to end and with no literal in the middle of it: the
+    // reported innerHeight and availHeight go in, and the scale that makes a
+    // 675px canvas exactly fill the glass comes out. 1.2 is asserted as
+    // DEVICE_H / CANVAS_H rather than typed, so this cannot pass by coincidence
+    // if the canvas contract changes.
+    const h = frameHeight(DEVICE_SIGNATURE);
+    const fit = fitFor(1080, h);
+
+    expect(h).toBe(DEVICE_H);
+    expect(fit.y).toBe(DEVICE_H / CANVAS_H);
+    expect(fit.y * CANVAS_H).toBe(DEVICE_H);
+    expect(fit.x).toBe(fit.y);
+    expect(fit.anchor).toBe("top");
+  });
+});
+
 describe("fitFor", () => {
   it("maps the canvas onto the real panel at a uniform 1.2x", () => {
     const fit = fitFor(DEVICE_W, DEVICE_H);
@@ -87,40 +244,37 @@ describe("fitFor", () => {
     expect(CANVAS_H * fit.y).toBe(DEVICE_H);
   });
 
-  it("pins the height to the panel even on a frame the size of the canvas", () => {
-    // Not 1:1 any more, and deliberately so: a frame this shape is read as
-    // the wall iPad, and the wall iPad's glass is DEVICE_H regardless of what
-    // the frame measured. The width still resolves to 1:1 here.
+  it("scales 1:1 on a frame the size of the canvas, with nothing under it", () => {
+    // The previous pass returned 1.2 here, because DEVICE_H was a floor under
+    // every device-shaped frame regardless of what was measured. A frame this
+    // size is 900x675 and the honest answer is 1:1.
     const fit = fitFor(CANVAS_W, CANVAS_H);
     expect(fit.x).toBe(1);
-    expect(fit.y * CANVAS_H).toBe(DEVICE_H);
+    expect(fit.y).toBe(1);
     expect(fit.anchor).toBe("top");
   });
 
-  it("ignores a short frame height rather than scaling the board to it", () => {
-    // The whole six-pass regression in one assertion. 790 is the status bar
-    // off the height, which is what the layout viewport reports on this
-    // device; scaling the canvas to 790 is what left 20 screen px of grey
-    // under the board. The canvas is 810 tall whatever the frame says.
-    const fit = fitFor(1080, 790);
-    expect(fit.x * CANVAS_W).toBeCloseTo(1080, 6);
-    expect(fit.y * CANVAS_H).toBe(DEVICE_H);
-    expect(fit.y * CANVAS_H).not.toBe(790);
-  });
-
-  it("treats the panel height as a floor, not a ceiling", () => {
-    // Both directions of the same failure, which is why this is a `max` and
-    // not a pin. A frame that reports short of the panel cannot shrink the
-    // board below it — that was the grey band. A frame that honestly reports
-    // *taller* than the panel still gets covered — which a pin could not do,
-    // and which is the remaining candidate for the band surviving pass 7.
-    for (const h of [750, 770, 790, 810]) {
-      expect(fitFor(DEVICE_W, h).y * CANVAS_H).toBe(DEVICE_H);
-    }
-    for (const h of [834, 850, 900]) {
+  it("scales to exactly the height it is handed, with no clamp either way", () => {
+    // The inverse of what this asserted for three passes, and the point of
+    // removing the floor. 790 is the number the device reports and 810 is the
+    // number it means; deciding between them is glassAgrees' job, upstream of
+    // here. This function's job is to not quietly edit whichever one arrives —
+    // so a scale that comes out wrong stays visibly wrong instead of being
+    // rounded up to the answer the code was hoping for.
+    for (const h of [675, 730, 750, 770, 790, 810, 834, 900]) {
       expect(fitFor(DEVICE_W, h).y * CANVAS_H).toBeCloseTo(h, 6);
     }
-    expect(fitFor(DEVICE_W, 790).anchor).toBe("top");
+    expect(fitFor(1080, 790).y * CANVAS_H).not.toBe(DEVICE_H);
+    expect(fitFor(1080, 810).y * CANVAS_H).toBe(DEVICE_H);
+  });
+
+  it("anchors every device-shaped frame to the top", () => {
+    // Which edge a shortfall lands on. The web view is full-bleed from the top
+    // of the glass, so the canvas starts there and any residue goes off the
+    // bottom rather than being split across both edges.
+    for (const h of [730, 790, 810, 834]) {
+      expect(fitFor(DEVICE_W, h).anchor).toBe("top");
+    }
   });
 
   it("covers both axes when the width is short of the canvas", () => {
@@ -129,23 +283,22 @@ describe("fitFor", () => {
     expect(fit.y * CANVAS_H).toBeCloseTo(810, 6);
   });
 
-  it("overshoots a Safari tab's viewport, which is the accepted trade", () => {
-    // Pinning the height gives up one thing, and this is it, written down so
-    // it is a decision rather than a surprise. A tab is ~11% off-aspect —
-    // inside FILL_TOLERANCE, so it gets the pin — and the board is then
-    // taller than the tab's visible area, so its bottom runs under the
-    // browser chrome. That is Deferred Defect #11 coming back for tabs only.
+  it("fits a Safari tab's real viewport instead of overshooting it", () => {
+    // The trade here has inverted, and deliberately. With DEVICE_H as a floor,
+    // a tab (~11% off-aspect, so inside FILL_TOLERANCE) got the pin too and the
+    // board ran under the browser chrome — grey traded for clipping. Now a tab
+    // is scaled to the viewport it actually has, so the board is whole and
+    // there is frame grey below it.
     //
-    // It is accepted because the code cannot tell "short because Safari
-    // chrome" from "short because iPadOS under-reports the glass", and those
-    // want opposite answers. docs/DEVICE-SETUP.md makes the home-screen app
-    // the supported way to run the board, so the standalone case wins. If the
-    // tab case ever matters, the discriminator is display-mode: standalone,
-    // not a better guess at the height.
+    // That is the right way round for two reasons. The tab is not the supported
+    // configuration — docs/DEVICE-SETUP.md puts the board on the wall as a
+    // home-screen app — and, more to the point, the code no longer has to
+    // guess: glassAgrees can tell a tab from a standalone app, which is
+    // something no aspect ratio or height comparison could ever do.
     const fit = fitFor(1080, 730);
     expect(fit.x * CANVAS_W).toBeCloseTo(1080, 6);
-    expect(fit.y * CANVAS_H).toBe(DEVICE_H);
-    expect(fit.y * CANVAS_H).toBeGreaterThan(730);
+    expect(fit.y * CANVAS_H).toBeCloseTo(730, 6);
+    expect(fit.y * CANVAS_H).toBeLessThan(DEVICE_H);
   });
 
   it("letterboxes an off-aspect desktop window rather than stretching it", () => {
@@ -164,17 +317,63 @@ describe("fitFor", () => {
 
 describe("Fit", () => {
   it("anchors the canvas to the top of the frame on the device", () => {
-    // The anchor is what decides which edge a frame/glass discrepancy lands
-    // on. Centred, it splits across both — which is how a 20px shortfall
-    // became 10px of grey under the board and 10px of the header clipped
-    // above it. Pinned to the top, the canvas starts on the glass's top edge
-    // and, being DEVICE_H tall, ends on its bottom edge.
     setViewport(DEVICE_W, DEVICE_H);
     const { device } = renderFit();
 
     expect(device.style.top).toBe("0px");
     expect(device.style.transform).toContain("translate(-50%, 0)");
     expect(scalesOf(device)).toEqual([1.2, 1.2]);
+  });
+
+  it("scales to the glass on the device's reported signature", () => {
+    // The whole change, through a real render. The viewport reports 790 and
+    // every rect in jsdom is zero, so the only reason this comes out at 1.2 is
+    // that measureFrame consulted availHeight and the inset probe and found
+    // them in agreement. Remove either witness and this drops to 790/675.
+    setViewport(DEVICE_W, 790);
+    const restore = withGlass({ availHeight: 810, insets: { top: 20 }, standalone: true });
+    try {
+      const { device } = renderFit();
+      const [sx, sy] = scalesOf(device);
+
+      expect(CANVAS_W * sx).toBeCloseTo(DEVICE_W, 6);
+      expect(CANVAS_H * sy).toBe(DEVICE_H);
+      expect(device.style.top).toBe("0px");
+    } finally {
+      restore();
+    }
+  });
+
+  it("scales to the viewport when the insets cannot explain the gap", () => {
+    // Same viewport, same availHeight, insets that do not add up — 790 + 0 is
+    // not 810. The code declines the glass and scales to what it can actually
+    // see, which is the fallback that keeps this from being a ninth guess.
+    setViewport(DEVICE_W, 790);
+    const restore = withGlass({ availHeight: 810, insets: {}, standalone: true });
+    try {
+      const { device } = renderFit();
+      const [, sy] = scalesOf(device);
+
+      expect(CANVAS_H * sy).toBeCloseTo(790, 6);
+      expect(CANVAS_H * sy).not.toBe(DEVICE_H);
+    } finally {
+      restore();
+    }
+  });
+
+  it("scales to the viewport in a browser tab, insets or not", () => {
+    // navigator.standalone false with the device's own numbers otherwise. A
+    // tab's shortfall is real, so it is honoured.
+    setViewport(DEVICE_W, 790);
+    const restore = withGlass({ availHeight: 810, insets: { top: 20 }, standalone: false });
+    try {
+      const { device } = renderFit();
+      const [, sy] = scalesOf(device);
+
+      expect(CANVAS_H * sy).toBeCloseTo(790, 6);
+    } finally {
+      restore();
+    }
   });
 
   it("keeps centring a letterboxed dev window, where the grey is deliberate", () => {
@@ -186,28 +385,17 @@ describe("Fit", () => {
   });
 
   it("leaves the frame's size to the stylesheet, so nothing can show behind it", () => {
-    // The bottom band: .fb-fit used to carry an inline height measured from
-    // window.innerHeight, which put body's grey in the gap whenever that came
-    // up short. Nothing reads the frame's height for the vertical scale any
-    // more, so Fit.js can own its size as a plain `inset: 0` — there must be
-    // no inline size here to contradict it, and no amount of measuring may
-    // put one back.
+    // .fb-fit used to carry an inline height measured from window.innerHeight,
+    // which put body's grey in the gap whenever that came up short. Nothing
+    // writes the frame's size any more — Fit.js owns it — and no amount of
+    // measuring may put one back. The glass derivation in particular changes
+    // only the number the canvas is *scaled* against; it does not resize the
+    // frame, and the overlay's glass check is what reports on the frame.
     setViewport(1080, 790);
     const { fit } = renderFit();
 
     expect(fit.style.width).toBe("");
     expect(fit.style.height).toBe("");
-  });
-
-  it("covers the frame's width and the glass's height on a short frame", () => {
-    // 1080x790 is what the device actually reports. Width covers the frame;
-    // height ignores it and covers the glass.
-    setViewport(1080, 790);
-    const { device } = renderFit();
-    const [sx, sy] = scalesOf(device);
-
-    expect(CANVAS_W * sx).toBeCloseTo(1080, 6);
-    expect(CANVAS_H * sy).toBe(DEVICE_H);
   });
 
   it("scales before translating, so the canvas lands flush at any scale", () => {
@@ -227,7 +415,7 @@ describe("Fit", () => {
     const { device } = renderFit();
     expect(scalesOf(device)).toEqual([1.2, 1.2]);
 
-    // Off-aspect, so this crosses out of the pinned branch into the
+    // Off-aspect, so this crosses out of the covering branch into the
     // letterboxed one — the anchor has to follow the scale.
     setViewport(1512, 850);
     fireEvent(window, new Event("resize"));

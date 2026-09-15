@@ -70,6 +70,11 @@ import { CANVAS_W, CANVAS_H, DEVICE_W, DEVICE_H } from "../../lib/canvas.js";
 export const fitSignals = {
   measured: null,
   candidates: null,
+  // The inputs to the glass derivation and the boolean that fell out of them.
+  // Recorded rather than re-derived for the same reason as the rest: whether
+  // the two witnesses agreed *at the moment the board was scaled* is the
+  // question, and a fresh read at overlay-open time is a different one.
+  glass: null,
   fit: null,
   count: 0,
   at: null,
@@ -78,6 +83,7 @@ export const fitSignals = {
 export function recordFitSignals(measurement, fit) {
   fitSignals.measured = { w: measurement.w, h: measurement.h };
   fitSignals.candidates = measurement.candidates;
+  fitSignals.glass = measurement.glass ?? null;
   fitSignals.fit = fit;
   fitSignals.count += 1;
   fitSignals.at = typeof performance === "undefined" ? null : Math.round(performance.now());
@@ -111,6 +117,40 @@ function rect(selector) {
   return `l${n(r.left)} t${n(r.top)} r${n(r.right)} b${n(r.bottom)}   ${pair(r.width, r.height)}`;
 }
 
+/*
+  The one assertion in this overlay that looks at the device instead of at the
+  code, and the reason it replaces the invariant the tests used to carry.
+
+  For eight passes the property under test was internal: "the canvas covers the
+  frame on both axes". It stayed green the whole time the band was on screen,
+  because it is satisfied just as well by a frame that is short of the glass as
+  by one that is not — both sides of the comparison came from the same wrong
+  number. Nothing self-consistent can catch that.
+
+  This compares the two quantities that cannot both be wrong in the same
+  direction: where .fb-fit's bottom edge actually is, and how tall the glass
+  says it is. PASS means they coincide — the page's own frame reaches the
+  bottom of the screen. FAIL means it does not, and the delta is the size of
+  the discrepancy in CSS px, which at devicePixelRatio 2 is half the band in a
+  photograph. That is a number to act on rather than a symptom to re-guess.
+
+  UNKNOWN rather than PASS when either side is missing: screen.availHeight is
+  0 in jsdom and absent in older engines, and `0 - 0 === 0` would otherwise
+  print a green PASS everywhere the check cannot actually run — the exact class
+  of false reassurance this row exists to end.
+*/
+function glassCheck() {
+  const node = el(".fb-fit");
+  const bottom = node?.getBoundingClientRect ? node.getBoundingClientRect().bottom : undefined;
+  const availH = typeof window === "undefined" ? undefined : window.screen?.availHeight;
+  const head = `fb-fit.bottom ${n(bottom)}  availHeight ${n(availH)}`;
+  if (!Number.isFinite(bottom) || !Number.isFinite(availH) || availH <= 0) {
+    return `${head}  delta —  UNKNOWN`;
+  }
+  const delta = availH - bottom;
+  return `${head}  delta ${n(delta)}  ${delta === 0 ? "PASS" : "FAIL"}`;
+}
+
 const SIDES = ["top", "right", "bottom", "left"];
 
 /*
@@ -140,6 +180,13 @@ export function safeAreaInsets() {
   document.body.appendChild(probe);
   const out = {};
   for (const side of SIDES) {
+    // Which inset is being asked about, recorded on the element rather than
+    // left implicit in the loop. `env()` is not a value any height parser
+    // accepts outside a real layout engine — jsdom drops the assignment
+    // entirely — so the style attribute cannot be read back to find out, and a
+    // probe that cannot say what it is measuring cannot be tested or watched
+    // in an inspector. Fit.test.jsx keys its inset fixture off this.
+    probe.dataset.fbInset = side;
     probe.style.height = `env(safe-area-inset-${side}, 0px)`;
     out[side] = probe.getBoundingClientRect().height;
   }
@@ -177,7 +224,7 @@ export function diagRows() {
   const scr = window.screen;
   const insets = safeAreaInsets();
   const device = el(".fb-device");
-  const { measured, candidates, fit, count, at } = fitSignals;
+  const { measured, candidates, glass, fit, count, at } = fitSignals;
 
   return [
     HEAD("BUILD"),
@@ -210,6 +257,7 @@ export function diagRows() {
     [".fb-root", rect(".fb-root")],
     [".fb-stage", rect(".fb-stage")],
     ["transform", device ? getComputedStyle(device).transform : "—"],
+    ["glass check", glassCheck()],
 
     HEAD("SCALE"),
     ["computed fit", fit ? `x ${n(fit.x)}  y ${n(fit.y)}  anchor ${fit.anchor}` : "not yet"],
@@ -217,6 +265,18 @@ export function diagRows() {
     ["measures", `${count}  last at ${n(at)}ms`],
     ["w signals", candidateList(candidates?.w)],
     ["h signals", candidateList(candidates?.h)],
+    // The height derivation's own inputs and verdict, as they were when the
+    // board was scaled. If `glass` is false while the check above reads FAIL,
+    // the two witnesses did not corroborate and the code deliberately fell
+    // back to the viewport — which is a different problem from the derivation
+    // being applied and still coming up short.
+    [
+      "glass derive",
+      glass
+        ? `standalone ${glass.standalone}  inner ${n(glass.innerH)}  ` +
+          `avail ${n(glass.availH)}  insets ${n(glass.insetSum)}  glass ${glass.useGlass}`
+        : "not yet",
+    ],
     ["canvas const", pair(CANVAS_W, CANVAS_H)],
     ["device const", pair(DEVICE_W, DEVICE_H)],
 
