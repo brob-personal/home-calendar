@@ -199,7 +199,7 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
               <div className="fb-memberrow">
                 <Avatar member={m} size={44} />
                 <input
-                  className="fb-input fb-input-sm"
+                  className="fb-input fb-input-name"
                   value={m.name}
                   onChange={(e) => setMember(m.id, { name: e.target.value })}
                   placeholder="Name"
@@ -222,7 +222,7 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
                   spellCheck="false"
                 />
                 <input
-                  className="fb-input fb-input-sm"
+                  className="fb-input fb-input-id"
                   value={memberCalendarId(m.id)}
                   onChange={(e) => setMemberCalendarId(m.id, e.target.value)}
                   onBlur={(e) =>
@@ -235,7 +235,7 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
                   spellCheck="false"
                 />
                 <input
-                  className="fb-input fb-input-sm"
+                  className="fb-input fb-input-id"
                   value={m.photoDriveFolderId || ""}
                   onChange={(e) => setMember(m.id, { photoDriveFolderId: e.target.value.trim() })}
                   placeholder="Drive folder id (photo)"

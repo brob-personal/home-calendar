@@ -147,6 +147,37 @@ describe("board stylesheet", () => {
     expect(BOARD_CSS).not.toContain("--axis-margin");
   });
 
+  it("caps the sheet at the space the scrim gives it, so the wide one cannot overhang the canvas", () => {
+    // The wide sheet asks for the canvas's full width while sitting inside a
+    // scrim that pads 26px, and an oversized grid item overflows its track's
+    // end edge — so every pixel of the difference went off the right of a
+    // canvas that clips. What showed was the Family roster row, the only
+    // content in the panel wide enough to reach that edge. max-width is the
+    // cap; the scrim's padding is the number it caps against.
+    const scrim = sheet.match(/\.fb-scrim \{[^}]*\}/)[0];
+    const pad = Number(scrim.match(/padding: (\d+)px/)[1]);
+    const decl = sheet.match(/\.fb-sheet \{[^}]*\}/)[0];
+    expect(decl).toContain("max-width: 100%");
+    expect(sheet).toMatch(/\.fb-sheet\.is-wide \{ width: (\d+)px; \}/);
+    // The width it asks for is allowed to exceed what is available — that is
+    // what the cap is for — but only because the cap is there to catch it.
+    const wide = Number(sheet.match(/\.fb-sheet\.is-wide \{ width: (\d+)px; \}/)[1]);
+    expect(wide).toBeGreaterThan(CANVAS_W - 2 * pad);
+  });
+
+  it("sizes the Family row's fields off the row, not off their own intrinsic widths", () => {
+    // Seven controls on one line in a sheet that is now 848px, not 900. The
+    // two id fields flex, so the row's width is whatever the sheet leaves
+    // and no input's default 20-character size can push it past the edge.
+    expect(sheet).toContain(
+      ".fb-memberrow .fb-input-id { flex: 1 1 0; width: auto; min-width: 0; }",
+    );
+    expect(sheet).toContain(".fb-memberrow .fb-input { font-size: 13px;");
+    // Not shrunk with them: the swatch is the one control in the row that
+    // clears --tap-min once Fit's upscale applies. See tap-target-audit.md.
+    expect(sheet).toContain(".fb-swatch {\n  width: 38px; height: 38px;");
+  });
+
   it("gives .fb-stage no surface of its own, so nothing frames the calendar", () => {
     // The stage used to be a card: --paper fill, an 18px radius, and a
     // ::before washing --stage-art at .22 against .fb-art's .85 on the
