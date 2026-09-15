@@ -46,18 +46,31 @@
         .fb-* — this exists purely so the page contributes no margin, scrollbar
         or bounce around the board.
 
-        `height: 100%` here and on #root no longer sizes anything: .fb-fit is
-        position: fixed and takes its size from Fit.jsx's measurement of
-        window.innerWidth/innerHeight. That is deliberate. These heights used
-        to be the *other* half of a mismatch — 100% resolves against the layout
-        viewport, which viewport-fit=cover grows to the full screen, while
-        .fb-fit was 100dvh, and on iPad 7th gen the 20pt difference showed as
-        grey on every edge of the board. They stay only so a pre-mount page has
-        a defined box; nothing inside the board measures against them.
+        `height: 100%` here and on #root is the pre-mount page only. Once the
+        board mounts, Fit.jsx overwrites all three with the height it derives
+        from screen.availHeight — see applyPageHeight in
+        src/components/shell/Fit.jsx.
 
-        The background below is that same frame grey, and it is now only ever
-        visible before React mounts — .fb-fit covers the viewport from the
-        first paint onward.
+        It has to, and the claim that used to stand here — that these heights
+        "no longer size anything" because .fb-fit is position: fixed — is the
+        belief that hid the grey band along the bottom of the board for nine
+        passes. `100%` resolves against the layout viewport, and on the wall
+        iPad that viewport is 790 CSS px while the glass is 810. `overflow:
+        hidden` on the *root* element is special: it propagates to the
+        viewport, and the viewport's clip applies to fixed boxes, unlike an
+        ordinary ancestor's. So html at 790 clipped a .fb-fit that no longer
+        had anything wrong with its scale, 20px above the bottom of the screen.
+        body's and #root's overflow could not have done that on their own —
+        .fb-fit is fixed and escapes them — but all three get the derived
+        height so the page has one answer about how tall it is rather than two.
+
+        The `overflow: hidden` stays on purpose. A board bolted to a wall must
+        not scroll or rubber-band; the clip was never the bug, its height was.
+
+        The background below is the frame grey and is now only the pre-mount
+        flash. From the first painted frame onward the sheet's
+        `html { background: var(--paper) }` (src/styles/shell/Fit.js) owns the
+        canvas, and .fb-fit covers the viewport.
       */
       html,
       body {

@@ -315,6 +315,98 @@ describe("the readout", () => {
     }
   });
 
+  /*
+    The acceptance bar for #59, as close to the device as jsdom can get.
+
+    The test above stubs .fb-fit's bottom edge to a chosen number and checks
+    glassCheck's arithmetic on it. That was the right test for #58 and it is
+    why the check was trustworthy — but it is also why #58 could ship green and
+    change nothing on the wall: nothing asserted that the frame *arrives* at
+    810, only that the row would say PASS if it did.
+
+    So this one does not choose a bottom edge. It emulates the one rule of
+    layout that decides it — a `position: fixed` box at `top: 0` has
+    `bottom === height` — and lets the height come from wherever the component
+    actually put it. On the device's exact reported signature that is
+    measureFrame's derivation, written inline by Fit.jsx, and the row reads
+    PASS delta 0. Against the frame as it stood before this change the same
+    emulation reads 790 off `height: calc(100% + env(...))` and the row reads
+    FAIL delta 20, which is what the wall photographed.
+
+    What it still cannot prove is that the band is gone: PASS here means the
+    page's frame reaches the bottom of the glass, which is a necessary
+    condition and not the whole of it. The overflow clip on html is the other
+    half and jsdom has no clip to test. Fit.test.jsx covers the height that
+    moves it; the device is what confirms the result.
+  */
+  const withLaidOutFrame = ({ availHeight, insets = {}, standalone = true }) => {
+    const origRect = Element.prototype.getBoundingClientRect;
+    const hadStandalone = "standalone" in window.navigator;
+    const origStandalone = window.navigator.standalone;
+    const origW = window.innerWidth;
+    const origH = window.innerHeight;
+
+    Object.defineProperty(window.screen, "availHeight", { value: availHeight, configurable: true });
+    Object.defineProperty(window.navigator, "standalone", {
+      value: standalone,
+      configurable: true,
+    });
+    const rect = (width, height) => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: width,
+      bottom: height,
+      width,
+      height,
+    });
+    Element.prototype.getBoundingClientRect = function patched() {
+      // The inset probe answers for itself — see safeAreaInsets.
+      const side = this.dataset?.fbInset;
+      if (side) return rect(0, insets[side] ?? 0);
+      // The only layout rule being emulated: fixed, top: 0, so the bottom edge
+      // is whatever height the element ended up with. Falling back to the
+      // layout viewport is what `height: 100%` would have resolved to.
+      if (this.classList?.contains("fb-fit")) {
+        return rect(window.innerWidth, Number.parseFloat(this.style.height) || window.innerHeight);
+      }
+      return origRect.call(this);
+    };
+
+    return () => {
+      Element.prototype.getBoundingClientRect = origRect;
+      Object.defineProperty(window.screen, "availHeight", { value: 0, configurable: true });
+      window.innerWidth = origW;
+      window.innerHeight = origH;
+      if (hadStandalone) {
+        Object.defineProperty(window.navigator, "standalone", {
+          value: origStandalone,
+          configurable: true,
+        });
+      } else {
+        delete window.navigator.standalone;
+      }
+    };
+  };
+
+  it("reads delta 0 on the device's signature, because the frame reaches the glass", () => {
+    window.innerWidth = 1080;
+    window.innerHeight = 790;
+    const restore = withLaidOutFrame({ availHeight: 810, insets: { top: 20 }, standalone: true });
+    try {
+      renderBoard();
+
+      expect(glassRow()).toContain("fb-fit.bottom 810");
+      expect(glassRow()).toContain("availHeight 810");
+      expect(glassRow()).toContain("delta 0");
+      expect(glassRow()).toContain("PASS");
+      expect(glassRow()).not.toContain("FAIL");
+    } finally {
+      restore();
+    }
+  });
+
   it("reports UNKNOWN rather than PASS where it cannot run", () => {
     // jsdom's screen.availHeight is 0 and every rect is 0x0, so `0 - 0 === 0`
     // would print a green PASS on every machine that cannot actually perform

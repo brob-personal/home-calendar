@@ -384,18 +384,92 @@ describe("Fit", () => {
     expect(device.style.transform).toContain("translate(-50%, -50%)");
   });
 
-  it("leaves the frame's size to the stylesheet, so nothing can show behind it", () => {
-    // .fb-fit used to carry an inline height measured from window.innerHeight,
-    // which put body's grey in the gap whenever that came up short. Nothing
-    // writes the frame's size any more — Fit.js owns it — and no amount of
-    // measuring may put one back. The glass derivation in particular changes
-    // only the number the canvas is *scaled* against; it does not resize the
-    // frame, and the overlay's glass check is what reports on the frame.
-    setViewport(1080, 790);
+  /*
+    The frame's own box, which is what #58 left out and what made it a no-op on
+    the wall.
+
+    This inverts an assertion that stood from the pass before it: "leaves the
+    frame's size to the stylesheet, so nothing can show behind it". That rule
+    was written against a real failure — .fb-fit once carried a height measured
+    from window.innerHeight, independently of the scale, and body's grey showed
+    through in the gap whenever the two disagreed. What makes it safe to write
+    an inline height now is that there is no longer a second number to
+    disagree with: the frame's height and the canvas's vertical scale are the
+    same derivation, out of the same call to measureFrame, and the assertions
+    below check that by comparing them to each other rather than to a constant.
+
+    The width stays off the frame. It has been correct at every step through
+    `width: 100%` and there is nothing for JS to fix about it.
+  */
+  it("gives the frame the same height it scales the canvas against", () => {
+    setViewport(DEVICE_W, 790);
+    const restore = withGlass({ availHeight: 810, insets: { top: 20 }, standalone: true });
+    try {
+      const { fit, device } = renderFit();
+      const [, sy] = scalesOf(device);
+
+      // The frame reaches the glass, which `height: calc(100% + ...)` could
+      // not: 100% on a position: fixed box resolves against the layout
+      // viewport, and that is the 790 this device reports and glassAgrees
+      // disbelieves.
+      expect(fit.style.height).toBe(`${DEVICE_H}px`);
+      // ...and it is the *same* number the canvas is scaled by, not a second
+      // opinion about it. This is the property that retires the old rule.
+      expect(CANVAS_H * sy).toBe(Number.parseFloat(fit.style.height));
+      expect(fit.style.width).toBe("");
+    } finally {
+      restore();
+    }
+  });
+
+  it("sizes the page's own boxes to that height too, so nothing clips above the glass", () => {
+    // html's overflow: hidden propagates to the viewport, and the viewport
+    // clip is the one clip in the page that reaches a position: fixed frame.
+    // At height: 100% it lands on the layout viewport's 790 and cuts the last
+    // 20px off a board that is otherwise covering the glass correctly.
+    const root = document.createElement("div");
+    root.id = "root";
+    document.body.appendChild(root);
+    setViewport(DEVICE_W, 790);
+    const restore = withGlass({ availHeight: 810, insets: { top: 20 }, standalone: true });
+    try {
+      renderFit();
+
+      expect(document.documentElement.style.height).toBe(`${DEVICE_H}px`);
+      expect(document.body.style.height).toBe(`${DEVICE_H}px`);
+      expect(root.style.height).toBe(`${DEVICE_H}px`);
+    } finally {
+      restore();
+      root.remove();
+    }
+  });
+
+  it("writes no height the stylesheet did not already resolve to, off the device", () => {
+    // The off-device case is the check that this is a fix and not a new
+    // tuning knob. With no glass corroboration the derivation returns
+    // innerHeight, which is exactly what `height: 100%` resolved to in every
+    // browser where the layout viewport is honest. Nothing moves.
+    setViewport(1512, 850);
     const { fit } = renderFit();
 
+    expect(fit.style.height).toBe("850px");
+    expect(document.documentElement.style.height).toBe("850px");
     expect(fit.style.width).toBe("");
-    expect(fit.style.height).toBe("");
+  });
+
+  it("hands the page back to the stylesheet when the board unmounts", () => {
+    setViewport(DEVICE_W, 790);
+    const { unmount } = render(
+      <Fit>
+        <div className="fb-root" />
+      </Fit>,
+    );
+    expect(document.documentElement.style.height).toBe("790px");
+
+    unmount();
+
+    expect(document.documentElement.style.height).toBe("");
+    expect(document.body.style.height).toBe("");
   });
 
   it("scales before translating, so the canvas lands flush at any scale", () => {
