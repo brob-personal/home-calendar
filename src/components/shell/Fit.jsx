@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
+import { CANVAS_W, CANVAS_H, DEVICE_H } from "../../lib/canvas.js";
 
 /*
   Maps the fixed 900x675 canvas onto the frame it lands in. Every dimension
@@ -33,29 +33,34 @@ import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
      own. window.innerWidth/innerHeight stays as the fallback for when the
      rect is unmeasurable (jsdom, and the first paint before layout).
 
-     Measuring is now the only option rather than the better one: the frame
-     is deliberately *larger* than the viewport (`inset` is negative by
-     --fit-bleed, see src/styles/shell/Fit.js), so its size is no longer a
-     quantity any window property reports. The fallback is correspondingly a
-     little small, which is harmless — it is one paint, and erring small
-     letterboxes for a frame rather than cropping.
+     Only the width reads that measurement now. See DEVICE_SCALE_Y below for
+     why the height does not, and why six attempts at measuring it better
+     were six attempts at the wrong thing.
 
   2. Cover both axes instead of `Math.min` on one. A single uniform scale
      letterboxes the moment the frame is not exactly 4:3, and it never quite
      is — anything that shaves a row of pixels off the height drops the scale
      below 1 and opens --frame-bg down both sides. That was the left and
-     right of the reported border. Near the canvas aspect each axis now gets
-     its own scale and the canvas is flush on all four edges: nothing
-     cropped, no gap to fill.
+     right of the reported border. Near the canvas aspect each axis gets its
+     own scale, so the width covers the frame while the height is pinned, and
+     the canvas is flush on all four edges: nothing cropped, no gap to fill.
 
   Off-aspect frames (a laptop browser during development) keep the uniform
-  contain-fit and the letterboxed device look, at whatever scale the window
-  allows — a 900-wide canvas means a dev window now shows the board at its
-  wall size sooner — stretching the board to 16:9
-  would make the dev preview lie about the real layout. FILL_TOLERANCE is
-  what separates "this is the wall iPad, near enough" from "this is a desktop
-  window": 15% covers the device standalone (0% off-aspect) and the same
-  device in a Safari tab (~11%), and excludes every normal desktop window.
+  contain-fit and the letterboxed device look, centred, because there the grey
+  is deliberate — stretching the board to 16:9, or pinning its height to a
+  panel that is not there, would make the dev preview lie about the real
+  layout.
+
+  FILL_TOLERANCE is what separates "this is the wall iPad, near enough" from
+  "this is a desktop window": 15% covers the device standalone (0% off-aspect)
+  and the same device in a Safari tab (~11%), and excludes every normal
+  desktop window. It carries more weight than it used to — it now decides
+  whether the height is pinned to the panel or fitted to the frame — and the
+  Safari tab falling inside it is a deliberate trade, written down in
+  Fit.test.jsx: a tab gets the pin too, so the board's bottom runs under the
+  browser chrome rather than leaving grey. Nothing can tell "short because
+  Safari chrome" from "short because iPadOS under-reports the glass" by
+  measuring, and the standalone board is the supported one.
 
   Deliberately not window.visualViewport: iOS shrinks that when the on-screen
   keyboard opens, which would rescale the whole board every time Composer,
@@ -69,19 +74,54 @@ import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
 const FILL_TOLERANCE = 0.15;
 
 /*
+  The vertical scale on a device-shaped frame. Not measured, and that is the
+  entire point of this constant.
+
+  Six passes tried to make the board reach the bottom of the glass by
+  measuring the viewport more carefully, then by overshooting whatever the
+  measurement returned. The overshoot did close the grey band and immediately
+  produced the opposite failure: the canvas is scaled to cover the frame, so a
+  frame 40px taller than the screen scales the board 40px past the screen and
+  the bottom of the calendar and the note FAB fall off the glass. Those two
+  outcomes are not two bugs to be balanced against each other with a better
+  number — they are the same bug. As long as the vertical scale comes from a
+  measurement, covering the glass and not overshooting it are in direct
+  conflict, and no value of an extension resolves that.
+
+  The screen height is not actually unknown, which is what makes this
+  avoidable: the wall iPad is 2160x1620 native at 2x, so the glass is exactly
+  DEVICE_H = 810 CSS px, and the canvas scaled by 810/675 is exactly 810
+  screen px tall. Pin it there, anchor it to the top of the frame, and the
+  board lands on the glass edge to edge by construction — no measurement to
+  come up short, nothing to overshoot, nothing to tune.
+
+  The width stays measured. It has been correct at every step (1080 -> 1.2x),
+  a landscape iPad is the one dimension the layout viewport reports honestly
+  here, and measuring it is what keeps a different panel from being cropped.
+*/
+const DEVICE_SCALE_Y = DEVICE_H / CANVAS_H;
+
+/*
   Exported for Fit.test.jsx: the whole fix is in this mapping and it is worth
-  asserting without a render in the way. Returns the per-axis scales; equal
-  values mean a uniform letterboxed fit.
+  asserting without a render in the way. Returns the per-axis scales plus
+  where the canvas is anchored in the frame; equal scales mean a uniform
+  letterboxed fit.
 */
 export function fitFor(width, height) {
   // A zero on either axis means there is nothing trustworthy to scale
   // against yet. 1:1 is the device's own answer, so it is the safe guess.
-  if (!width || !height) return { x: 1, y: 1 };
+  if (!width || !height) return { x: 1, y: 1, anchor: "center" };
   const sx = width / CANVAS_W;
   const sy = height / CANVAS_H;
-  if (Math.abs(sx / sy - 1) <= FILL_TOLERANCE) return { x: sx, y: sy };
+  if (Math.abs(sx / sy - 1) <= FILL_TOLERANCE) {
+    // Device-shaped frame: this is the wall iPad, so the height is known
+    // rather than measured, and the canvas is anchored to the top of the
+    // frame so that a frame which does come up short cannot push the board
+    // down off the bottom of the glass.
+    return { x: sx, y: DEVICE_SCALE_Y, anchor: "top" };
+  }
   const s = Math.min(sx, sy);
-  return { x: s, y: s };
+  return { x: s, y: s, anchor: "center" };
 }
 
 function measureFrame(el) {
@@ -111,7 +151,9 @@ export function Fit({ children }) {
       const next = fitFor(w, h);
       // Returning prev on an identical measurement keeps a resize burst from
       // re-rendering the whole board for nothing.
-      setFit((prev) => (prev.x === next.x && prev.y === next.y ? prev : next));
+      setFit((prev) =>
+        prev.x === next.x && prev.y === next.y && prev.anchor === next.anchor ? prev : next,
+      );
     };
     measure();
     window.addEventListener("resize", measure);
@@ -130,12 +172,29 @@ export function Fit({ children }) {
     <div className="fb-fit" ref={ref}>
       {/*
         scale() before translate() is load-bearing. The transform list
-        composes as scale x translate, so the -50% offsets are scaled with it
-        — per axis — and the canvas lands flush on .fb-fit's top-left at a
-        covering scale, and centred on its midpoint at a letterboxing one.
-        Written translate-first it would only be right at scale 1.
+        composes as scale x translate, so the offsets are scaled with it, per
+        axis, and the canvas lands where the anchor says at any scale. Written
+        translate-first it would only be right at scale 1.
+
+        The vertical anchor is the fix for the band along the bottom. On a
+        device-shaped frame the canvas is pinned to the top: its height is
+        DEVICE_H by construction, so starting it at the frame's top edge — and
+        the frame is `top: 0` — puts its bottom edge exactly on the bottom of
+        the glass. Centring it there instead would split any difference
+        between the frame and the glass across both edges, which is how six
+        passes of this ended up with grey below the board, or with the
+        calendar's last row and the note FAB pushed off the screen.
+
+        The letterboxed dev window keeps centring, because there the grey is
+        deliberate and symmetry is what makes it read as a device frame.
       */}
-      <div className="fb-device" style={{ transform: `${scale} translate(-50%, -50%)` }}>
+      <div
+        className="fb-device"
+        style={{
+          top: fit.anchor === "top" ? 0 : "50%",
+          transform: `${scale} translate(-50%, ${fit.anchor === "top" ? "0" : "-50%"})`,
+        }}
+      >
         {children}
       </div>
     </div>

@@ -86,33 +86,25 @@ describe("board stylesheet", () => {
     expect(day + sheet).not.toMatch(/#C43A33|#E0574F/i);
   });
 
-  it("extends the frame past the bottom of the viewport, flush on the other three", () => {
-    // The grey band along the bottom of the board, fourth attempt. The first
-    // three each made .fb-fit match the viewport more precisely and the band
-    // came back every time, because the layout viewport is itself short of
-    // the glass on this device. The fourth overshot all four sides equally,
-    // and the band surviving *at the bottom only* is what identified it: the
-    // canvas is centred in the frame, so a frame centred in the screen can
-    // only ever produce symmetric gaps. One-sided means top-anchored and
-    // short at the bottom, so that is where the overshoot belongs.
-    expect(fit).toContain("height: calc(max(100%, 100vh) + var(--fit-extend-b))");
-    // `100%` is the layout viewport, which is the quantity that has come up
-    // short at every pass; `100vh` is the large viewport, the full glass.
-    // Either can be the smaller on a given iPadOS build, so the frame takes
-    // the larger rather than depending on which one this iPad shorts.
-    expect(fit).toContain("max(100%, 100vh)");
-    expect(BOARD_CSS).toContain("--fit-extend-b:");
-    // Anchored at the top: the extension must lengthen the frame downward,
-    // not recentre it, or the gap comes back split across both edges.
-    expect(fit).toContain("top: 0");
-    expect(fit).toContain("left: 0");
-    // The three declarations this replaced, each of which was a version of
-    // the bug: a bare viewport unit, an exact-fit inset, a symmetric bleed.
-    expect(fit).not.toContain("inset: 0");
-    expect(fit).not.toContain("--fit-bleed");
+  it("keeps the frame a plain viewport box that cannot clip the canvas", () => {
+    // Six passes of the grey band along the bottom of the board all lived in
+    // this one rule, and they converged on the frame not being the place to
+    // fix it: Fit.jsx pins the canvas to the panel's known height now, so the
+    // frame is back to a plain `inset: 0` with no padding and no floor.
+    expect(fit).toContain("position: fixed; inset: 0");
+    expect(fit).not.toContain("--fit-extend-b");
     expect(fit).not.toContain("100dvh");
-    // A bare `calc(100% + ...)` is pass 5, which was still short.
-    expect(fit).not.toContain("calc(100% +");
+    expect(fit).not.toContain("100vh");
+    expect(fit).not.toContain("min-height");
+    // The one line that still matters. The canvas is DEVICE_H tall whatever
+    // the frame resolves to, so a frame that comes up short must not clip it
+    // — that would put the band straight back, the frame cutting off the
+    // board that was covering the glass. .fb-device keeps its own clip.
+    expect(fit).toMatch(/\.fb-fit \{[^}]*\}/);
+    expect(fit.slice(fit.indexOf(".fb-fit"), fit.indexOf(".fb-device"))).not.toContain("overflow");
+    expect(fit.slice(fit.indexOf(".fb-device"))).toContain("overflow: hidden");
+    // `top` is set inline by Fit.jsx per anchor, so the sheet must not pin it.
+    expect(fit.slice(fit.indexOf(".fb-device"))).not.toContain("top:");
   });
 
   it("derives the dock offset instead of restating it", () => {
