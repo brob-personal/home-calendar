@@ -52,6 +52,9 @@
   scaled. It is also the one number to change if the board still does not
   reach the bottom of the glass, or now overshoots it — see
   styles/shell/Fit.js for why it exists and which direction to move it.
+  Raise it if any grey is left along the bottom; lower it if the bottom of
+  the calendar looks clipped. The first 22 screen px of it are free (they land
+  on --board-pad-b, which is blank); past that it starts eating the calendar.
 
   --dock-bottom is unchanged and never read --stage-gap-b: it clears
   --board-pad-b plus 8px, which is why retiring the strip does not move the
@@ -104,7 +107,7 @@ export default `
   --warn-bg: #E8A33D;
   --warn-ink: #8A5A16;
 
-  --fit-extend-b: 24px;
+  --fit-extend-b: 40px;
   --board-gap: 14px;
   --board-pad-b: 18px;
   --dock-bottom: calc(var(--board-pad-b) + 8px);
