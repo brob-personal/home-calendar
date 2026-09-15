@@ -86,8 +86,10 @@ import { SHORT_MIN, MORE_MIN_H, eventTier } from "../../lib/eventBox.js";
 */
 const HOUR_H = 34;
 /* .fb-alldaychip's height plus the gap beneath it; the band is `lanes` of
-   these. 17px is what 11px Archivo needs to clear its own descenders —
-   keep it in step with the height in styles/views/WeekView.js. */
+   these. Held at 17px — it was what 11px Archivo needed to clear its own
+   descenders and comfortably clears the 9px the chips carry now, so the
+   band's depth is unchanged by the smaller type. Keep it in step with the
+   height in styles/views/WeekView.js. */
 const LANE_H = 17 + 2;
 
 export function WeekView({

@@ -93,8 +93,10 @@ const CELL_INSET = 7;
    change here needs re-checking there. */
 const EVENTS_TOP = 24;
 const EVENTS_BOTTOM = 4;
-/* .fb-cellev's height and the gap under it. 17px is what 11px Archivo needs
-   for a line box that does not cut the tail off a descender. */
+/* .fb-cellev's height and the gap under it. Held at 17px: it was the line
+   box 11px Archivo needed to clear its descenders, and it is more than the
+   8px the bars carry now, so shrinking the type left the lanes where they
+   were rather than refitting every row. */
 const LANE_GAP = 2;
 const LANE_H = 17 + LANE_GAP;
 const LANES_FALLBACK = 3;

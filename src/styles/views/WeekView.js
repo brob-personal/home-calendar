@@ -34,7 +34,7 @@ export default `
 .fb-alldaytrack .fb-alldaychip {
   position: absolute; box-sizing: border-box; text-align: left;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  padding: 0 6px; font-size: 11px; height: 17px; line-height: 17px;
+  padding: 0 6px; font-size: 9px; height: 17px; line-height: 17px;
   border-radius: 4px; color: var(--ink-on-color);
 }
 /* A bar running past the edge of the week squares off that end — the
@@ -70,12 +70,12 @@ export default `
 .fb-wblock.is-stacked { flex-direction: column; justify-content: flex-start; align-items: flex-start; }
 .fb-wblock.is-compact { flex-direction: row; align-items: flex-start; gap: 5px; }
 .fb-wbtitle {
-  font-size: 12px; font-weight: 700; letter-spacing: -.012em; line-height: 1.15;
+  font-size: 9px; font-weight: 700; letter-spacing: -.012em; line-height: 1.15;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 .fb-wblock.is-compact .fb-wbtitle { flex: 0 1 auto; min-width: 0; max-width: none; }
 .fb-wbtime {
-  font-size: 10px; font-weight: 600; opacity: .64; flex: none;
+  font-size: 8px; font-weight: 600; opacity: .64; flex: none;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 

@@ -24,7 +24,7 @@ export default `
 .fb-day { display: flex; flex-direction: column; gap: 10px; height: 100%; }
 .fb-allday { display: flex; gap: 8px; flex-wrap: wrap; flex: none; }
 .fb-alldaychip {
-  font-size: 13px; font-weight: 600; padding: 6px 12px;
+  font-size: 11px; font-weight: 600; padding: 6px 12px;
   background: var(--paper); border-radius: 8px; color: var(--mute);
 }
 .fb-dayhead { display: flex; flex: none; padding-right: 6px; }
@@ -54,12 +54,12 @@ export default `
 .fb-dblock.is-stacked { flex-direction: column; justify-content: flex-start; align-items: flex-start; }
 .fb-dblock.is-compact { flex-direction: row; gap: 6px; }
 .fb-blocktitle {
-  font-size: 14px; font-weight: 700; letter-spacing: -.015em;
+  font-size: 11px; font-weight: 700; letter-spacing: -.015em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 .fb-dblock.is-compact .fb-blocktitle { flex: 0 1 auto; min-width: 0; max-width: none; }
 .fb-blocktime {
-  font-size: 11px; font-weight: 600; opacity: .66; flex: none;
+  font-size: 9px; font-weight: 600; opacity: .66; flex: none;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 /* .fb-moreblock itself is declared in week.js with the rest of the shared

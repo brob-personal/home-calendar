@@ -49,11 +49,14 @@ export default `
 .fb-rowevents { position: absolute; left: 0; right: 0; pointer-events: none; overflow: hidden; }
 .fb-rowevents > * { position: absolute; pointer-events: auto; }
 /* height and line-height match at 17px rather than padding around a short
-   line-height. 11px Archivo's glyph box is 17px tall, so the old 2px/13px
-   pairing cut the tail off every "y" against the bar's own overflow; these
-   must stay equal, and MonthView.jsx's LANE_H must stay 17 + its gap. */
+   line-height, which is what keeps a descender's tail from being cut off
+   against the bar's own overflow. The bar geometry is deliberately held at
+   17px now that the type inside it is 8px rather than 11px: the line box is
+   generous instead of exact, the title centres in it, and MonthView.jsx's
+   lane arithmetic does not move. These two must stay equal, and
+   MonthView.jsx's LANE_H must stay 17 + its gap. */
 .fb-cellev {
-  font-size: 11px; font-weight: 600; color: var(--ink-on-color);
+  font-size: 8px; font-weight: 600; color: var(--ink-on-color);
   padding: 0 6px; border-radius: 4px; height: 17px; line-height: 17px;
   text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -61,7 +64,7 @@ export default `
 .fb-cellev.is-cont-before { border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .fb-cellev.is-cont-after { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .fb-cellmore {
-  font-size: 10px; font-weight: 600; color: var(--mute); height: 17px; line-height: 17px;
+  font-size: 8px; font-weight: 600; color: var(--mute); height: 17px; line-height: 17px;
   padding-left: 2px; text-align: left; white-space: nowrap; overflow: hidden;
 }
 `;
