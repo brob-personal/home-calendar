@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 
-import { CANVAS_W, CANVAS_H, DEVICE_H } from "../../lib/canvas.js";
+import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
 import { DiagSurface } from "./DiagSurface.jsx";
 // The scale and the signals behind it are recorded for the diagnostic overlay
 // rather than recomputed by it — see recordFitSignals' comment for why a
-// second measurement would not be the same observation.
-import { recordFitSignals } from "./FitDiag.jsx";
+// second measurement would not be the same observation. safeAreaInsets is the
+// probe #57 built to read env() back from the layout engine; the glass
+// derivation below is the first thing outside the overlay to need it.
+import { recordFitSignals, safeAreaInsets } from "./FitDiag.jsx";
 
 /*
   Maps the fixed 900x675 canvas onto the frame it lands in. Every dimension
@@ -20,52 +22,34 @@ import { recordFitSignals } from "./FitDiag.jsx";
   1:1; the canvas shrank so the board would render 20% larger on the wall, and
   this file did not have to change to do it. That is the point of it.
 
-  Two changes here finished off the grey border that framed the board on the
-  device, after the previous pass (see src/styles/shell/Fit.js for the full
-  history) had removed the top sliver and the corner wedges. Both still carry
-  their weight at 1.2x — a covering scale needs the frame measured exactly as
-  much as a 1:1 one did:
+  Two properties do the work here, and both predate the current pass:
 
-  1. Measure .fb-fit, not the window. It is the box the canvas actually has
-     to cover, and measuring the thing you must cover is what makes covering
-     it exact. The previous version instead set .fb-fit's own height from
-     window.innerHeight; when innerHeight came back 20px short of the screen
-     under viewport-fit=cover, the frame ended 20px above the bottom edge and
-     body's identical grey showed through beneath it. getBoundingClientRect
-     was rejected on the pass before that for measuring a `100dvh` box
-     against a `height: 100%` parent — two disagreeing height sources — and
-     that objection went away when the frame stopped carrying a height of its
-     own. window.innerWidth/innerHeight stays as the fallback for when the
-     rect is unmeasurable (jsdom, and the first paint before layout).
-
-     Only the width reads that measurement now. See DEVICE_SCALE_Y below for
-     why the height does not, and why six attempts at measuring it better
-     were six attempts at the wrong thing.
+  1. Measure the frame rather than assume it. The canvas has to cover the box
+     it actually lands in, and the only way to be exact about that is to
+     measure. Eight passes' worth of history in this file (and in
+     src/styles/shell/Fit.js) is really one long argument about *which*
+     measurement — and measureFrame below now settles the height with a number
+     that comes from the device's glass instead of from its layout viewport.
 
   2. Cover both axes instead of `Math.min` on one. A single uniform scale
      letterboxes the moment the frame is not exactly 4:3, and it never quite
      is — anything that shaves a row of pixels off the height drops the scale
      below 1 and opens --frame-bg down both sides. That was the left and
      right of the reported border. Near the canvas aspect each axis gets its
-     own scale, so the width covers the frame while the height is pinned, and
-     the canvas is flush on all four edges: nothing cropped, no gap to fill.
+     own scale, so both cover, and the canvas is flush on all four edges:
+     nothing cropped, no gap to fill.
 
   Off-aspect frames (a laptop browser during development) keep the uniform
   contain-fit and the letterboxed device look, centred, because there the grey
-  is deliberate — stretching the board to 16:9, or pinning its height to a
-  panel that is not there, would make the dev preview lie about the real
-  layout.
+  is deliberate — stretching the board to 16:9 would make the dev preview lie
+  about the real layout.
 
-  FILL_TOLERANCE is what separates "this is the wall iPad, near enough" from
-  "this is a desktop window": 15% covers the device standalone (0% off-aspect)
-  and the same device in a Safari tab (~11%), and excludes every normal
-  desktop window. It carries more weight than it used to — it now decides
-  whether the height is pinned to the panel or fitted to the frame — and the
-  Safari tab falling inside it is a deliberate trade, written down in
-  Fit.test.jsx: a tab gets the pin too, so the board's bottom runs under the
-  browser chrome rather than leaving grey. Nothing can tell "short because
-  Safari chrome" from "short because iPadOS under-reports the glass" by
-  measuring, and the standalone board is the supported one.
+  FILL_TOLERANCE is what separates "this frame is device-shaped, cover it"
+  from "this is a desktop window, letterbox it": 15% covers the wall iPad
+  standalone (0% off-aspect) and the same device in a Safari tab (~11%), and
+  excludes every normal desktop window. It no longer decides anything about
+  *which* height is used — glassAgrees does that, and it can tell a
+  home-screen app from a tab, which an aspect ratio never could.
 
   Deliberately not window.visualViewport: iOS shrinks that when the on-screen
   keyboard opens, which would rescale the whole board every time Composer,
@@ -79,38 +63,104 @@ import { recordFitSignals } from "./FitDiag.jsx";
 const FILL_TOLERANCE = 0.15;
 
 /*
-  The vertical scale on a device-shaped frame. Not measured, and that is the
-  entire point of this constant.
+  Whether the page is running as an installed home-screen app.
 
-  Six passes tried to make the board reach the bottom of the glass by
-  measuring the viewport more carefully, then by overshooting whatever the
-  measurement returned. The overshoot did close the grey band and immediately
-  produced the opposite failure: the canvas is scaled to cover the frame, so a
-  frame 40px taller than the screen scales the board 40px past the screen and
-  the bottom of the calendar and the note FAB fall off the glass. Those two
-  outcomes are not two bugs to be balanced against each other with a better
-  number — they are the same bug. As long as the vertical scale comes from a
-  measurement, covering the glass and not overshooting it are in direct
-  conflict, and no value of an extension resolves that.
+  navigator.standalone first and matchMedia second, which is the reverse of the
+  usual advice and is the measured order rather than the fashionable one. On
+  the wall iPad (build c5ad5f3) the overlay read:
 
-  The screen height is not actually unknown, which is what makes this
-  avoidable: the wall iPad is 2160x1620 native at 2x, so the glass is exactly
-  DEVICE_H = 810 CSS px, and the canvas scaled by 810/675 is exactly 810
-  screen px tall. Pin it there, anchor it to the top of the frame, and the
-  board lands on the glass edge to edge by construction — no measurement to
-  come up short, nothing to overshoot, nothing to tune.
+    navigator.standalone                      true
+    matchMedia('(display-mode: standalone)')  false
 
-  The width stays measured. It has been correct at every step (1080 -> 1.2x),
-  a landscape iPad is the one dimension the layout viewport reports honestly
-  here, and measuring it is what keeps a different panel from being cropped.
+  So on the one device this board ships on, the standard query is wrong and the
+  legacy Safari property is right. Anything gated on display-mode alone can
+  never fire here, which is worth knowing about any future branch written
+  against it. matchMedia stays as the fallback for engines that do not
+  implement navigator.standalone at all — where `undefined` is an absence of
+  information rather than an answer of "no" — and that ordering is the whole of
+  it: prefer the signal known to be correct on the target hardware, fall back
+  to the one that is correct in the standard.
 */
-const DEVICE_SCALE_Y = DEVICE_H / CANVAS_H;
+function isStandalone() {
+  if (typeof navigator === "undefined") return false;
+  if (typeof navigator.standalone === "boolean") return navigator.standalone;
+  if (typeof window === "undefined") return false;
+  return window.matchMedia?.("(display-mode: standalone)")?.matches === true;
+}
 
 /*
-  Exported for Fit.test.jsx: the whole fix is in this mapping and it is worth
-  asserting without a render in the way. Returns the per-axis scales plus
-  where the canvas is anchored in the frame; equal scales mean a uniform
-  letterboxed fit.
+  The agreement test, and the reason this pass is a fix rather than a ninth
+  guess.
+
+  What the device reported (build c5ad5f3, iPad 7th gen A2197, standalone,
+  landscape) is that every JS height API agrees on 790 —
+
+    window.innerHeight   790
+    doc.clientHeight     790
+    visualViewport       790
+    .fb-fit rect         790
+
+  — while two signals that are not viewport APIs say 810:
+
+    screen.availHeight   810
+    safe-area-inset-top   20
+
+  and 790 + 20 = 810 exactly. iPadOS renders the standalone web view
+  full-bleed from the top of the glass but reports a layout viewport short by
+  precisely the top inset. That is why the previous passes could not find
+  this: they were all reading, more and more carefully, the same wrong number.
+  The largest of four copies of 790 is 790.
+
+  So the height comes from screen.availHeight — but only when the two
+  witnesses corroborate each other. That test is load-bearing and must not be
+  relaxed into a bare `availH > innerH`:
+
+    - If a future iPadOS fixes this upstream and reports innerHeight ==
+      availHeight, `availH > innerH` is false, the glass is not used, and
+      behaviour is identical to the pass before this one.
+    - If the two disagree by anything other than the insets, the premise
+      underneath the derivation does not hold on that device, and the code
+      falls back to the viewport rather than acting on an unvalidated number.
+    - Outside a home-screen app there is no claim being made about the glass
+      at all — a Safari tab is legitimately shorter than the screen, because
+      the browser chrome really is there — so `standalone` gates the lot.
+
+  The +1 is float slack on a sum of resolved CSS px, not a tuning knob: it
+  admits 20.0 against 19.999 and nothing a real inset could hide inside.
+
+  Exported so Fit.test.jsx can drive the cases that matter without a device:
+  a plain tab, absent insets, witnesses that disagree, and this panel's exact
+  signature.
+*/
+export function glassAgrees({ standalone, innerH, availH, insetSum }) {
+  return (
+    standalone === true &&
+    Number.isFinite(innerH) &&
+    Number.isFinite(availH) &&
+    Number.isFinite(insetSum) &&
+    availH > innerH &&
+    availH - innerH <= insetSum + 1
+  );
+}
+
+/*
+  The frame height the canvas is scaled against: the glass when the two
+  witnesses agree, the layout viewport otherwise.
+
+  There is no third option and no arithmetic beyond the choice. The number
+  returned is always one of the two measurements — never a blend of them, never
+  one of them with a correction applied, and never a constant. That is the
+  property that separates this from the eight passes before it, and it is why
+  there is no tuning token in this file any more.
+*/
+export function frameHeight({ standalone, innerH, availH, insetSum }) {
+  return glassAgrees({ standalone, innerH, availH, insetSum }) ? availH : innerH;
+}
+
+/*
+  Exported for Fit.test.jsx: the mapping is worth asserting without a render
+  in the way. Returns the per-axis scales plus where the canvas is anchored in
+  the frame; equal scales mean a uniform letterboxed fit.
 */
 export function fitFor(width, height) {
   // A zero on either axis means there is nothing trustworthy to scale
@@ -119,18 +169,28 @@ export function fitFor(width, height) {
   const sx = width / CANVAS_W;
   const sy = height / CANVAS_H;
   if (Math.abs(sx / sy - 1) <= FILL_TOLERANCE) {
-    // Device-shaped frame: this is the wall iPad, so DEVICE_H is a floor
-    // under the measured height rather than a replacement for it. Pinning it
-    // outright was pass 7 and it is still the right answer when every signal
-    // reports short; what it could not handle is a glass that is *taller*
-    // than the constant, which would leave exactly the band being reported.
-    // `max` covers both: short signals cannot shrink the board below the
-    // panel, and an honest larger measurement is still allowed to grow it.
-    //
-    // The canvas stays anchored to the top of the frame, so whichever of the
-    // two wins, the discrepancy lands off the bottom edge rather than being
-    // split across the top and bottom.
-    return { x: sx, y: Math.max(sy, DEVICE_SCALE_Y), anchor: "top" };
+    /*
+      Device-shaped frame: cover it on both axes, at exactly the scale the
+      measurement implies.
+
+      There is no clamp here and its absence is the point. The previous pass
+      wrapped this in `Math.max(sy, DEVICE_H / CANVAS_H)` — a floor forcing the
+      scale past a measurement the code had no reason to trust. Now that the
+      height is derived from the glass, that floor is arithmetically a no-op on
+      the target panel (810/675 is exactly 1.2, which is the floor's value), so
+      keeping it would buy nothing and cost the only thing that matters: a
+      floor silently absorbs the next measurement that comes up short, which is
+      exactly the failure this whole sequence has been. If the derivation ever
+      breaks, the board must visibly shrink and the overlay's glass check must
+      read FAIL — not be papered over for another eight passes.
+
+      The canvas stays anchored to the top of the frame. .fb-fit is `top: 0`
+      and the web view is full-bleed from the top of the glass, so starting the
+      canvas at the frame's top edge starts it on the glass's top edge, and any
+      residual discrepancy lands off the bottom rather than being split across
+      both edges.
+    */
+    return { x: sx, y: sy, anchor: "top" };
   }
   const s = Math.min(sx, sy);
   return { x: s, y: s, anchor: "center" };
@@ -147,48 +207,71 @@ function largest(candidates) {
 }
 
 /*
-  Every way the platform will tell us how big the viewport is, reduced with
-  `max` rather than by picking a favourite.
+  What the canvas has to cover, per axis — measured two different ways,
+  because the two axes have two different problems.
 
-  This file has picked a favourite three times — getBoundingClientRect on a
-  CSS-sized box, then window.innerHeight, then the rect of a `position: fixed;
-  inset: 0` box — and the grey band along the bottom survived all three. Each
-  choice was defensible and each one can come up short of the glass; what none
-  of them can do is come up *too large*, because they are all descriptions of
-  the same viewport. So there is nothing to lose by taking whichever reports
-  the most and everything to gain: the board can only be too small if *every*
-  signal is short, rather than if the one that was picked is.
+  Width is reduced with `max` over every signal the platform offers, and that
+  is unchanged. It has been correct at every step of this: 1080 across the
+  rect, innerWidth and clientWidth, with no shortfall anywhere. `max` over
+  signals that agree is just a safe way of reading one of them, and it is what
+  keeps a genuinely narrower panel from being cropped.
 
-  visualViewport is in the list for the same reason it was once deliberately
-  excluded. It shrinks when the iOS keyboard opens, which is why scaling to it
-  would rescale the whole board whenever Composer or a note took focus — but
-  under `max` a shrunken visualViewport is simply never the largest, so it can
-  contribute its (occasionally larger) value without being able to shrink
-  anything.
+  Height is derived, not reduced. `max` was the previous pass's answer here
+  and it could not have worked: all four height signals are descriptions of
+  the same layout viewport, and the layout viewport is itself the thing
+  reporting short, so the largest of four copies of 790 is 790. The two
+  signals that know better are screen.availHeight and the safe-area insets —
+  see glassAgrees.
+
+  visualViewport stays in the reported candidates but no longer feeds the
+  value, which resolves the standing objection to it: it shrinks when the iOS
+  keyboard opens, and a height that read it could rescale the whole board
+  whenever Composer or a note took focus.
 */
 function measureFrame(el) {
   const r = el?.getBoundingClientRect();
   if (typeof window === "undefined") {
-    return { w: r?.width ?? 0, h: r?.height ?? 0, candidates: null };
+    return { w: r?.width ?? 0, h: r?.height ?? 0, candidates: null, glass: null };
   }
   const doc = document.documentElement;
+
+  const innerH = window.innerHeight;
+  const availH = window.screen?.availHeight ?? 0;
+  // Measured through the layout engine, not parsed out of CSS text: there is
+  // no JS API for env(), and reading the declaration back gives the literal
+  // string rather than its resolved value. safeAreaInsets is the probe #57
+  // built for exactly this, and this is the first non-diagnostic caller.
+  const insets = safeAreaInsets();
+  const insetSum = (insets.top ?? 0) + (insets.bottom ?? 0);
+  const standalone = isStandalone();
+  const glass = {
+    standalone,
+    innerH,
+    availH,
+    insetSum,
+    useGlass: glassAgrees({ standalone, innerH, availH, insetSum }),
+  };
+
   // Named rather than passed to largest() as a bare array literal, so the
   // diagnostic overlay can print the individual signals beside the value that
-  // won. Object.values preserves insertion order, so the list largest() sees
-  // is the same list in the same order it saw before.
+  // was used. Object.values preserves insertion order, so the list largest()
+  // sees is the same list in the same order it saw before.
   const candidates = {
     w: { rect: r?.width, innerWidth: window.innerWidth, clientWidth: doc?.clientWidth },
     h: {
       rect: r?.height,
-      innerHeight: window.innerHeight,
+      innerHeight: innerH,
       clientHeight: doc?.clientHeight,
       visualViewport: window.visualViewport?.height,
+      availHeight: availH,
+      insetSum,
     },
   };
   return {
     w: largest(Object.values(candidates.w)),
-    h: largest(Object.values(candidates.h)),
+    h: frameHeight({ standalone, innerH, availH, insetSum }),
     candidates,
+    glass,
   };
 }
 
@@ -252,14 +335,14 @@ export function Fit({ children }) {
         axis, and the canvas lands where the anchor says at any scale. Written
         translate-first it would only be right at scale 1.
 
-        The vertical anchor is the fix for the band along the bottom. On a
-        device-shaped frame the canvas is pinned to the top: its height is
-        DEVICE_H by construction, so starting it at the frame's top edge — and
-        the frame is `top: 0` — puts its bottom edge exactly on the bottom of
-        the glass. Centring it there instead would split any difference
-        between the frame and the glass across both edges, which is how six
-        passes of this ended up with grey below the board, or with the
-        calendar's last row and the note FAB pushed off the screen.
+        The vertical anchor decides which edge a frame/glass discrepancy lands
+        on. On a device-shaped frame the canvas is anchored to the top: the web
+        view is full-bleed from the top of the glass and the frame is `top: 0`,
+        so the canvas starts on the glass's top edge and — scaled to the
+        derived glass height — ends on its bottom edge. Centring it there
+        instead would split any difference across both edges, which is how
+        earlier passes ended up with grey below the board *and* the header
+        clipped above it.
 
         The letterboxed dev window keeps centring, because there the grey is
         deliberate and symmetry is what makes it read as a device frame.

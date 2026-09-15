@@ -232,10 +232,12 @@ describe("the readout", () => {
       ".fb-root",
       ".fb-stage",
       "transform",
+      "glass check",
       "computed fit",
       "measured",
       "w signals",
       "h signals",
+      "glass derive",
       "html",
       "body",
       ".fb-art",
@@ -252,6 +254,75 @@ describe("the readout", () => {
     const boxes = rows.slice(rows.findIndex(([l]) => l === "BOXES"));
     const fitRow = boxes.find(([label]) => label === ".fb-fit")[1];
     expect(fitRow).toMatch(/^l\S+ t\S+ r\S+ b\S+/);
+  });
+
+  /*
+    The glass check is the one row here that renders a verdict rather than a
+    number, so it is the one row whose *value* is worth asserting even in
+    jsdom — and the only assertion in this repository that compares the page's
+    own frame against the screen instead of against another part of the page.
+
+    It replaces the property the tests carried through eight failed passes:
+    "the canvas covers the frame on both axes", which stayed green the whole
+    time the band was on screen because both sides of it came from the same
+    wrong measurement. This one cannot be satisfied by self-consistency.
+  */
+  const withFitBottom = (bottom, availHeight) => {
+    const origRect = Element.prototype.getBoundingClientRect;
+    Object.defineProperty(window.screen, "availHeight", {
+      value: availHeight,
+      configurable: true,
+    });
+    Element.prototype.getBoundingClientRect = function patched() {
+      if (this.classList?.contains("fb-fit")) {
+        return { x: 0, y: 0, top: 0, left: 0, right: 1080, bottom, width: 1080, height: bottom };
+      }
+      return origRect.call(this);
+    };
+    return () => {
+      Element.prototype.getBoundingClientRect = origRect;
+      Object.defineProperty(window.screen, "availHeight", { value: 0, configurable: true });
+    };
+  };
+
+  const glassRow = () => new Map(diagRows()).get("glass check");
+
+  it("passes the glass check only when the frame reaches the bottom of the screen", () => {
+    renderBoard();
+
+    // The device's reported state: a frame ending at 790 against an 810 glass.
+    // FAIL, and the delta names the size of the discrepancy in CSS px — which
+    // at devicePixelRatio 2 is half the band in a photograph.
+    let restore = withFitBottom(790, 810);
+    try {
+      expect(glassRow()).toContain("fb-fit.bottom 790");
+      expect(glassRow()).toContain("availHeight 810");
+      expect(glassRow()).toContain("delta 20");
+      expect(glassRow()).toContain("FAIL");
+    } finally {
+      restore();
+    }
+
+    // The frame on the glass edge. PASS is exact equality, not a tolerance:
+    // a tolerance here is how a 20px band passes a check written to catch it.
+    restore = withFitBottom(810, 810);
+    try {
+      expect(glassRow()).toContain("delta 0");
+      expect(glassRow()).toContain("PASS");
+      expect(glassRow()).not.toContain("FAIL");
+    } finally {
+      restore();
+    }
+  });
+
+  it("reports UNKNOWN rather than PASS where it cannot run", () => {
+    // jsdom's screen.availHeight is 0 and every rect is 0x0, so `0 - 0 === 0`
+    // would print a green PASS on every machine that cannot actually perform
+    // the check. That is the exact class of false reassurance this row exists
+    // to end, so a missing witness is named as missing.
+    renderBoard();
+    expect(glassRow()).toContain("UNKNOWN");
+    expect(glassRow()).not.toContain("PASS");
   });
 
   it("reports the scale the code computed, not a fresh one", () => {
