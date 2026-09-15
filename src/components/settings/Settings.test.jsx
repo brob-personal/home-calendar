@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Settings } from "./Settings.jsx";
 import { ModeContext } from "../../state/ModeContext.js";
 import { DEFAULT_SETTINGS, DEFAULT_MEMBERS } from "../../contracts/defaults.js";
+import { isColourProbeOn, setColourProbe } from "../shell/FitDiag.jsx";
 
 /*
   Unlike renderSettings() below, this wrapper keeps `settings` in real state
@@ -356,5 +357,67 @@ describe("Settings' per-person Drive folder id field", () => {
     const updater = setMembers.mock.calls.at(-1)[0];
     const result = updater(DEFAULT_MEMBERS);
     expect(result.find((m) => m.id === member.id).photoDriveFolderId).toBe("x");
+  });
+});
+
+
+/*
+  The colour probe's switch, which #60 made the only one.
+
+  It used to be a one-way button: Settings turned the probe on, and a four-tap
+  in the top-left corner of the glass turned it off again. Retiring the gesture
+  took that way off with it, and the only remaining alternative was a reload —
+  which on the wall board means the four-step Guided Access dance in
+  docs/DEVICE-SETUP.md §4. A diagnostic you cannot switch off from the device
+  it runs on is a worse bug than the one it was built to find, so these pin
+  both directions.
+*/
+describe("Settings' colour probe switch", () => {
+  afterEach(() => setColourProbe(false));
+
+  const renderWithClose = () => {
+    const onClose = vi.fn();
+    const modeState = {
+      mode: "personal",
+      setMode: vi.fn(),
+      roster: [],
+      views: [],
+      isRoommate: false,
+    };
+    const view = render(
+      <ModeContext.Provider value={modeState}>
+        <Settings
+          settings={DEFAULT_SETTINGS}
+          setSettings={vi.fn()}
+          members={DEFAULT_MEMBERS}
+          setMembers={vi.fn()}
+          onClose={onClose}
+        />
+      </ModeContext.Provider>,
+    );
+    return { onClose, ...view };
+  };
+
+  it("turns the probe on and closes the sheet, because the sheet covers the board", () => {
+    const { onClose } = renderWithClose();
+
+    fireEvent.click(screen.getByText("Colour probe on"));
+
+    expect(isColourProbeOn()).toBe(true);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("offers the way back off, and stays open to do it", () => {
+    // The probe deliberately outlives the sheet that started it, so a reopened
+    // Settings has to read the live state rather than assume it is off.
+    setColourProbe(true);
+    const { onClose } = renderWithClose();
+
+    expect(screen.queryByText("Colour probe on")).toBeNull();
+    fireEvent.click(screen.getByText("Colour probe off"));
+
+    expect(isColourProbeOn()).toBe(false);
+    // Nothing to go and look at, so there is no reason to dismiss the sheet.
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

@@ -15,23 +15,12 @@
   the wall which of them the device was actually running. A reading that does
   not carry a SHA is not evidence about a build.
 
-  BUILD_STAMP is the compact form for the always-on corner badge, where the
-  space is a dozen characters wide and has to stay legible in a photograph
-  taken across a room: the SHA, then the build's month-day and UTC hour-minute.
-  The overlay prints BUILD_TIME in full.
+  There used to be a third export, BUILD_STAMP — a compacted `SHA 0915.1420Z`
+  sized for the always-on corner badge. The badge is gone (#60) and nothing
+  else ever wanted the abbreviated form, so it went with it. Settings ->
+  Display diagnostics prints both values below in full, which is the only
+  place either is read now.
 */
 export const BUILD_SHA = typeof __BUILD_SHA__ === "string" ? __BUILD_SHA__ : "nodefine";
 
 export const BUILD_TIME = typeof __BUILD_TIME__ === "string" ? __BUILD_TIME__ : "nodefine";
-
-/*
-  `2026-09-15T14:20:31.902Z` -> `0915.1420Z`. Sliced off the ISO string rather
-  than reformatted through Date, so a placeholder value passes through as
-  itself instead of becoming "Invalid Date".
-*/
-function compactTime(iso) {
-  const m = /^\d{4}-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso);
-  return m ? `${m[1]}${m[2]}.${m[3]}${m[4]}Z` : iso;
-}
-
-export const BUILD_STAMP = `${BUILD_SHA} ${compactTime(BUILD_TIME)}`;

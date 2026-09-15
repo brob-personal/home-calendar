@@ -457,6 +457,28 @@ describe("Fit", () => {
     expect(fit.style.width).toBe("");
   });
 
+  it("puts nothing on the board but the canvas", () => {
+    /*
+      The frame used to mount a diagnostic surface beside .fb-device: an
+      always-on build badge pinned over the bottom-left of the glass, and a
+      capture-phase pointerdown listener on the window counting taps in the
+      top-left corner. Both were right for a board with an unexplained grey
+      band on it and neither is right for one without (#60).
+
+      Asserted as "the frame has exactly one child" rather than "no badge",
+      because the failure to guard against is the next always-on overlay, not
+      this one coming back under the same name. The diagnostics themselves are
+      not gone — Settings -> Display diagnostics renders the same rows — they
+      just no longer put anything on the board unasked.
+    */
+    setViewport(DEVICE_W, DEVICE_H);
+    const { fit } = renderFit();
+
+    expect(fit.children).toHaveLength(1);
+    expect(fit.children[0]).toHaveClass("fb-device");
+    expect(document.querySelector("[data-fb-build]")).toBeNull();
+  });
+
   it("hands the page back to the stylesheet when the board unmounts", () => {
     setViewport(DEVICE_W, 790);
     const { unmount } = render(
