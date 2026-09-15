@@ -86,21 +86,26 @@ describe("board stylesheet", () => {
     expect(day + sheet).not.toMatch(/#C43A33|#E0574F/i);
   });
 
-  it("bleeds the frame past the screen rather than trying to equal it", () => {
-    // The grey band at the bottom of the board, third occurrence. Both
-    // earlier fixes made .fb-fit equal the viewport more precisely, and the
-    // band came back both times, because the layout viewport is not
-    // guaranteed to be the glass to the pixel on every iPadOS build. The
-    // frame overshoots on all four sides now and clips the excess, so body's
-    // identical grey has no edge to appear at. A literal `inset: 0` here
-    // would be that bug walking back in.
-    expect(fit).toContain("inset: calc(-1 * var(--fit-bleed))");
+  it("extends the frame past the bottom of the viewport, flush on the other three", () => {
+    // The grey band along the bottom of the board, fourth attempt. The first
+    // three each made .fb-fit match the viewport more precisely and the band
+    // came back every time, because the layout viewport is itself short of
+    // the glass on this device. The fourth overshot all four sides equally,
+    // and the band surviving *at the bottom only* is what identified it: the
+    // canvas is centred in the frame, so a frame centred in the screen can
+    // only ever produce symmetric gaps. One-sided means top-anchored and
+    // short at the bottom, so that is where the overshoot belongs.
+    expect(fit).toContain("height: calc(100% + var(--fit-extend-b))");
+    expect(BOARD_CSS).toContain("--fit-extend-b:");
+    // Anchored at the top: the extension must lengthen the frame downward,
+    // not recentre it, or the gap comes back split across both edges.
+    expect(fit).toContain("top: 0");
+    expect(fit).toContain("left: 0");
+    // The three declarations this replaced, each of which was a version of
+    // the bug: a bare viewport unit, an exact-fit inset, a symmetric bleed.
     expect(fit).not.toContain("inset: 0");
-    expect(BOARD_CSS).toContain("--fit-bleed:");
-    // Symmetric, so the overshoot cannot be reintroduced on one edge only.
-    for (const edge of ["top", "right", "bottom", "left"]) {
-      expect(fit).not.toContain(`${edge}: -`);
-    }
+    expect(fit).not.toContain("--fit-bleed");
+    expect(fit).not.toContain("100dvh");
   });
 
   it("derives the dock offset instead of restating it", () => {
