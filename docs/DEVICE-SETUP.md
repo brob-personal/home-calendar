@@ -94,59 +94,51 @@ before a fresh load re-derives it), that's a manual repeat of the four steps
 above; there's no in-app or Shortcuts equivalent to closing and reopening a
 standalone PWA.
 
-## 5. Build identity and the diagnostic overlay
+## 5. Diagnostics
 
-Two things on the board exist only to be read off the wall. Both are there
-because of §4: the board cannot be reloaded without the four-step dance
-above, so nothing about a photograph of the screen tells you which build took
-it, and Guided Access allows taps inside the app and nothing else, so there is
-no address bar to put a `?diag` flag in.
+Settings → **Display diagnostics** is where the board reports on itself. It
+shows the running build's commit SHA and build time, every width and height the
+platform will report, the resolved safe-area insets, the rectangles of all four
+layout boxes with all four edges, the transform actually applied to the canvas,
+and the scale the code computed alongside every signal that fed it.
 
-**The build badge** is the small dark pill in the bottom-left corner. It shows
-the short commit SHA and the build's date and UTC time — `7096823 0915.1420Z`.
-It is always on screen. If you are reporting anything about how the board
-looks, include the badge in the photograph or the report cannot be tied to a
-build.
+The row worth knowing is **glass check**. It compares where `.fb-fit`'s bottom
+edge actually is against how tall the screen says it is, and it is the only
+check in the board that measures the page against the *device* rather than
+against another part of the page:
 
-The badge does one more thing for free. It is pinned to the *bottom of the
-layout viewport*, and its bottom 2px are lime. So the lime line marks where
-the page believes the screen ends:
+- `delta 0  PASS` — the board reaches the bottom of the glass. This is the
+  expected reading on the wall iPad.
+- `delta 20  FAIL` — the grey band along the bottom is back. That number is in
+  CSS px, so at this panel's 2x it is half the band you can see.
+- `UNKNOWN` — the check could not run, because `screen.availHeight` was
+  unavailable. Not a pass.
 
-- Grey **below** the lime line — the page's viewport stops short of the glass.
-  Those pixels were never given to the page, and nothing in the stylesheet can
-  reach them.
-- Grey **starting at** the lime line — the page has those pixels and is
-  painting them itself.
+**Colour probe** recolours every layer that could paint an edge and removes the
+month gradient above them, so a stray edge names its own owner: **magenta** is
+the frame (`.fb-fit`), **yellow** the board root, **cyan** the stage,
+**orange** the body, **lime** outside the body altogether. If an edge stays
+neutral grey under the probe, *nothing in the page paints it* — the page either
+never receives those pixels or does not get the last word on them, and no CSS
+length in this repository will move it.
 
-**The diagnostic overlay** is reached by tapping the **top-left corner of the
-screen** (roughly the top-left 56px, over the board's own margin):
+The button closes the sheet when it turns the probe on, because the sheet
+covers the board and the board is the thing being looked at. Open Settings
+again and the same button reads **Colour probe off**. That matters here: a
+reload is the only other way out of it, and a reload behind Guided Access is
+the four-step dance in §4.
 
-- **Three taps** toggle a full-screen readout: build identity, every width and
-  height the platform will report, the resolved safe-area insets, the
-  rectangles of all four layout boxes with all four edges, the transform
-  actually applied to the canvas, the scale the code computed and every signal
-  that fed it, and the background colour of every layer. Three taps again
-  closes it. There are also `RE-READ`, `COLOUR PROBE` and `CLOSE` buttons
-  along its top.
-- **Four taps** toggle the colour probe. It recolours every layer that could
-  paint an edge and removes the month gradient above them, so a stray edge
-  names its own owner: **magenta** is the frame (`.fb-fit`), **yellow** the
-  board root, **cyan** the stage, **orange** the body, **lime** outside the
-  body altogether. If the edge stays neutral grey under the probe, *nothing in
-  the page paints it* — the page either never receives those pixels or does not
-  get the last word on them, and no CSS length in this repository will move it.
+If you are reporting anything about how the board looks, include the SHA from
+this panel — the board cannot be reloaded casually, so a photograph with no
+build identity attached cannot be tied to the code that produced it.
 
-The count resolves about half a second after you stop tapping, so a four-tap
-does not open the overlay on its way past three. Both toggle, because there is
-no way out of a stuck overlay on a pinned board short of §4. The probe lasts
-until you four-tap again or the board is reloaded.
-
-Neither gesture blocks anything. The taps are counted by watching for them, not
-by putting a target in the corner, so they still reach whatever is underneath —
-including the wake tap on a sleeping board.
-
-Settings → Display diagnostics has the same readout in text form, for a desk
-browser where a four-tap in the corner is a strange thing to ask for.
+> **Retired.** Until #60 the board also carried an always-on build badge in the
+> bottom-left corner and a tap gesture in the top-left — three taps for a
+> full-screen readout, four for the colour probe. Both existed because the grey
+> band had survived eight fixes and needed to be diagnosed from a step ladder.
+> The band is fixed, and a working appliance should not carry a pill over its
+> own corner or watch every tap in the page. The readout they delivered is the
+> Settings panel above, unchanged.
 
 ## Done when
 

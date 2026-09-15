@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
 import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
-import { DiagSurface } from "./DiagSurface.jsx";
 // The scale and the signals behind it are recorded for the diagnostic overlay
 // rather than recomputed by it — see recordFitSignals' comment for why a
 // second measurement would not be the same observation. safeAreaInsets is the
@@ -394,21 +393,18 @@ export function Fit({ children }) {
     */
     <div className="fb-fit" ref={ref} style={{ height: frame.h > 0 ? `${frame.h}px` : undefined }}>
       {/*
-        The build badge and the diagnostic gesture. Always mounted — the badge
-        is meant to be on screen in every photograph of the wall, and the
-        gesture is the only way to reach the overlay on a device with no
-        address bar.
+        The build badge and the corner tap gesture used to mount here. They are
+        gone: the grey band they were built to diagnose is fixed (#59), and an
+        always-on pill over the bottom-left of the board plus a listener on
+        every pointerdown in the page are not things a working appliance should
+        carry for a bug that no longer exists.
 
-        Inside .fb-fit and outside .fb-device, and both halves of that matter.
-        Outside .fb-device because it reports the numbers the canvas is scaled
-        against and must not itself be scaled by them — and because a transform
-        makes its subtree the containing block for `position: fixed`
-        descendants, so a badge mounted in there would be pinned to the canvas
-        rather than to the glass, which is the one thing it exists to tell
-        apart. Inside .fb-fit because .fb-fit carries no transform, so fixed
-        positioning there still resolves against the viewport.
+        The instrumentation behind them is kept and is still reachable, in
+        Settings → Display diagnostics. That is the readout, the glass check
+        and the colour probe — everything except the two surfaces that were on
+        the board whether anyone wanted them or not. recordFitSignals below is
+        what feeds it.
       */}
-      <DiagSurface />
       {/*
         scale() before translate() is load-bearing. The transform list
         composes as scale x translate, so the offsets are scaled with it, per

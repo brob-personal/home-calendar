@@ -8,7 +8,7 @@ import { useMode } from "../../state/ModeContext.js";
 import { fetchAccessRole } from "../../data/google.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { Sheet } from "../shell/Sheet.jsx";
-import { diagRows, setColourProbe } from "../shell/FitDiag.jsx";
+import { diagRows, isColourProbeOn, setColourProbe } from "../shell/FitDiag.jsx";
 import { Field } from "../shell/Field.jsx";
 
 /* "Roommate" reads better than the raw mode id in a UI label; every other
@@ -68,6 +68,13 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
      person's own row. Keyed by `${mode}-${i}` so a mode switch can't make a
      stale index from one mode's list pin the wrong row in the other's. */
   const [pinnedJointRows, setPinnedJointRows] = useState(() => new Set());
+  /*
+    Seeded from the DOM rather than held as the source of truth: setColourProbe
+    keeps its state in an injected <style> element so the probe can outlive the
+    sheet that turned it on, which is the whole point of it — the board has to
+    be visible to be photographed. This is only what the button labels itself.
+  */
+  const [probeOn, setProbeOn] = useState(isColourProbeOn);
 
   const set = (k, v) => setSettings((s) => ({ ...s, [k]: v }));
   const setMember = (id, patch) =>
@@ -626,20 +633,21 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
       </Field>
 
       {/*
-        Display diagnostics — the second way in, kept for the case where
-        someone is already in Settings and for a desktop browser where a
-        four-tap in the corner is a strange thing to ask for.
+        Display diagnostics — now the only way in, and the reason the button
+        below is a toggle rather than the one-way switch it used to be.
 
-        The gesture is the primary entry point: three taps in the top-left
-        corner of the glass open the full-screen overlay, four toggle the
-        colour probe (src/components/shell/DiagSurface.jsx). That is what the
-        wall board actually has — no address bar for `?diag`, and Guided
-        Access allows nothing but taps inside the app.
+        It was the second entry point. The first was a corner tap gesture and
+        an always-on build badge, both retired in #60 once the grey band along
+        the bottom of the board was actually fixed; a working appliance should
+        not carry a pill over its own bottom-left corner and a listener on
+        every pointerdown in the page for a bug that no longer exists.
 
-        The rows here are the same payload the overlay prints, rendered inside
-        the scaled canvas at canvas-px size. They are readable on a desk and
-        too small to photograph from a step ladder, which is why the overlay
-        exists as well rather than instead.
+        What that costs is the four-tap that used to turn the colour probe back
+        off, and on a wall board that matters more than it sounds: the only
+        other way off was a reload, which behind Guided Access is the four-step
+        dance in docs/DEVICE-SETUP.md §4. So the probe is switched from here in
+        both directions. Leaving a one-way button that strands the board in
+        magenta and lime would have been the real regression in this change.
       */}
       <Field label="Display diagnostics">
         <pre
@@ -658,20 +666,24 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           <button
             className="fb-chip"
             onClick={() => {
-              setColourProbe(true);
-              onClose();
+              const next = !isColourProbeOn();
+              setColourProbe(next);
+              setProbeOn(next);
+              // Turning it on closes the sheet, because the sheet covers the
+              // board and the board is the thing being looked at. Turning it
+              // off leaves you here, where the readout above is.
+              if (next) onClose();
             }}
           >
-            Colour probe on
+            {probeOn ? "Colour probe off" : "Colour probe on"}
           </button>
         </div>
         <p className="fb-note">
-          The probe closes this sheet so the board is visible, recolours every layer that could
-          paint an edge, and lasts until the board is reloaded or a four-tap in the top-left corner
-          turns it off. A stray edge that comes up <b>magenta</b> is the frame, <b>yellow</b> the
-          board root, <b>cyan</b> the stage, <b>orange</b> the body, <b>lime</b> outside the body
-          altogether. If it stays neutral grey, nothing in the page paints it and no CSS length here
-          can move it.
+          The probe recolours every layer that could paint an edge and closes this sheet so the
+          board is visible. It lasts until you switch it off here again or the board is reloaded. A
+          stray edge that comes up <b>magenta</b> is the frame, <b>yellow</b> the board root,{" "}
+          <b>cyan</b> the stage, <b>orange</b> the body, <b>lime</b> outside the body altogether. If
+          it stays neutral grey, nothing in the page paints it and no CSS length here can move it.
         </p>
       </Field>
 

@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-
 import { BUILD_SHA, BUILD_TIME } from "../../lib/build.js";
 import { CANVAS_W, CANVAS_H, DEVICE_W, DEVICE_H } from "../../lib/canvas.js";
 
@@ -42,9 +40,20 @@ import { CANVAS_W, CANVAS_H, DEVICE_W, DEVICE_H } from "../../lib/canvas.js";
   the rows distinguish nothing but report everything, so the next pass starts
   from a measurement instead of a guess.
 
-  This replaces a narrower version of the same idea. That one was reachable
-  only through `?diag` — untypeable on a home-screen app with no address bar —
-  then through Settings, and it tinted two layers with inline styles. Inline
+  It worked. The probe photographed the band as the page's own background,
+  which ruled out C; #58 found the layout viewport reporting 20px short of the
+  glass, and #59 gave the frame and the page's own boxes the derived height
+  rather than `height: 100%`. The glass check reads PASS, delta 0 on the wall.
+  The account above is left as written because it is the reasoning that ended
+  a nine-pass sequence, and because the probe is still the fastest way to
+  answer the same question if an edge ever comes back.
+
+  How it is reached has been through three versions: `?diag`, untypeable on a
+  home-screen app with no address bar; then a corner tap gesture and an
+  always-on build badge, retired in #60 with the band that justified them; and
+  now Settings -> Display diagnostics, which was there the whole time and is
+  the one entry point that never needed to be discovered. The first version
+  also tinted two layers with inline styles. Inline
   styles were the wrong mechanism twice over: React owns the `style` attribute
   on `.fb-root` (App.jsx's palette custom properties) and on `.fb-art` (the
   month gradient), so an imperative write to either is erased by the next
@@ -64,8 +73,8 @@ import { CANVAS_W, CANVAS_H, DEVICE_W, DEVICE_H } from "../../lib/canvas.js";
   most worth being able to see.
 
   Lives here rather than in Fit.jsx so the import runs one way: Fit.jsx imports
-  the recorder, DiagSurface.jsx imports the overlay, and nothing imports
-  Fit.jsx back.
+  the recorder, Settings.jsx imports the readout, and nothing imports Fit.jsx
+  back.
 */
 export const fitSignals = {
   measured: null,
@@ -363,87 +372,20 @@ export function setColourProbe(on) {
 }
 
 /*
-  The full-screen readout.
+  The full-screen overlay that used to live here is gone, along with the corner
+  tap gesture that was its only way in (#60). It existed because the wall board
+  has no address bar and no keyboard, so a readout that had to be photographed
+  from a step ladder needed to be large, opaque and reachable from a tap — and
+  because the grey band along the bottom of the board had survived eight fixes
+  and nothing on screen said which build was being looked at.
 
-  Opaque and covering, because it has to be photographed and a translucent
-  overlay over a month gradient is not readable. Large bold monospace for the
-  same reason: the useful artefact here is a phone photo of a wall-mounted
-  iPad, not a screenshot on a desk.
+  That band is fixed. What is left in this file is the instrumentation rather
+  than the presentation: diagRows is the payload, safeAreaInsets and
+  recordFitSignals are the two readings that only this module knows how to
+  take, and setColourProbe still names every layer that could paint an edge.
+  Settings -> Display diagnostics renders all of it, which is a second entry
+  point that was always there and does not require a gesture to be discovered.
 
-  Everything is on one screen with no scrolling. Thirty-odd rows at 15px/1.45
-  is about 610px of the panel's 810, which leaves room for the header and the
-  buttons — and a readout that needs scrolling to be read completely is a
-  readout that will be reported incompletely.
+  If a board on a wall ever needs the photographable version back, it is in the
+  history at f54ab69 — but bring back the readout, not the always-on badge.
 */
-export function FitDiag({ onClose, onProbe }) {
-  const [rows, setRows] = useState(diagRows);
-
-  useEffect(() => {
-    // Re-read once layout has settled and again on anything that could move
-    // the viewport. rAF rather than an immediate read because the rects are
-    // the point of this and the overlay's own first commit is not painted yet.
-    const read = () => setRows(diagRows());
-    const raf = requestAnimationFrame(read);
-    const settle = setTimeout(read, 600);
-    window.addEventListener("resize", read);
-    window.addEventListener("orientationchange", read);
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(settle);
-      window.removeEventListener("resize", read);
-      window.removeEventListener("orientationchange", read);
-    };
-  }, []);
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 2147483640,
-        background: "#000",
-        color: "#fff",
-        padding: "10px 14px",
-        font: "700 15px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace",
-        overflow: "hidden",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 4 }}>
-        <div style={{ fontSize: 24, letterSpacing: "-.01em" }}>{BUILD_SHA}</div>
-        <div style={{ fontSize: 13, opacity: 0.75 }}>{BUILD_TIME}</div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <button style={BTN} onClick={() => setRows(diagRows())}>
-            RE-READ
-          </button>
-          <button style={BTN} onClick={onProbe}>
-            COLOUR PROBE
-          </button>
-          <button style={BTN} onClick={onClose}>
-            CLOSE
-          </button>
-        </div>
-      </div>
-
-      {/*
-        One pre-formatted block rather than a table: it is the layout that
-        survives being photographed at an angle, and the label column lines up
-        without anything having to measure anything.
-      */}
-      <div style={{ whiteSpace: "pre", columnGap: 24 }}>
-        {rows.map(([label, value]) => `${label.padEnd(17)}${value}`).join("\n")}
-      </div>
-    </div>
-  );
-}
-
-// 44px minimum on the short axis, like every other control on the board —
-// these get tapped through Guided Access with no keyboard and no pointer.
-const BTN = {
-  font: "700 13px/1 ui-monospace, Menlo, monospace",
-  color: "#000",
-  background: "#fff",
-  border: 0,
-  borderRadius: 6,
-  padding: "0 14px",
-  minHeight: 44,
-};
