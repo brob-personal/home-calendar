@@ -39,9 +39,11 @@ import { CANVAS_W, CANVAS_H, DEVICE_W, DEVICE_H } from "../../lib/canvas.js";
      that survives the frame being exact, the frame being padded, and the
      canvas being pinned.
 
-  Gated on a `?diag` query parameter rather than a build flag or a setting, so
-  it costs the wall board nothing, needs no redeploy to turn on or off, and
-  cannot be left on by accident — closing and reopening the board drops it.
+  The `?diag` overlay below is for a browser. It was a mistake as the only
+  entry point: the board runs as a home-screen app with no address bar, so a
+  URL flag is literally untypeable on the wall. viewportRows and tintLayers
+  are exported for Settings, which is reachable there — see the Display field
+  in ../settings/Settings.jsx.
 */
 const DIAG_PARAM = "diag";
 
@@ -57,10 +59,32 @@ export function diagRequested() {
 
 const box = (el) => {
   const r = el?.getBoundingClientRect();
-  return r ? `${Math.round(r.width)}x${Math.round(r.height)} @y${Math.round(r.top)}..${Math.round(r.bottom)}` : "—";
+  if (!r) return "—";
+  const n = (v) => Math.round(v);
+  return `${n(r.width)}x${n(r.height)} @y${n(r.top)}..${n(r.bottom)}`;
 };
 
-function readAll() {
+/*
+  The safe-area insets, which are the one quantity describing the difference
+  between the viewport and the glass and the one thing none of Fit.jsx's JS
+  signals can see. Read through a throwaway element because there is no JS API
+  for env() — the computed padding is the resolved inset.
+*/
+function safeAreaInsets() {
+  if (typeof document === "undefined") return "—";
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;left:-9999px;top:0;" +
+    "padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px)" +
+    " env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);";
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe);
+  const out = `t${cs.paddingTop} r${cs.paddingRight} b${cs.paddingBottom} l${cs.paddingLeft}`;
+  probe.remove();
+  return out.replace(/px/g, "");
+}
+
+export function viewportRows() {
   if (typeof window === "undefined") return [];
   const doc = document.documentElement;
   const vv = window.visualViewport;
@@ -70,21 +94,49 @@ function readAll() {
     ["screen", `${window.screen?.width}x${window.screen?.height}  dpr ${window.devicePixelRatio}`],
     ["window.inner", `${window.innerWidth}x${window.innerHeight}`],
     ["doc.client", `${doc?.clientWidth}x${doc?.clientHeight}`],
-    ["visualViewport", vv ? `${Math.round(vv.width)}x${Math.round(vv.height)} off ${Math.round(vv.offsetTop)}` : "—"],
+    [
+      "visualViewport",
+      vv
+        ? `${Math.round(vv.width)}x${Math.round(vv.height)} off ${Math.round(vv.offsetTop)}`
+        : "—",
+    ],
     [".fb-fit", box(fit)],
     [".fb-device", box(device)],
     ["canvas const", `${CANVAS_W}x${CANVAS_H}`],
     ["device const", `${DEVICE_W}x${DEVICE_H}`],
     [
       "standalone",
-      `${window.navigator?.standalone} / ${window.matchMedia?.("(display-mode: standalone)")?.matches}`,
+      `${window.navigator?.standalone} / ` +
+        `${window.matchMedia?.("(display-mode: standalone)")?.matches}`,
     ],
     ["orientation", `${window.orientation ?? "—"}`],
+    ["safe-area", safeAreaInsets()],
   ];
 }
 
+/*
+  The decisive test, made reachable. Only two rules paint --frame-bg and they
+  are the same #D9DBE0, so a stray edge cannot be attributed to either by
+  looking at it. Tinted, it can:
+
+    magenta    -> body, below a .fb-fit short of the screen. The frame.
+    lime       -> .fb-fit, below a canvas short of the frame. The scale.
+    unchanged  -> neither, so it is not the page at all.
+
+  Applied straight to the nodes and left on until the next reload rather than
+  held in React state: the Settings sheet covers the board, so the tint has to
+  outlive closing it to be worth anything, and a wall board that reloads back
+  to normal is the right way for this to end.
+*/
+export function tintLayers() {
+  if (typeof document === "undefined") return;
+  document.body.style.background = "magenta";
+  const fit = document.querySelector(".fb-fit");
+  if (fit) fit.style.background = "lime";
+}
+
 export function FitDiag() {
-  const [rows, setRows] = useState(readAll);
+  const [rows, setRows] = useState(viewportRows);
 
   useEffect(() => {
     // The layer colours. Set on the live nodes rather than in the stylesheet
@@ -92,13 +144,12 @@ export function FitDiag() {
     const fit = document.querySelector(".fb-fit");
     const prevBody = document.body.style.background;
     const prevFit = fit?.style.background;
-    document.body.style.background = "magenta";
-    if (fit) fit.style.background = "lime";
+    tintLayers();
 
     // Re-read after layout has settled, then on anything that could move the
     // viewport. rAF rather than an immediate read because .fb-device's rect is
     // the point of this and it is not painted yet on the first commit.
-    const read = () => setRows(readAll());
+    const read = () => setRows(viewportRows());
     const raf = requestAnimationFrame(read);
     const t = setTimeout(read, 600);
     window.addEventListener("resize", read);

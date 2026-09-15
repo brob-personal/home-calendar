@@ -8,6 +8,7 @@ import { useMode } from "../../state/ModeContext.js";
 import { fetchAccessRole } from "../../data/google.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { Sheet } from "../shell/Sheet.jsx";
+import { viewportRows, tintLayers } from "../shell/FitDiag.jsx";
 import { Field } from "../shell/Field.jsx";
 
 /* "Roommate" reads better than the raw mode id in a UI label; every other
@@ -619,6 +620,53 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           month&apos;s artwork. Find the id in the folder&apos;s share link &mdash;
           drive.google.com/drive/folders/<b>this part</b>. Leave it empty to keep the month art.
           Only image files are shown; the board can read the folder but never edits it.
+        </p>
+      </Field>
+
+      {/*
+        Display diagnostics. Here, and not behind the ?diag query parameter
+        this started as, because the board runs as a home-screen app with no
+        address bar — a URL flag is untypeable on the wall, which made the
+        original entry point useless exactly where it was needed.
+
+        Both halves answer the same question about the grey band along the
+        bottom of the board. The rows are every height and width the platform
+        will report, including .fb-device's painted rect, so the board's real
+        bottom edge can be compared against the real screen. The button tints
+        the only two layers that paint --frame-bg, which are the same #D9DBE0
+        and so cannot be told apart by looking: the band turning magenta means
+        body below a short frame, lime means the frame below a short canvas,
+        and staying grey means neither and therefore not the page at all.
+      */}
+      <Field label="Display diagnostics">
+        <pre
+          style={{
+            whiteSpace: "pre",
+            margin: 0,
+            font: "600 12px/1.6 ui-monospace, Menlo, monospace",
+            color: "var(--ink)",
+          }}
+        >
+          {viewportRows()
+            .map(([label, value]) => `${label.padEnd(15)}${value}`)
+            .join("\n")}
+        </pre>
+        <div className="fb-inline">
+          <button
+            className="fb-chip"
+            onClick={() => {
+              tintLayers();
+              onClose();
+            }}
+          >
+            Tint frame layers
+          </button>
+        </div>
+        <p className="fb-note">
+          Tinting closes this sheet so the board is visible, and lasts until the board is
+          reloaded. If a stray edge turns <b>magenta</b> the frame is short of the screen; if it
+          turns <b>lime</b> the canvas is short of the frame; if it stays grey it is not being
+          painted by the board at all.
         </p>
       </Field>
 

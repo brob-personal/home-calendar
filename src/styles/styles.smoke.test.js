@@ -91,11 +91,16 @@ describe("board stylesheet", () => {
     // this one rule, and they converged on the frame not being the place to
     // fix it: Fit.jsx pins the canvas to the panel's known height now, so the
     // frame is back to a plain `inset: 0` with no padding and no floor.
-    expect(fit).toContain("position: fixed; inset: 0");
+    expect(fit).toContain("height: calc(100% + env(safe-area-inset-bottom, 0px))");
     expect(fit).not.toContain("--fit-extend-b");
     expect(fit).not.toContain("100dvh");
     expect(fit).not.toContain("100vh");
     expect(fit).not.toContain("min-height");
+    // The board's own drop shadow painted into the gap along the bottom once
+    // .fb-fit stopped clipping it, tinting --frame-bg's #D9DBE0 toward
+    // #B2B4B8 — darker and more visible than the grey it sits on. It was
+    // decoration for a dev window and it is gone.
+    expect(fit).not.toContain("box-shadow");
     // The one line that still matters. The canvas is DEVICE_H tall whatever
     // the frame resolves to, so a frame that comes up short must not clip it
     // — that would put the band straight back, the frame cutting off the
