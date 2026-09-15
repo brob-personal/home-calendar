@@ -47,6 +47,10 @@
   FAB floats over the calendar's bottom-right corner the way a floating
   action button is supposed to.
 
+  --fit-bleed is the one token here measured in *screen* px rather than canvas
+  px: it sizes .fb-fit, which lives outside the canvas and is never scaled.
+  See styles/shell/Fit.js for what it is for.
+
   --dock-bottom is unchanged and never read --stage-gap-b: it clears
   --board-pad-b plus 8px, which is why retiring the strip does not move the
   FAB. (`--stage-gap-b`'s sibling duplication, `.fb-axis`'s left margin
@@ -98,6 +102,7 @@ export default `
   --warn-bg: #E8A33D;
   --warn-ink: #8A5A16;
 
+  --fit-bleed: 8px;
   --board-gap: 14px;
   --board-pad-b: 18px;
   --dock-bottom: calc(var(--board-pad-b) + 8px);

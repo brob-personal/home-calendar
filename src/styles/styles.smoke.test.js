@@ -86,6 +86,23 @@ describe("board stylesheet", () => {
     expect(day + sheet).not.toMatch(/#C43A33|#E0574F/i);
   });
 
+  it("bleeds the frame past the screen rather than trying to equal it", () => {
+    // The grey band at the bottom of the board, third occurrence. Both
+    // earlier fixes made .fb-fit equal the viewport more precisely, and the
+    // band came back both times, because the layout viewport is not
+    // guaranteed to be the glass to the pixel on every iPadOS build. The
+    // frame overshoots on all four sides now and clips the excess, so body's
+    // identical grey has no edge to appear at. A literal `inset: 0` here
+    // would be that bug walking back in.
+    expect(fit).toContain("inset: calc(-1 * var(--fit-bleed))");
+    expect(fit).not.toContain("inset: 0");
+    expect(BOARD_CSS).toContain("--fit-bleed:");
+    // Symmetric, so the overshoot cannot be reintroduced on one edge only.
+    for (const edge of ["top", "right", "bottom", "left"]) {
+      expect(fit).not.toContain(`${edge}: -`);
+    }
+  });
+
   it("derives the dock offset instead of restating it", () => {
     expect(BOARD_CSS).toContain("--dock-bottom: calc(var(--board-pad-b) + 8px)");
     expect(BOARD_CSS).not.toContain("bottom: 92px");

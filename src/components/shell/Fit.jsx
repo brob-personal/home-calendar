@@ -21,18 +21,24 @@ import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
   their weight at 1.2x — a covering scale needs the frame measured exactly as
   much as a 1:1 one did:
 
-  1. Measure .fb-fit, not the window. The frame is `position: fixed; inset:
-     0` now, so it *is* the layout viewport — but it is also the box the
-     canvas actually has to cover, and measuring the thing you must cover is
-     what makes covering it exact. The previous version instead set .fb-fit's
-     own height from window.innerHeight; when innerHeight came back 20px
-     short of the screen under viewport-fit=cover, the frame ended 20px above
-     the bottom edge and body's identical grey showed through beneath it.
-     getBoundingClientRect was rejected on the last pass for measuring a
-     `100dvh` box against a `height: 100%` parent — two disagreeing height
-     sources. With `inset: 0` there is only one source and that objection is
-     gone. window.innerWidth/innerHeight stays as the fallback for when the
+  1. Measure .fb-fit, not the window. It is the box the canvas actually has
+     to cover, and measuring the thing you must cover is what makes covering
+     it exact. The previous version instead set .fb-fit's own height from
+     window.innerHeight; when innerHeight came back 20px short of the screen
+     under viewport-fit=cover, the frame ended 20px above the bottom edge and
+     body's identical grey showed through beneath it. getBoundingClientRect
+     was rejected on the pass before that for measuring a `100dvh` box
+     against a `height: 100%` parent — two disagreeing height sources — and
+     that objection went away when the frame stopped carrying a height of its
+     own. window.innerWidth/innerHeight stays as the fallback for when the
      rect is unmeasurable (jsdom, and the first paint before layout).
+
+     Measuring is now the only option rather than the better one: the frame
+     is deliberately *larger* than the viewport (`inset` is negative by
+     --fit-bleed, see src/styles/shell/Fit.js), so its size is no longer a
+     quantity any window property reports. The fallback is correspondingly a
+     little small, which is harmless — it is one paint, and erring small
+     letterboxes for a frame rather than cropping.
 
   2. Cover both axes instead of `Math.min` on one. A single uniform scale
      letterboxes the moment the frame is not exactly 4:3, and it never quite
