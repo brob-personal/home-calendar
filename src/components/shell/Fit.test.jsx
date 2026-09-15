@@ -131,9 +131,10 @@ describe("Fit", () => {
   it("leaves the frame's size to the stylesheet, so nothing can show behind it", () => {
     // The bottom band: .fb-fit used to carry an inline height measured from
     // window.innerHeight, which put body's grey in the gap whenever that came
-    // up short. `position: fixed; inset: 0` in Fit.js owns the size now, and
-    // is the layout viewport by definition — so there must be no inline size
-    // here to contradict it.
+    // up short. Fit.js owns the size now, and deliberately overshoots the
+    // viewport on all four sides (--fit-bleed) rather than trying to equal
+    // it — so there must be no inline size here to contradict that, and no
+    // amount of measuring may put one back.
     setViewport(1080, 790);
     const { fit } = renderFit();
 
