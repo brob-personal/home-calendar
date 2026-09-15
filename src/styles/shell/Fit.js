@@ -77,22 +77,40 @@ import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
     wedges out of the board and showed frame grey through them — the same
     class of artefact as the border this whole sequence removes.
 
-  The box-shadow stays. It is drawn outside the canvas, so on the device it
-  falls off the glass, while it still reads as a device frame in a letterboxed
-  dev window — which is now also the only place --frame-bg is ever visible.
+  - No box-shadow on .fb-device. It was there to read as a device frame in a
+    letterboxed dev window, and the argument for keeping it was that
+    `overflow: hidden` on .fb-fit clipped it away everywhere else. Pass 7 took
+    that clip off — it had to, or a short frame would have clipped the canvas
+    covering the glass — and the shadow has been painting into the gap along
+    the bottom ever since. `0 10px 40px rgba(20,24,32,.18)` over --frame-bg's
+    #D9DBE0 computes to #B2B4B8 at full strength and fades back to #D9DBE0
+    across the blur, which is exactly the light blue-grey the band was
+    measured at off a photo of the wall, and not the flat #D9DBE0 it read as
+    before. The shadow was never load-bearing and it is actively making the
+    remaining gap darker and easier to see than the grey it sits on, so it
+    goes. --shadow-device stays in tokens.js; nothing else reads it, but it is
+    the colour to restore if a dev-window frame is ever wanted back.
+
+  - `env(safe-area-inset-bottom)` added to the height. Every signal Fit.jsx
+    can read in JS describes the viewport, and the insets are the one quantity
+    that describes the difference between the viewport and the glass. On this
+    panel it should be 0 — a home button, no indicator — in which case this
+    declaration is identical to `inset: 0` and costs nothing. If it is not 0,
+    it is the answer, and measureFrame picks it up for free through .fb-fit's
+    rect.
 */
 export default `
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap');
 
 .fb-fit {
-  position: fixed; inset: 0;
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: calc(100% + env(safe-area-inset-bottom, 0px));
   background: var(--frame-bg);
 }
 .fb-device {
   position: absolute; left: 50%;
   width: ${CANVAS_W}px; height: ${CANVAS_H}px;
   transform-origin: 0 0;
-  box-shadow: 0 10px 40px var(--shadow-device);
   overflow: hidden;
 }
 `;
