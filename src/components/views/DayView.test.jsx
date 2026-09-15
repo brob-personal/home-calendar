@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { DayView } from "./DayView.jsx";
+import { trackColumnWidth, MIN_EVENT_COL_W, MORE_LANE_W } from "../../lib/layout.js";
 
 const MEMBERS = [{ id: "brian", name: "Brian", color: "#7EB6E8" }];
 const SETTINGS = { dayStart: 7, dayEnd: 21 };
@@ -171,11 +172,14 @@ describe("DayView overflow chip", () => {
   it("renders one readable block plus a chip rather than three slivers", () => {
     renderCrowdedDay(crowd);
     const a = screen.getByRole("button", { name: /Standup/ });
-    // 940/5 = 188px column, less the 34px chip lane, all of it to one block:
-    // 154px, comfortably over the 96px floor three even columns would break.
-    const COL_W = 940 / CROWD.length;
-    expect(pct(a.style.width)).toBeCloseTo(((COL_W - 34) / COL_W) * 100, 2);
-    expect((pct(a.style.width) / 100) * COL_W).toBeGreaterThanOrEqual(96);
+    // One member column, less the chip lane, all of it to one block —
+    // comfortably over the floor three even columns would break. Derived from
+    // layout.js rather than restated in px: those numbers move with the
+    // canvas size knob (src/lib/canvas.js) and this assertion is about the
+    // chip lane coming out of the column, not about any particular width.
+    const COL_W = trackColumnWidth(CROWD.length);
+    expect(pct(a.style.width)).toBeCloseTo(((COL_W - MORE_LANE_W) / COL_W) * 100, 2);
+    expect((pct(a.style.width) / 100) * COL_W).toBeGreaterThanOrEqual(MIN_EVENT_COL_W);
     // The two that lost their column are not rendered as boxes at all.
     expect(screen.queryByRole("button", { name: /Sync/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Test 3/ })).toBeNull();

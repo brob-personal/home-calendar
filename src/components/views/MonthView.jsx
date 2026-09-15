@@ -133,7 +133,7 @@ export function MonthView({
     const grid = gridRef.current;
     if (!grid || typeof ResizeObserver === "undefined") return;
     /*
-      offsetHeight, not getBoundingClientRect: the board is a fixed 1080x810
+      offsetHeight, not getBoundingClientRect: the board is a fixed 900x675
       canvas that Fit.jsx CSS-transforms to whatever the screen is, and a
       rect is measured after that transform. Subtracting the untransformed
       EVENTS_TOP/LANE_H from a scaled height overcounts the lanes by the

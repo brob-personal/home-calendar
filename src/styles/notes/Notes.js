@@ -25,9 +25,12 @@
   .fb-dock's bottom used to hardcode 92px — R5's item 3 magic number, named
   in PLAN.md: it had to clear the old footer plus the board's bottom padding
   and flex gap. The header redesign retired that footer row; --dock-bottom
-  in tokens.js now just clears --board-pad-b, and .fb-stage's own
-  margin-bottom (--stage-gap-b, styles/shell/Countdowns.js) is the reserved
-  strip the FAB floats in.
+  in tokens.js now just clears --board-pad-b. The reserved strip the FAB used
+  to float in (.fb-stage's --stage-gap-b margin) is gone too — see
+  styles/shell/Countdowns.js — so the FAB now floats over the calendar's
+  bottom-right corner. It already overlapped the stage by 8px when that strip
+  was there, and the stage's own 16px bottom padding keeps it clear of the
+  last row of content.
 
   .fb-fab used to open the note window directly. It's now a menu toggle:
   tap it to reveal .fb-fabopt (the old footer "New event" button and the

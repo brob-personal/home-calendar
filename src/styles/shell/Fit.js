@@ -2,8 +2,10 @@ import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
 
 /*
   The scaler and the device frame. Stays a JS template — the only chunk in
-  the sheet that interpolates a value, because the 1080x810 canvas contract
-  comes from src/lib/canvas.js rather than being written twice. A `.css`
+  the sheet that interpolates a value, because the 900x675 canvas contract
+  comes from src/lib/canvas.js rather than being written twice. That
+  indirection is what let the canvas shrink to 900x675, and the board grow
+  20% on the wall, without a number in this file changing. A `.css`
   file loaded with `?raw` can't reach that constant, so this one file keeps
   the mechanism the other fourteen chunks dropped.
 
@@ -37,7 +39,9 @@ import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
   - Nothing here caps the canvas to one uniform scale any more. Fit.jsx
     covers both axes of this box exactly (see its header), so the canvas is
     flush to all four edges and --frame-bg below is only ever visible in an
-    off-aspect dev window, where it is wanted.
+    off-aspect dev window, where it is wanted. The canvas being smaller than
+    the panel now (900x675 against 1080x810) changes nothing here: covering
+    a frame is the same operation whether the scale lands above or below 1.
 
   The box-shadow stays: it is drawn outside the canvas, so `overflow:
   hidden` clips it away for free when the canvas is flush, while it still

@@ -16,6 +16,18 @@ item 1 (Wave 3), now done.
 `.fb-fab` (`src/styles/notes/Notes.js`, 56×56px) was already at or above
 `--tap-min` and is unchanged.
 
+**Every number in this file is canvas px, and the canvas is no longer 1:1
+with the panel.** When this audit was written the canvas was the iPad's own
+1080×810, so 44 canvas px was 44 screen px and the table read directly
+against Apple's 44pt minimum. The canvas is 900×675 now and `<Fit>` upscales
+it 1.2× (`src/lib/canvas.js`), so `--tap-min: 44px` lands as 52.8 screen px
+on the wall and every row above clears the minimum with room to spare. The
+upscale can only ever help here — it multiplies every hit box by the same
+1.2 — so nothing in the table needed re-auditing, and nothing here should be
+walked back down on the grounds that 44 is "already enough": it is 44 in the
+units the stylesheet is written in, which is what keeps this list checkable
+against the CSS.
+
 `.fb-notetools` (the note toolbar housing `.fb-pen`/`.fb-width`) gained
 `flex-wrap: wrap` — five 44px pen buttons plus three 44px width buttons plus
 the Undo/Clear ghost buttons no longer fit one row inside `NOTE_W` (430px),

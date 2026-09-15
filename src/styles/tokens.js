@@ -35,13 +35,24 @@
   now-line "and nothing else," and a future now-line recolour shouldn't drag
   the delete button's danger red along with it.
 
-  --stage-gap-b feeds --dock-bottom, the derived value `.fb-dock`'s bottom
-  offset needs to clear the reserved strip under the calendar (the header
-  redesign that removed the footer bar) plus the board's own bottom padding.
-  (Its sibling duplication, `.fb-axis`'s left margin against Day's old
-  lane-name column, was retired by R7's DayView rewrite along with the
-  column it measured — there is no --lane-name-w/--lane-gap here because
-  nothing consumes them anymore.)
+  --stage-gap-b is gone, and its absence is load-bearing. It was 56px of
+  reserved strip under the calendar — the gap the footer bar used to sit in,
+  kept on after the header redesign retired that row so the calendar would
+  not run flush to the board's bottom padding. Nothing laid out in it; the
+  note FAB floats over it and always overlapped the stage's bottom edge by
+  8px anyway. Shrinking the canvas to 900x675 (src/lib/canvas.js) spends
+  every canvas px on something 1.2x larger, so 56 dead ones were the
+  difference between the calendar body keeping its height on the wall and
+  losing 11% of it. The strip is now the board's own --board-pad-b, and the
+  FAB floats over the calendar's bottom-right corner the way a floating
+  action button is supposed to.
+
+  --dock-bottom is unchanged and never read --stage-gap-b: it clears
+  --board-pad-b plus 8px, which is why retiring the strip does not move the
+  FAB. (`--stage-gap-b`'s sibling duplication, `.fb-axis`'s left margin
+  against Day's old lane-name column, was retired by R7's DayView rewrite
+  along with the column it measured — there is no --lane-name-w/--lane-gap
+  here because nothing consumes them anymore.)
 */
 export default `
 :root {
@@ -87,7 +98,6 @@ export default `
   --warn-bg: #E8A33D;
   --warn-ink: #8A5A16;
 
-  --stage-gap-b: 56px;
   --board-gap: 14px;
   --board-pad-b: 18px;
   --dock-bottom: calc(var(--board-pad-b) + 8px);

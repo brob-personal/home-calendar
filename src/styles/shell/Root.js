@@ -30,8 +30,8 @@ export default `
    fainter wash on .fb-stage's ::before — that pairing is what made the
    calendar read as a lighter rectangle framed against the board, so the
    stage's copy is gone (Countdowns.js) and this is now the only one. It
-   covers the whole 1080x810 canvas, edge to edge and unbroken, including
-   behind the calendar. */
+   covers the whole canvas, edge to edge and unbroken, including behind the
+   calendar. */
 .fb-art { position: absolute; inset: 0; opacity: .85; pointer-events: none; }
 
 .fb-board {
