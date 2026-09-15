@@ -26,43 +26,44 @@ import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
   Grey still framed the board on the device, on the left, right and bottom.
   Two causes were left, and the declarations below are what removes them:
 
-  - A negative `inset`, instead of an inline pixel height and then instead of
-    `inset: 0`. Sizing .fb-fit to window.innerHeight and pinning it at
-    `top: 0` is only flush with the screen if innerHeight reports the full
-    screen height; when it came back 20px short the frame stopped 20px above
-    the bottom edge and `body`'s identical #d9dbe0 showed through underneath
-    as a band. `inset: 0` was the answer to that — a fixed box at `inset: 0`
-    is the layout viewport by definition, so no ancestor height, no viewport
-    unit and no measurement can get it wrong.
+  - The frame extends past the bottom of the layout viewport, and is flush
+    with it on the other three sides. This is the fourth attempt at the grey
+    band along the bottom of the board, and the first three all failed the
+    same way, so the reasoning matters more than the declaration:
 
-    On the device it was still a few px short at the bottom. That is the
-    third time this band has come back, and the first two fixes were both
-    correct about their own mechanism, which is the tell: the layout viewport
-    is simply not guaranteed to be the pane of glass, to the pixel, on every
-    iPadOS build. Chasing exactness is what keeps failing.
+      1. `100vh` -> `100dvh`, to stop browser chrome making the canvas taller
+         than the visible viewport. Held, but left #root's `height: 100%`
+         disagreeing with `100dvh` by the status bar.
+      2. An inline pixel height measured from window.innerHeight. When
+         innerHeight came back 20px short of the screen, the frame ended 20px
+         above the bottom edge and body's identical #d9dbe0 filled the gap.
+      3. `inset: 0` — a fixed box at `inset: 0` is the layout viewport by
+         definition, so nothing can measure it wrong. Correct, and the band
+         survived, because the layout viewport is itself short of the glass.
+      4. `inset: -8px`, overshooting equally on all four sides. The band
+         survived that too, and *how* it survived is the diagnosis: it is at
+         the bottom and nowhere else. A frame centred in the screen cannot
+         produce a one-sided gap — the canvas is centred in the frame, so any
+         shortfall would split evenly top and bottom. A gap at the bottom
+         only means the frame is anchored at the top and runs out early,
+         which is exactly what viewport-fit=cover and the 20pt status bar do
+         on this device. The symmetric bleed spent 8px on three edges that
+         were already flush and put 8 where about 20 were needed.
 
-    So the frame no longer tries to equal the screen — it deliberately
-    overshoots it by --fit-bleed on all four sides. The canvas covers *the
-    frame* (Fit.jsx measures it), `overflow: hidden` clips whatever runs past
-    the glass, and body cannot show through an edge that ends 8px outside the
-    screen no matter how the layout viewport is computed. It costs 8 screen
-    px off each edge of the board's own outer padding — 22/24/18 canvas px,
-    so 26/29/22 at 1.2x — which is blank in every view. Nothing content-
-    bearing is within 8px of the canvas edge; the closest is the note FAB at
-    31px. That is the whole trade: a sliver of padding nobody can see, for a
-    class of bug that cannot recur.
+    So the overshoot goes where the evidence puts it. top/left/width are
+    flush, and the height is the layout viewport plus --fit-extend-b. The
+    canvas covers the frame (Fit.jsx measures it), `overflow: hidden` clips
+    what runs past the glass, and there is no bottom edge left for body to
+    show at.
 
-    Deliberately symmetric rather than bottom-only. The reported sliver is at
-    the bottom, but the shortfall it comes from is a property of how iPadOS
-    reports the viewport, not of that edge — so bleeding only where it has
-    shown up would just wait for the next build to move it.
-
-  - Nothing here caps the canvas to one uniform scale any more. Fit.jsx
-    covers both axes of this box exactly (see its header), so the canvas is
-    flush to all four edges and --frame-bg below is only ever visible in an
-    off-aspect dev window, where it is wanted. The canvas being smaller than
-    the panel now (900x675 against 1080x810) changes nothing here: covering
-    a frame is the same operation whether the scale lands above or below 1.
+    The cost is at the bottom only, and it is bounded: whatever part of
+    --fit-extend-b is not absorbed by the shortfall is clipped off the bottom
+    of the board. At 24px against a 20px shortfall that is 4 screen px of the
+    board's own --board-pad-b (18 canvas px, 22 at 1.2x), which is blank.
+    Worst case, if the viewport turns out not to be short at all, the whole
+    24px comes out of that padding and the calendar sits flush to the glass.
+    That is the deliberate direction to err in: too much extension costs
+    padding, too little leaves grey.
 
   The box-shadow stays: it is drawn outside the canvas, so `overflow:
   hidden` clips it away for free when the canvas is flush, while it still
@@ -72,7 +73,8 @@ export default `
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap');
 
 .fb-fit {
-  position: fixed; inset: calc(-1 * var(--fit-bleed));
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: calc(100% + var(--fit-extend-b));
   background: var(--frame-bg); overflow: hidden;
 }
 .fb-device {
