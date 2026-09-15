@@ -147,34 +147,47 @@ describe("board stylesheet", () => {
     expect(BOARD_CSS).not.toContain("--axis-margin");
   });
 
-  it("caps the sheet at the space the scrim gives it, so the wide one cannot overhang the canvas", () => {
-    // The wide sheet asks for the canvas's full width while sitting inside a
-    // scrim that pads 26px, and an oversized grid item overflows its track's
-    // end edge — so every pixel of the difference went off the right of a
-    // canvas that clips. What showed was the Family roster row, the only
-    // content in the panel wide enough to reach that edge. max-width is the
-    // cap; the scrim's padding is the number it caps against.
+  it("gives the scrim a definite column, which is the only thing that can cap the sheet", () => {
+    // The scrim is the canvas (absolute, inset 0, inside .fb-root), so the
+    // sheet has CANVAS_W minus two paddings to live in and .fb-root clips
+    // whatever exceeds it. #61 tried to cap that with max-width: 100% alone
+    // and it was a no-op: with no grid-template-columns the scrim's column
+    // was an implicit `auto` track, auto tracks are sized *from their items*,
+    // and a percentage max-width resolves against the grid area — so the
+    // sheet's 900px set the track and then 100% came back as 900px.
+    //
+    // minmax(0, 1fr) is what makes the column a definite CANVAS_W - 2 * pad.
+    // The minmax(0, ...) is load-bearing and must not be relaxed to a bare
+    // 1fr: that means minmax(auto, 1fr), whose auto minimum floors the track
+    // at the item's min-content contribution, which is the same 900px and
+    // the same bug.
     const scrim = sheet.match(/\.fb-scrim \{[^}]*\}/)[0];
+    expect(scrim).toContain("grid-template-columns: minmax(0, 1fr)");
     const pad = Number(scrim.match(/padding: (\d+)px/)[1]);
-    const decl = sheet.match(/\.fb-sheet \{[^}]*\}/)[0];
-    expect(decl).toContain("max-width: 100%");
-    expect(sheet).toMatch(/\.fb-sheet\.is-wide \{ width: (\d+)px; \}/);
-    // The width it asks for is allowed to exceed what is available — that is
-    // what the cap is for — but only because the cap is there to catch it.
-    const wide = Number(sheet.match(/\.fb-sheet\.is-wide \{ width: (\d+)px; \}/)[1]);
-    expect(wide).toBeGreaterThan(CANVAS_W - 2 * pad);
+    expect(CANVAS_W - 2 * pad).toBeGreaterThan(0);
+
+    // And with the track definite, these two are what land the sheet inside
+    // it — a cap that now resolves, and a wide sheet that asks for the room
+    // rather than naming a number that has to track the canvas by hand.
+    expect(sheet.match(/\.fb-sheet \{[^}]*\}/)[0]).toContain("max-width: 100%");
+    expect(sheet).toContain(".fb-sheet.is-wide { width: 100%; }");
+    expect(sheet).not.toMatch(/\.fb-sheet\.is-wide \{ width: \d+px; \}/);
   });
 
   it("sizes the Family row's fields off the row, not off their own intrinsic widths", () => {
-    // Seven controls on one line in a sheet that is now 848px, not 900. The
-    // two id fields flex, so the row's width is whatever the sheet leaves
-    // and no input's default 20-character size can push it past the edge.
+    // An avatar and six controls on one line. The two id fields flex, so the
+    // row's width is the container's and no input's default 20-character
+    // intrinsic size can push it past the edge at any sheet width.
     expect(sheet).toContain(
       ".fb-memberrow .fb-input-id { flex: 1 1 0; width: auto; min-width: 0; }",
     );
-    expect(sheet).toContain(".fb-memberrow .fb-input { font-size: 13px;");
-    // Not shrunk with them: the swatch is the one control in the row that
-    // clears --tap-min once Fit's upscale applies. See tap-target-audit.md.
+    // Small on purpose, and the smallest type in the sheet — see the comment
+    // over these rules for what it buys and what it costs.
+    expect(sheet).toContain(".fb-memberrow .fb-input { font-size: 11px;");
+    expect(sheet).toContain(".fb-memberrow .fb-swatch { width: 30px;");
+    // The shrink is scoped to this row: the sheet's shared controls keep the
+    // sizes every other section is laid out against.
+    expect(sheet).toContain(".fb-input-sm { width: auto; min-width: 108px; padding: 9px 11px;");
     expect(sheet).toContain(".fb-swatch {\n  width: 38px; height: 38px;");
   });
 

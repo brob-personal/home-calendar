@@ -13,23 +13,53 @@
   .fb-scrim is the click-to-close backdrop. Sheet closes on scrim click
   only, with no focus trap and no Escape handling — R12's backlog item 6.
 
-  The wide sheet asks for 900px, which is the whole canvas, inside a scrim
-  that pads 26px — so it used to be 52px wider than the space it was placed
-  in. An oversized item in a grid track overflows the track's *end* edge, so
-  all 52px of that went off the right side and .fb-root's overflow: hidden
-  cut it: the right edge of the panel, its rounded corner, and the tail of
-  the widest thing in it, which is the Family roster row. `max-width: 100%`
-  on .fb-sheet is the fix — 900px is now what it wants, not what it takes,
-  and on this canvas it resolves to 848. .fb-memberrow below then sizes
-  itself to whatever that leaves rather than to its inputs' intrinsic
-  widths, so the row cannot be the thing that overflows again.
+  Why the wide sheet used to hang off the right of the canvas, and why the
+  obvious fix for it did nothing.
+
+  .fb-scrim is `position: absolute; inset: 0` inside .fb-root, so it is the
+  canvas: 900px wide, padding 26px, 848px of room. The wide sheet asked for
+  `width: 900px` — the whole canvas — which is 52px more than that, and an
+  oversized grid item overflows its track's *end* edge, so all of it went off
+  the right and .fb-root's `overflow: hidden` cut it.
+
+  #61 added `max-width: 100%` to .fb-sheet and that is a no-op here, which is
+  worth writing down because it looks like it should work. The scrim had no
+  `grid-template-columns`, so its single column was an implicit `auto` track,
+  and an auto track is sized *from its items*: the sheet's 900px contribution
+  set the track to 900px, and a percentage max-width resolves against the grid
+  area, so `100%` came back as 900px and clamped nothing. The track itself was
+  what overflowed the scrim, and the item was merely filling it.
+
+  So the fix is on the scrim, not the sheet: `grid-template-columns:
+  minmax(0, 1fr)` makes the column a definite 848px, taken from the scrim's
+  content box instead of from whatever is placed in it. With the track
+  definite, .fb-sheet's `max-width: 100%` finally has a real number to
+  resolve against, and `.is-wide` can just ask for `100%` of it rather than
+  naming 900 and being wrong about it.
+
+  Measured in Chrome rather than argued from the spec, because the argument
+  from the spec is what shipped #61. A 900px canvas, a scrim padding 26, and
+  a sheet asking for 900:
+
+    auto track      + max-width: 100%   ->  900px wide, right edge 926, +26
+    minmax(0, 1fr)  + max-width: 100%   ->  848px wide, right edge 874, fits
+    minmax(0, 1fr)  + width: 100%       ->  848px wide, right edge 874, fits
+    1fr             + max-width: 100%   ->  900px wide, right edge 926, +26
+
+  The last line is why `minmax(0, ...)` is load-bearing and must not be
+  relaxed to a bare `1fr`: `1fr` means `minmax(auto, 1fr)`, and that auto
+  minimum floors the track at the item's min-content contribution, which is
+  the same 900px and the same bug. styles.smoke.test.js pins it, though only
+  as text — jsdom has no layout engine, so no test in this repo can catch a
+  regression here by measuring. That is the standing gap this bug came
+  through, and it is why the numbers above are written down.
 */
 export default `
 /* Sheets */
 .fb-scrim {
   position: absolute; inset: 0; z-index: 40;
   background: var(--scrim); backdrop-filter: blur(3px);
-  display: grid; place-items: center; padding: 26px;
+  display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; padding: 26px;
 }
 .fb-sheet {
   width: 560px; max-width: 100%; max-height: 100%;
@@ -37,7 +67,10 @@ export default `
   display: flex; flex-direction: column; overflow: hidden;
   box-shadow: 0 20px 60px var(--shadow-sheet);
 }
-.fb-sheet.is-wide { width: 900px; }
+/* Not 900px. The wide sheet wants every pixel the scrim will give it, and
+   the scrim's column is now exactly that, so this asks for the room rather
+   than for a number that has to be kept in step with the canvas by hand. */
+.fb-sheet.is-wide { width: 100%; }
 .fb-sheethead {
   display: flex; align-items: center; justify-content: space-between;
   padding: 18px 20px; border-bottom: 1px solid var(--line);
@@ -120,28 +153,50 @@ button.fb-shade.is-on { border-color: var(--ink); }
   display: flex; flex-direction: column; gap: 7px;
   padding-bottom: 11px; border-bottom: 1px solid var(--line);
 }
-.fb-memberrow { display: flex; align-items: center; gap: 8px; }
-/* Six controls and an avatar on one 808px line, so this row is the only
-   place in the sheet where the fields are sized rather than left at a bare
-   width: auto -- an input's intrinsic width is its size attribute's 20
-   characters, and seven of those don't fit whatever the sheet is. Name and
-   hex get the fixed widths their content actually needs; the two id fields
-   are flex: 1 1 0 with min-width: 0, so they divide what is left and the
-   row's width is the container's, never the inputs' sum. Type steps down
-   with them -- 14px to 13px, and 13 to 12 in the hex -- so the narrower
-   fields still show about as much of a calendar id as the wider ones did.
+.fb-memberrow { display: flex; align-items: center; gap: 6px; }
+/*
+  The Family roster row: an avatar and six controls on one 808px line, and
+  the tightest thing in the panel by a wide margin. This is the only place in
+  the sheet where the fields are sized rather than left at a bare
+  width: auto, because an input's intrinsic width is its size attribute's 20
+  characters and seven of those do not fit any sheet this canvas can hold.
 
-   The colour swatch and the Remove button keep their sizes on purpose. The
-   swatch is 38px, which is the one control in this row that clears Apple's
-   44pt once Fit's 1.2x is applied (45.6 screen px), and tap-target-audit.md
-   asks that nothing be walked back down; the ghost button is shared with
-   DateField. Neither is a field, and with the ids on flex the row fits
-   without touching them. */
-.fb-memberrow .fb-input { font-size: 13px; padding: 9px 10px; }
-.fb-memberrow .fb-input-name { flex: none; width: 118px; min-width: 0; }
-.fb-memberrow .fb-input-hex { flex: none; width: 82px; font-size: 12px; }
+  Two rules, and between them the row cannot overflow at any sheet width:
+
+  1. Everything with a knowable width gets one. The name needs to show a
+     first name, the hex six digits and a hash, and neither wants more.
+  2. The two id fields are flex: 1 1 0 with min-width: 0, so they divide
+     whatever is left over. The row's width is therefore the container's and
+     never the sum of its inputs -- and the ids are the fields that actually
+     want the slack, being a whole email address and a Drive id.
+
+  Type is down a long way from the sheet's 15px default, to 11px, with the
+  hex at 10. That is small, and small is what was asked for, but it is also
+  where this row is read from: nobody edits a Drive folder id from across the
+  room, and Fit's 1.2x upscale puts 11px back at ~13 screen px on the wall.
+  The avatar and swatch come down with them so the row reads as one scale
+  rather than as small fields wedged between full-size ornaments.
+
+  What that costs, recorded rather than buried: the swatch was 38px, which at
+  1.2x was 45.6 screen px and cleared Apple's 44pt. At 30px it is 36 and does
+  not. It is not one of the six selectors in tap-target-audit.md, so this is
+  not that table being walked back down, but it is a real step away from the
+  minimum and the table's reasoning would not have liked it. The trade is
+  deliberate: a colour picker in a settings panel opened a few times a year,
+  against a roster row that is legible and whole on the board it ships on.
+*/
+.fb-memberrow .fb-input { font-size: 11px; padding: 7px 8px; }
+.fb-memberrow .fb-input-name { flex: none; width: 92px; min-width: 0; }
+.fb-memberrow .fb-input-hex { flex: none; width: 66px; font-size: 10px; }
 .fb-memberrow .fb-input-id { flex: 1 1 0; width: auto; min-width: 0; }
-.fb-memberfoot { display: flex; align-items: center; gap: 16px; padding-left: 52px; }
+.fb-memberrow .fb-swatch { width: 30px; height: 30px; border-radius: 7px; }
+.fb-memberrow .fb-ghost-sm { flex: none; font-size: 10px; padding: 6px 8px; }
+/* padding-left keeps the foot's first checkbox under the row's first field,
+   so it stays the avatar's width plus the row's gap. */
+.fb-memberfoot { display: flex; align-items: center; gap: 12px; padding-left: 40px; }
+.fb-memberfoot .fb-check-sm { font-size: 11px; }
+.fb-memberfoot .fb-check input { width: 15px; height: 15px; }
+.fb-memberfoot .fb-ramp-sm .fb-shade { width: 18px; height: 13px; }
 .fb-memberfoot .fb-ramp { margin-left: auto; }
 .fb-swatch {
   width: 38px; height: 38px; flex: none; padding: 0;
