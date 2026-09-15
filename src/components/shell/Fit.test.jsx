@@ -108,16 +108,19 @@ describe("fitFor", () => {
     expect(fit.y * CANVAS_H).not.toBe(790);
   });
 
-  it("pins the same height whatever the frame reports", () => {
-    // Every height this has actually been handed on the device across the
-    // six passes, plus the padded frames that overshot the glass. The answer
-    // has to be the same number every time, or there is a measurement back
-    // in the vertical path.
-    for (const h of [750, 770, 790, 810, 834, 850]) {
-      const fit = fitFor(DEVICE_W, h);
-      expect(fit.y * CANVAS_H).toBe(DEVICE_H);
-      expect(fit.anchor).toBe("top");
+  it("treats the panel height as a floor, not a ceiling", () => {
+    // Both directions of the same failure, which is why this is a `max` and
+    // not a pin. A frame that reports short of the panel cannot shrink the
+    // board below it — that was the grey band. A frame that honestly reports
+    // *taller* than the panel still gets covered — which a pin could not do,
+    // and which is the remaining candidate for the band surviving pass 7.
+    for (const h of [750, 770, 790, 810]) {
+      expect(fitFor(DEVICE_W, h).y * CANVAS_H).toBe(DEVICE_H);
     }
+    for (const h of [834, 850, 900]) {
+      expect(fitFor(DEVICE_W, h).y * CANVAS_H).toBeCloseTo(h, 6);
+    }
+    expect(fitFor(DEVICE_W, 790).anchor).toBe("top");
   });
 
   it("covers both axes when the width is short of the canvas", () => {
