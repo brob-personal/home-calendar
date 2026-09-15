@@ -47,14 +47,14 @@
   FAB floats over the calendar's bottom-right corner the way a floating
   action button is supposed to.
 
-  --fit-extend-b is the one token here measured in *screen* px rather than
-  canvas px: it sizes .fb-fit, which lives outside the canvas and is never
-  scaled. It is also the one number to change if the board still does not
-  reach the bottom of the glass, or now overshoots it — see
-  styles/shell/Fit.js for why it exists and which direction to move it.
-  Raise it if any grey is left along the bottom; lower it if the bottom of
-  the calendar looks clipped. The first 22 screen px of it are free (they land
-  on --board-pad-b, which is blank); past that it starts eating the calendar.
+  There is no --fit-extend-b any more, and no token here is in screen px.
+  It was slack added to .fb-fit's height to stop the board falling short of
+  the bottom of the glass, and it could not work: the canvas was scaled to
+  cover the frame, so slack that closed the grey band pushed the calendar's
+  last row and the note FAB off the screen by the same amount. Fit.jsx pins
+  the canvas to the panel's known 810 CSS px instead (see
+  components/shell/Fit.jsx), so there is nothing left to pad. Every token
+  below is canvas px, as the rest of the sheet assumes.
 
   --dock-bottom is unchanged and never read --stage-gap-b: it clears
   --board-pad-b plus 8px, which is why retiring the strip does not move the
@@ -107,7 +107,6 @@ export default `
   --warn-bg: #E8A33D;
   --warn-ink: #8A5A16;
 
-  --fit-extend-b: 40px;
   --board-gap: 14px;
   --board-pad-b: 18px;
   --dock-bottom: calc(var(--board-pad-b) + 8px);
