@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import { BOARD_CSS } from "./index.js";
-import { CANVAS_W } from "../lib/canvas.js";
+import { CANVAS_W, CANVAS_H } from "../lib/canvas.js";
 import { TRACK_W } from "../lib/layout.js";
 import fit from "./shell/Fit.js";
 import root from "./shell/Root.js";
@@ -37,9 +37,12 @@ import motion from "./motion.js";
 */
 
 describe("board stylesheet", () => {
-  it("still declares the 1080x810 canvas contract", () => {
-    expect(BOARD_CSS).toContain("1080px");
-    expect(BOARD_CSS).toContain("810px");
+  it("still declares the canvas contract", () => {
+    // Interpolated from canvas.js rather than written out, so resizing the
+    // board (the 900x675 knob in that file) does not need this file edited —
+    // it only needs the sheet to still be the place the contract lands.
+    expect(BOARD_CSS).toContain(`${CANVAS_W}px`);
+    expect(BOARD_CSS).toContain(`${CANVAS_H}px`);
   });
 
   it("leads with the font @import, because @import must precede every rule", () => {

@@ -16,8 +16,12 @@ shows Safari's address bar and can be swiped closed accidentally.
 2. Let it fully load once — confirm you see real events, not a blank canvas.
 3. Tap the **Share** icon → **Add to Home Screen** → **Add**.
 4. Close the Safari tab. Launch the board from the new home-screen icon
-   instead. It should open with no address bar, no Safari chrome — full
-   screen, exactly the 1080×810 canvas centered and scaled by `<Fit>`.
+   instead. It should open with no address bar, no Safari chrome, and no grey
+   border — the board should reach all four edges of the glass. `<Fit>` maps
+   the 900×675 canvas onto the iPad's 1080×810 panel at a uniform 1.2×, so it
+   fills the screen exactly and renders 20% larger than its own units
+   (`src/lib/canvas.js` is the one knob if it ever needs to be larger or
+   smaller again).
 
 From here on, **always launch from the home-screen icon**, never from a
 Safari tab or bookmark — a plain Safari tab is a distinct instance with its

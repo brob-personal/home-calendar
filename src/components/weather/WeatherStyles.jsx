@@ -23,7 +23,7 @@ import { memo } from "react";
   .fb-weatherpanel is `position: absolute`, anchored to `.fb-weather`
   (`position: relative`, just above) rather than the `position: fixed` +
   hardcoded top/right offset it used to be — that hardcoded pair placed the
-  panel at a fixed spot on the 1080x810 canvas regardless of where the chip
+  panel at a fixed spot on the canvas regardless of where the chip
   itself sat, so a click on the chip popped the panel open somewhere else
   entirely once the header stopped putting the chip in that one corner.
   Anchoring to the chip's own positioned ancestor keeps the panel glued to

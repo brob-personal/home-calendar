@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event";
   file: if R2 had changed behaviour, these would have caught it.
 */
 import FamilyBoard from "./App.jsx";
+import { CANVAS_W, CANVAS_H, DEVICE_W, DEVICE_H } from "./lib/canvas.js";
 
 /*
   R1's scaffold smoke test: proof that the toolchain can mount the untouched
@@ -57,11 +58,12 @@ describe("Family Board scaffold smoke", () => {
   });
 
   it("renders the fixed canvas inside the Fit scaler", async () => {
-    // Pinned to the real device's viewport so the scale below is the device
-    // contract rather than an artefact of jsdom's 1024x768 default. Fit now
-    // measures window.innerWidth/innerHeight instead of reading back a
-    // CSS-sized box, so this is the input that decides the scale.
-    setViewport(1080, 810);
+    // Pinned to the real panel so the scale below is the device contract
+    // rather than an artefact of jsdom's 1024x768 default. jsdom has no
+    // layout engine, so .fb-fit's rect reads 0x0 and Fit falls back to
+    // window.innerWidth/innerHeight — which makes this the input that
+    // decides the scale.
+    setViewport(DEVICE_W, DEVICE_H);
 
     const { container } = render(<FamilyBoard />);
     await screen.findByRole("button", { name: "Day" });
@@ -76,11 +78,16 @@ describe("Family Board scaffold smoke", () => {
     expect(fit).toContainElement(device);
     expect(device).toContainElement(root);
 
-    // On a 1080x810 viewport the canvas is 1:1 — no letterbox on either axis.
-    expect(device.getAttribute("style")).toContain("scale(1)");
+    // The canvas is 900x675 against a 1080x810 panel, both 4:3, so the board
+    // covers the device at a uniform 1.2x — no letterbox on either axis, and
+    // 20% larger than the canvas's own units. This is the whole reason the
+    // canvas is smaller than the screen it ships on; see src/lib/canvas.js.
+    const expected = DEVICE_W / CANVAS_W;
+    expect(expected).toBe(DEVICE_H / CANVAS_H);
+    expect(device.getAttribute("style")).toContain(`scale(${expected})`);
   });
 
-  it("declares the 1080x810 canvas contract in its stylesheet", async () => {
+  it("declares the canvas contract in its stylesheet", async () => {
     const { container } = render(<FamilyBoard />);
     await screen.findByRole("button", { name: "Day" });
 
@@ -89,8 +96,8 @@ describe("Family Board scaffold smoke", () => {
     // tuned to. R5 must keep it true when the CSS string becomes tokens.
     const sheet = container.querySelector("style");
     expect(sheet).not.toBeNull();
-    expect(sheet.textContent).toContain("1080px");
-    expect(sheet.textContent).toContain("810px");
+    expect(sheet.textContent).toContain(`${CANVAS_W}px`);
+    expect(sheet.textContent).toContain(`${CANVAS_H}px`);
   });
 
   it("switches through every view without crashing", async () => {

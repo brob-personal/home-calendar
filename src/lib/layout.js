@@ -42,7 +42,7 @@ import { CANVAS_W } from "./canvas.js";
   a px floor be enforced through percentages without a ResizeObserver.
 */
 
-/* The only horizontal insets between the 1080px canvas and the Day/Week
+/* The only horizontal insets between the canvas and the Day/Week
    grid: .fb-board's 24px side padding (styles/shell/Root.js) and .fb-stage's
    18px (styles/shell/Countdowns.js). .fb-gutter (styles/views/WeekView.js)
    then takes the first 56px of the grid itself for the hour labels. What is
@@ -55,20 +55,35 @@ const STAGE_PAD_X = 18;
 const GUTTER_W = 56;
 export const TRACK_W = CANVAS_W - 2 * BOARD_PAD_X - 2 * STAGE_PAD_X - GUTTER_W;
 
-/* The floor, in px. At .fb-wblock's 12px/700 title plus its 6px side padding
-   and the .fb-wbtime start time beside it, a compact Week block needs ~90px
-   before the title starts ellipsing away to nothing; Day's 14px title needs
-   more. 96 is the round number above that, and it is the single knob for how
-   aggressively overlaps collapse: raise it and they collapse sooner, lower it
-   and narrower columns are allowed. */
-export const MIN_EVENT_COL_W = 96;
+/* The floor, in canvas px. At .fb-wblock's 12px/700 title plus its 6px side
+   padding and the .fb-wbtime start time beside it, a compact Week block needs
+   ~90px before the title starts ellipsing away to nothing; Day's 14px title
+   needs more. It is the single knob for how aggressively overlaps collapse:
+   raise it and they collapse sooner, lower it and narrower columns are
+   allowed.
+
+   It was 96 while the canvas was the device's own 1080x810 and <Fit> resolved
+   to 1:1, so canvas px and screen px were the same thing. The canvas is
+   900x675 now and <Fit> upscales it 1.2x (canvas.js), so the same physical
+   width on the wall is 96 / 1.2 = 80. Reading this as "the block must be at
+   least 96 *screen* px wide" is what makes it a legibility floor rather than
+   an arbitrary number, and 80 keeps that threshold exactly where it was.
+
+   What did change with the upscale is how much fits inside it: the title is
+   still 12 canvas px, which is now 14.4 on the wall, so an 80px lane holds
+   about 20% fewer characters before ellipsing than the old 96px one did.
+   That is the cost of the larger type, not a regression in this file. */
+export const MIN_EVENT_COL_W = 80;
 
 /* Width of the lane reserved on the right of a column for its "+N" chip,
    taken out of the space the event columns divide up — so the columns that
    do render are still at least MIN_EVENT_COL_W wide once a group overflows,
    not MIN_EVENT_COL_W minus the chip. Capped at a quarter of the column so a
-   hypothetically tiny column cannot end up with a negative event width. */
-export const MORE_LANE_W = 34;
+   hypothetically tiny column cannot end up with a negative event width.
+   28 rather than 34 for the same reason as the floor above: it is a physical
+   width, and 34 / 1.2 is the canvas-px spelling of the chip lane the board
+   already had. */
+export const MORE_LANE_W = 28;
 
 const BASE_Z = 2;
 

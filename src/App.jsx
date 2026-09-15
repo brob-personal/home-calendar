@@ -35,9 +35,13 @@ import { ChoresView } from "./components/chores/ChoresView.jsx";
 /* ============================================================================
    FAMILY BOARD — wall-mounted calendar for iPad 7th gen (A2197)
    ----------------------------------------------------------------------------
-   Canvas is locked to 1080 x 810 CSS px (2160 x 1620 @2x), landscape. The
-   <Fit> wrapper scales that canvas to whatever viewport it lands in, so what
-   you see here is what the iPad shows. On device the scale resolves to 1.
+   Canvas is locked to 900 x 675 CSS px, landscape, and every dimension below
+   is written in those units. The <Fit> wrapper scales the canvas to whatever
+   viewport it lands in, so what you see here is what the iPad shows. On
+   device it resolves to a uniform 1.2x: the panel is 1080 x 810 CSS px
+   (2160 x 1620 @2x) and the canvas is deliberately 4:3 at 1/1.2 of it, so the
+   board renders 20% larger than its own units without reflowing. See
+   src/lib/canvas.js — those two numbers are the board's one size knob.
 
    Runs with Auto-Lock set to Never. The screen never sleeps at the OS level;
    all dimming, sleeping and screensaver behavior happens in here so the device

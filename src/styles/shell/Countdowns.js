@@ -6,11 +6,17 @@
   row is only rendered when there is a milestone to show, so the stage
   grows by 46px plus one board gap when nothing is counting down.
 
-  .fb-stage's margin-bottom is --stage-gap-b, not zero: now that Footer no
-  longer sits below it as a flex sibling, the calendar would otherwise run
-  flush to the bottom edge. The reserved strip this margin creates is where
-  NoteDock's floating FAB (../notes/NoteDock.jsx) lives — see --dock-bottom
-  in tokens.js.
+  .fb-stage has no margin-bottom any more. It carried --stage-gap-b, 56px of
+  reserved strip left over from the retired footer row, on the argument that
+  the calendar would otherwise run flush to the bottom edge — but the board's
+  own --board-pad-b already holds it off that edge, and nothing ever laid out
+  inside the strip. NoteDock's FAB (../notes/NoteDock.jsx) floats at
+  --dock-bottom, measured from the board rather than from the stage, so it
+  stays exactly where it was and now overlaps the calendar's bottom-right
+  corner instead of a dead band. Those 56 canvas px are what pays for the
+  1.2x upscale in src/lib/canvas.js: with the canvas at 900x675 they are the
+  difference between the calendar body keeping its height in screen px and
+  losing 11% of it.
 
   .fb-stage paints nothing of its own. It used to be a card: --paper fill,
   an 18px radius, and a ::before washing --stage-art at .22 against
@@ -55,7 +61,7 @@ export default `
 
 .fb-stage {
   position: relative;
-  flex: 1; min-height: 0; margin-bottom: var(--stage-gap-b);
+  flex: 1; min-height: 0;
   overflow: hidden;
   padding: 16px 18px;
 }

@@ -77,8 +77,9 @@ const POLL_MS = 30 * 60 * 1000;
 const CACHE_TTL_MS = 45 * 60 * 1000;
 
 /*
-  The canvas is 1080x810 CSS px, 2160x1620 at the iPad's 2x scale (see
-  ../lib/canvas.js), and Screensaver paints photos with `background-size:
+  The panel is 1080x810 CSS px, 2160x1620 at the iPad's 2x scale — what the
+  900x675 canvas is upscaled onto, so it is the panel and not the canvas that
+  sets this (see ../lib/canvas.js). Screensaver paints photos with `background-size:
   cover` — so the image is upscaled to fill whichever axis is short. Drive's
   default 220px thumbnail is visibly mushy at that size.
 

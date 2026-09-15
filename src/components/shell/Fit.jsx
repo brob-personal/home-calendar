@@ -3,16 +3,23 @@ import { useState, useEffect, useRef } from "react";
 import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
 
 /*
-  Maps the fixed 1080x810 canvas onto the frame it lands in. Every dimension
+  Maps the fixed 900x675 canvas onto the frame it lands in. Every dimension
   downstream is tuned to that canvas and nothing has a responsive breakpoint,
   so the board is scaled, never reflowed.
 
   The wall iPad (7th gen / A2197) is 2160x1620 native, so its standalone
-  landscape viewport is 1080x810 CSS px and the canvas lands 1:1.
+  landscape viewport is 1080x810 CSS px. The canvas is that divided by 1.2
+  and still exactly 4:3 (src/lib/canvas.js), so on the device this resolves to
+  a uniform 1.2x on both axes — flush to all four edges, nothing cropped,
+  nothing stretched. It used to be the device's own 1080x810 and resolve to
+  1:1; the canvas shrank so the board would render 20% larger on the wall, and
+  this file did not have to change to do it. That is the point of it.
 
-  Two changes here finish off the grey border that framed the board on the
-  device after the previous pass (see src/styles/shell/Fit.js for the full
-  history) had removed the top sliver and the corner wedges:
+  Two changes here finished off the grey border that framed the board on the
+  device, after the previous pass (see src/styles/shell/Fit.js for the full
+  history) had removed the top sliver and the corner wedges. Both still carry
+  their weight at 1.2x — a covering scale needs the frame measured exactly as
+  much as a 1:1 one did:
 
   1. Measure .fb-fit, not the window. The frame is `position: fixed; inset:
      0` now, so it *is* the layout viewport — but it is also the box the
@@ -36,7 +43,9 @@ import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
      cropped, no gap to fill.
 
   Off-aspect frames (a laptop browser during development) keep the uniform
-  contain-fit and the letterboxed device look — stretching the board to 16:9
+  contain-fit and the letterboxed device look, at whatever scale the window
+  allows — a 900-wide canvas means a dev window now shows the board at its
+  wall size sooner — stretching the board to 16:9
   would make the dev preview lie about the real layout. FILL_TOLERANCE is
   what separates "this is the wall iPad, near enough" from "this is a desktop
   window": 15% covers the device standalone (0% off-aspect) and the same

@@ -21,14 +21,18 @@ function widthsPx(result, colW) {
 
 describe("track geometry", () => {
   it("derives the column track from the fixed canvas, not from measurement", () => {
-    // 1080 canvas - 2x24 board padding - 2x18 stage padding - 56 gutter.
+    // canvas - 2x24 board padding - 2x18 stage padding - 56 gutter. Pinned
+    // as arithmetic on CANVAS_W, not as a literal: the canvas is the board's
+    // size knob (canvas.js), so a literal here would fail every time the
+    // board is resized without anything actually being wrong.
     expect(TRACK_W).toBe(CANVAS_W - 48 - 36 - 56);
-    expect(TRACK_W).toBe(940);
+    expect(TRACK_W).toBe(760);
   });
 
   it("divides the track by the column count", () => {
-    expect(trackColumnWidth(7)).toBeCloseTo(134.29, 2);
-    expect(trackColumnWidth(2)).toBe(470);
+    expect(trackColumnWidth(7)).toBeCloseTo(TRACK_W / 7, 10);
+    expect(trackColumnWidth(7)).toBeCloseTo(108.57, 2);
+    expect(trackColumnWidth(2)).toBe(TRACK_W / 2);
     // A view with no columns must not produce Infinity.
     expect(trackColumnWidth(0)).toBe(TRACK_W);
   });

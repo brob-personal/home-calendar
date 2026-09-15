@@ -6,9 +6,10 @@
     <!--
       Viewport for a pinned, full-screen iPad web app.
 
-      The board is a fixed 1080x810 landscape canvas that <Fit> scales to the
-      viewport, so the page itself must never zoom, never scroll and never
-      rubber-band. maximum-scale + user-scalable=no kill pinch and double-tap
+      The board is a fixed 900x675 landscape canvas that <Fit> scales to the
+      viewport — 1.2x on this iPad's 1080x810 panel, which is how the board
+      renders larger than its own units (src/lib/canvas.js). The page itself
+      must therefore never zoom, never scroll and never rubber-band. maximum-scale + user-scalable=no kill pinch and double-tap
       zoom; viewport-fit=cover lets the canvas run under the status bar in
       standalone mode.
     -->

@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 
 import { Fit, fitFor } from "./Fit.jsx";
-import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
+import { CANVAS_W, CANVAS_H, DEVICE_W, DEVICE_H } from "../../lib/canvas.js";
 
 /*
   Regression cover for the grey border that framed the board on iPad 7th gen.
@@ -22,6 +22,14 @@ import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
   So the property every assertion below is about: the canvas covers the frame
   exactly on both axes at anything near the device's aspect, and the frame is
   the viewport itself rather than a measured size that can come up short.
+
+  None of that cared whether the resulting scale was above or below 1, which
+  is what let the canvas later shrink to 900x675 to make the board render 20%
+  larger on the wall (src/lib/canvas.js) without this file's property
+  changing. The one assertion that is about the *scale* rather than the
+  covering is the device contract at the top of the fitFor block: 900x675 onto
+  1080x810 must come out a uniform 1.2x, because a non-uniform one would mean
+  the two aspects had drifted apart and the board was being stretched.
 
   jsdom has no layout engine, so getBoundingClientRect is 0x0 and <Fit> falls
   back to window.innerWidth/innerHeight — which is what setViewport drives.
@@ -58,7 +66,20 @@ const scalesOf = (device) => {
 afterEach(() => setViewport(1024, 768));
 
 describe("fitFor", () => {
-  it("resolves to 1:1 on the real device's 1080x810 viewport", () => {
+  it("maps the canvas onto the real panel at a uniform 1.2x", () => {
+    const fit = fitFor(DEVICE_W, DEVICE_H);
+
+    // Uniform: the canvas and the panel are both 4:3, so neither axis is
+    // stretched relative to the other. Equality, not closeTo — 900x675 into
+    // 1080x810 is exact, and a drift into floats would mean one of the four
+    // numbers had stopped being a clean 1.2 multiple.
+    expect(fit.x).toBe(fit.y);
+    expect(fit.x).toBe(1.2);
+    expect(CANVAS_W * fit.x).toBe(DEVICE_W);
+    expect(CANVAS_H * fit.y).toBe(DEVICE_H);
+  });
+
+  it("resolves to 1:1 on a frame that is exactly the canvas", () => {
     expect(fitFor(CANVAS_W, CANVAS_H)).toEqual({ x: 1, y: 1 });
   });
 
@@ -100,7 +121,7 @@ describe("fitFor", () => {
 });
 
 describe("Fit", () => {
-  it("renders the canvas at scale 1 on the device viewport", () => {
+  it("renders the canvas at scale 1 on a frame the size of the canvas", () => {
     setViewport(CANVAS_W, CANVAS_H);
     const { device } = renderFit();
 
@@ -146,7 +167,7 @@ describe("Fit", () => {
     const { device } = renderFit();
     expect(scalesOf(device)).toEqual([1, 1]);
 
-    setViewport(540, 405);
+    setViewport(CANVAS_W / 2, CANVAS_H / 2);
     fireEvent(window, new Event("resize"));
 
     expect(scalesOf(device)).toEqual([0.5, 0.5]);
