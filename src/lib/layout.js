@@ -55,12 +55,17 @@ const STAGE_PAD_X = 18;
 const GUTTER_W = 56;
 export const TRACK_W = CANVAS_W - 2 * BOARD_PAD_X - 2 * STAGE_PAD_X - GUTTER_W;
 
-/* The floor, in canvas px. At .fb-wblock's 12px/700 title plus its 6px side
-   padding and the .fb-wbtime start time beside it, a compact Week block needs
-   ~90px before the title starts ellipsing away to nothing; Day's 14px title
-   needs more. It is the single knob for how aggressively overlaps collapse:
-   raise it and they collapse sooner, lower it and narrower columns are
-   allowed.
+/* The floor, in canvas px. It is the single knob for how aggressively
+   overlaps collapse: raise it and they collapse sooner, lower it and
+   narrower columns are allowed.
+
+   It was sized against a .fb-wblock title of 12px/700 (and Day's 14px),
+   where a compact Week block needed ~90px before the title ellipsed away to
+   nothing. Those titles are 9px and 11px now, so the same 80px lane holds
+   noticeably more of a name than the floor was originally cut for. The value
+   is left alone on purpose: lowering it to match would change the depth at
+   which overlapping events start collapsing into a "+N" chip, which is a
+   layout decision rather than a type one.
 
    It was 96 while the canvas was the device's own 1080x810 and <Fit> resolved
    to 1:1, so canvas px and screen px were the same thing. The canvas is
@@ -69,10 +74,11 @@ export const TRACK_W = CANVAS_W - 2 * BOARD_PAD_X - 2 * STAGE_PAD_X - GUTTER_W;
    least 96 *screen* px wide" is what makes it a legibility floor rather than
    an arbitrary number, and 80 keeps that threshold exactly where it was.
 
-   What did change with the upscale is how much fits inside it: the title is
-   still 12 canvas px, which is now 14.4 on the wall, so an 80px lane holds
-   about 20% fewer characters before ellipsing than the old 96px one did.
-   That is the cost of the larger type, not a regression in this file. */
+   What the upscale changed is how much fits inside it. At the old 12 canvas
+   px the title measured 14.4 on the wall and an 80px lane held about 20%
+   fewer characters than the old 96px one; at 9 canvas px it is 10.8 on the
+   wall, which buys those characters back and then some. Either way the
+   physical threshold this file enforces is the same. */
 export const MIN_EVENT_COL_W = 80;
 
 /* Width of the lane reserved on the right of a column for its "+N" chip,
