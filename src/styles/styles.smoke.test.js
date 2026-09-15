@@ -86,6 +86,32 @@ describe("board stylesheet", () => {
     expect(day + sheet).not.toMatch(/#C43A33|#E0574F/i);
   });
 
+  it("paints the page's own canvas with the board's paper, as the backstop", () => {
+    /*
+      The layer of last resort. The root element's background propagates to the
+      canvas, which is the one surface painted outside the viewport's clip and
+      therefore the only thing that covers the whole web view no matter what
+      any box in the document resolves to. On the wall that region is the grey
+      band this sequence has been chasing, and #59's colour probe photographed
+      it as the page's own background rather than as something iPadOS drew —
+      which is what made it fixable in CSS at all.
+
+      --paper rather than --frame-bg, because a residual sub-pixel gap under a
+      board whose own root is --paper should be invisible rather than a grey
+      hairline. body is in the selector with it: the page's boxes now reach the
+      glass, so an opaque grey body would sit on top of the backstop and defeat
+      it.
+
+      .fb-fit deliberately keeps --frame-bg. Inside the frame the grey is the
+      dev window's device border and is meant to be seen.
+    */
+    expect(fit).toContain("html, body { background: var(--paper); }");
+    expect(fit).toContain("background: var(--frame-bg)");
+    // The whole chunk is hex-free (asserted below), so this only has to rule
+    // out the frame grey being reused as the page background by token name.
+    expect(fit).not.toContain("html, body { background: var(--frame-bg)");
+  });
+
   it("keeps the frame a plain viewport box that cannot clip the canvas", () => {
     // Six passes of the grey band along the bottom of the board all lived in
     // this one rule, and they converged on the frame not being the place to

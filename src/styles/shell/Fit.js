@@ -94,13 +94,64 @@ import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
   - `env(safe-area-inset-bottom)` added to the height. Every signal Fit.jsx
     can read in JS describes the viewport, and the insets are the one quantity
     that describes the difference between the viewport and the glass. On this
-    panel it should be 0 — a home button, no indicator — in which case this
-    declaration is identical to `inset: 0` and costs nothing. If it is not 0,
-    it is the answer, and measureFrame picks it up for free through .fb-fit's
-    rect.
+    panel it measured 0 — a home button, no indicator — so this declaration is
+    identical to `inset: 0` and costs nothing. The inset that is *not* 0 on
+    this device is the top one, 20px, and it is the whole of the discrepancy;
+    #58's glassAgrees is what reads it, in JS, and Fit.jsx now writes the
+    resulting height onto .fb-fit inline. That inline height wins over the
+    `calc` below whenever the board is mounted, which is the point of it: a
+    `100%` on a `position: fixed` box resolves against the initial containing
+    block, and on this panel the initial containing block is the 790-tall
+    layout viewport rather than the 810-tall glass. The declaration stays as
+    the pre-mount and no-JS fallback.
+
+  - `html, body { background: var(--paper); }`, which is the backstop and is
+    deliberately the board's paper rather than the frame grey.
+
+    `body` is in the selector and is the one place this pass goes past its
+    brief, for a reason worth stating: with the page's boxes now sized to the
+    glass rather than to the layout viewport, `body` reaches the bottom of the
+    screen too, and index.html still paints it #D9DBE0. A backstop underneath
+    an opaque grey box the same size is not a backstop. Both layers move
+    together or neither does.
+
+    This does not touch .fb-fit, which keeps --frame-bg. Inside the frame the
+    grey is still correct — it is the letterboxed dev window's device border,
+    and #56 settled that the gap must not be tinted. What changes is only what
+    is painted *outside* the frame, which on the wall is the region this whole
+    sequence has been about.
+
+    The root element's background propagates to the canvas, and the canvas is
+    the one surface that covers the whole web view regardless of what any box
+    in the document resolves to — it is painted outside the viewport's clip,
+    which is precisely why the band was visible at all while every laid-out
+    layer stopped at 790. Under #59's colour probe that region photographed as
+    the page's own background rather than as neutral grey, which is what ruled
+    out iPadOS drawing over the bottom of the web view and made this a page
+    problem after all.
+
+    So if the two changes above are complete this rule is invisible: the board
+    covers the glass and nothing sees the canvas. If any sub-pixel of the old
+    gap survives them, it is now the difference between a grey line under the
+    board and no line at all, because --paper is what .fb-root paints its own
+    bottom edge with.
+
+    var(--paper) rather than a hex literal, so there is still no colour written
+    twice in this repository. It resolves against tokens.js's :root default
+    rather than the live theme — App.jsx sets the per-theme palette inline on
+    .fb-root, which html is not inside — so a non-default theme leaves this a
+    near-match rather than an exact one. That is the correct trade for a layer
+    that is only ever seen if something else has already failed: a backstop
+    that had to be kept in sync with the theme would be a second thing to get
+    wrong.
 */
 export default `
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap');
+
+/* The canvas backstop — see the note above. Kept first in the chunk, after
+   the @import, so the frame rule below stays the chunk's first fb- selector
+   and styles.smoke.test.js's slice assertions still bound it. */
+html, body { background: var(--paper); }
 
 .fb-fit {
   position: fixed; top: 0; left: 0;

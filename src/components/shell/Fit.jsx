@@ -275,16 +275,63 @@ function measureFrame(el) {
   };
 }
 
+/*
+  The page's own boxes, given the derived height instead of `height: 100%`.
+
+  This is the other half of the frame's box, and part of the reason #58 could
+  compute the right number and still change nothing on the wall. index.html
+  sizes `html`, `body` and `#root` at `height: 100%`, which resolves against
+  the layout viewport — the same 790 that every JS viewport API reports and
+  that glassAgrees exists to disbelieve. So every box on the page is 790 tall
+  while the glass is 810, and `.fb-root` is the only thing in the document that
+  reaches the bottom of the screen, which it does through `.fb-device`'s
+  transform rather than through a height of its own. Its rect says `t0 b810`
+  honestly and its paint stops at ~790 anyway.
+
+  What stops it is `html`'s `overflow: hidden`. The root element's overflow
+  propagates to the viewport, and the viewport's clip — unlike an ordinary
+  ancestor's — does apply to `position: fixed` boxes, so it is the one clip in
+  the page that can reach `.fb-fit`. `body`'s identical `overflow: hidden`
+  cannot: `.fb-fit` is fixed, its containing block is the initial containing
+  block rather than `body`, and nothing on `html`, `body` or `#root` sets a
+  transform, filter, `contain` or `will-change` that would make one of them a
+  containing block for fixed descendants. `.fb-fit` itself carries no overflow
+  at all, which styles.smoke.test.js pins.
+
+  The `overflow: hidden` stays. It is what stops a wall panel being
+  scrollable, which is deliberate, and it is not the thing that is wrong. Only
+  the height is: at 810 the same clip falls on the bottom of the glass instead
+  of 20px above it.
+
+  Written from JS rather than fixed in index.html because the number is not a
+  constant — it is measureFrame's height, validated by glassAgrees — and on any
+  frame where the glass is not used it is just `innerHeight`, which is what
+  `height: 100%` already resolved to. So this is inert everywhere except the
+  device it was written for.
+*/
+function pageBoxes() {
+  if (typeof document === "undefined") return [];
+  return [document.documentElement, document.body, document.getElementById("root")].filter(Boolean);
+}
+
+function applyPageHeight(px) {
+  const value = Number.isFinite(px) && px > 0 ? `${px}px` : "";
+  for (const node of pageBoxes()) node.style.height = value;
+}
+
 export function Fit({ children }) {
   const ref = useRef(null);
   // Seeded from the initialiser rather than an effect so the first paint is
   // already at the right scale instead of flashing through scale 1. The ref
   // is still empty here, so this is the window fallback on mount; the effect
   // below re-measures against the real box immediately after.
-  const [fit, setFit] = useState(() => {
+  // `h` rides along in state because the frame now wears it as well as being
+  // scaled against it — see the inline height on .fb-fit below.
+  const [frame, setFrame] = useState(() => {
     const { w, h } = measureFrame(null);
-    return fitFor(w, h);
+    return { fit: fitFor(w, h), h };
   });
+  const fit = frame.fit;
 
   useEffect(() => {
     const measure = () => {
@@ -292,10 +339,16 @@ export function Fit({ children }) {
       const { w, h } = m;
       const next = fitFor(w, h);
       recordFitSignals(m, next);
+      applyPageHeight(h);
       // Returning prev on an identical measurement keeps a resize burst from
       // re-rendering the whole board for nothing.
-      setFit((prev) =>
-        prev.x === next.x && prev.y === next.y && prev.anchor === next.anchor ? prev : next,
+      setFrame((prev) =>
+        prev.h === h &&
+        prev.fit.x === next.x &&
+        prev.fit.y === next.y &&
+        prev.fit.anchor === next.anchor
+          ? prev
+          : { fit: next, h },
       );
     };
     measure();
@@ -304,6 +357,10 @@ export function Fit({ children }) {
     return () => {
       window.removeEventListener("resize", measure);
       window.removeEventListener("orientationchange", measure);
+      // Hand the page back to the stylesheet. Nothing else mounts over those
+      // three nodes, so a stale pixel height left on them would outlive the
+      // measurement that justified it.
+      applyPageHeight(0);
     };
   }, []);
 
@@ -312,7 +369,30 @@ export function Fit({ children }) {
   const scale = fit.x === fit.y ? `scale(${fit.x})` : `scale(${fit.x}, ${fit.y})`;
 
   return (
-    <div className="fb-fit" ref={ref}>
+    /*
+      The frame carries the derived height, and this is the change #58's brief
+      put out of scope. Fit.js gives .fb-fit `height: calc(100% +
+      env(safe-area-inset-bottom, 0px))`, and `100%` on a `position: fixed` box
+      resolves against the initial containing block — the same short layout
+      viewport, 790 — while the bottom inset on this panel measures 0. So the
+      frame computed to 790 however carefully the *scale* was derived, and the
+      overlay's glass check read delta 20 against an availHeight of 810. That
+      is exactly what the check was built to catch, and it caught it.
+
+      An inline length here is not the no-length-literal rule being broken: the
+      number is not written down anywhere. It is measureFrame's height —
+      derived at runtime from screen.availHeight and admitted only when
+      glassAgrees corroborates it against the insets — which is the same input
+      the scale already takes. Fit.test.jsx's standing assertion that the frame
+      carries no inline size was written when the frame's size was an
+      independent guess that could disagree with the scale. It is now the same
+      quantity, and the two cannot disagree.
+
+      The sheet's `calc(100% + env(...))` stays underneath as the pre-mount and
+      no-JS fallback. It is what the frame was before this line and it is still
+      the right answer when there is no measurement yet.
+    */
+    <div className="fb-fit" ref={ref} style={{ height: frame.h > 0 ? `${frame.h}px` : undefined }}>
       {/*
         The build badge and the diagnostic gesture. Always mounted — the badge
         is meant to be on screen in every photograph of the wall, and the
