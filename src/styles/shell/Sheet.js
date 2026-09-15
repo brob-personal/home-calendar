@@ -12,6 +12,17 @@
 
   .fb-scrim is the click-to-close backdrop. Sheet closes on scrim click
   only, with no focus trap and no Escape handling — R12's backlog item 6.
+
+  The wide sheet asks for 900px, which is the whole canvas, inside a scrim
+  that pads 26px — so it used to be 52px wider than the space it was placed
+  in. An oversized item in a grid track overflows the track's *end* edge, so
+  all 52px of that went off the right side and .fb-root's overflow: hidden
+  cut it: the right edge of the panel, its rounded corner, and the tail of
+  the widest thing in it, which is the Family roster row. `max-width: 100%`
+  on .fb-sheet is the fix — 900px is now what it wants, not what it takes,
+  and on this canvas it resolves to 848. .fb-memberrow below then sizes
+  itself to whatever that leaves rather than to its inputs' intrinsic
+  widths, so the row cannot be the thing that overflows again.
 */
 export default `
 /* Sheets */
@@ -21,7 +32,7 @@ export default `
   display: grid; place-items: center; padding: 26px;
 }
 .fb-sheet {
-  width: 560px; max-height: 100%;
+  width: 560px; max-width: 100%; max-height: 100%;
   background: var(--paper); border-radius: 18px;
   display: flex; flex-direction: column; overflow: hidden;
   box-shadow: 0 20px 60px var(--shadow-sheet);
@@ -109,8 +120,28 @@ button.fb-shade.is-on { border-color: var(--ink); }
   display: flex; flex-direction: column; gap: 7px;
   padding-bottom: 11px; border-bottom: 1px solid var(--line);
 }
-.fb-memberrow { display: flex; align-items: center; gap: 9px; }
-.fb-memberfoot { display: flex; align-items: center; gap: 16px; padding-left: 53px; }
+.fb-memberrow { display: flex; align-items: center; gap: 8px; }
+/* Six controls and an avatar on one 808px line, so this row is the only
+   place in the sheet where the fields are sized rather than left at a bare
+   width: auto -- an input's intrinsic width is its size attribute's 20
+   characters, and seven of those don't fit whatever the sheet is. Name and
+   hex get the fixed widths their content actually needs; the two id fields
+   are flex: 1 1 0 with min-width: 0, so they divide what is left and the
+   row's width is the container's, never the inputs' sum. Type steps down
+   with them -- 14px to 13px, and 13 to 12 in the hex -- so the narrower
+   fields still show about as much of a calendar id as the wider ones did.
+
+   The colour swatch and the Remove button keep their sizes on purpose. The
+   swatch is 38px, which is the one control in this row that clears Apple's
+   44pt once Fit's 1.2x is applied (45.6 screen px), and tap-target-audit.md
+   asks that nothing be walked back down; the ghost button is shared with
+   DateField. Neither is a field, and with the ids on flex the row fits
+   without touching them. */
+.fb-memberrow .fb-input { font-size: 13px; padding: 9px 10px; }
+.fb-memberrow .fb-input-name { flex: none; width: 118px; min-width: 0; }
+.fb-memberrow .fb-input-hex { flex: none; width: 82px; font-size: 12px; }
+.fb-memberrow .fb-input-id { flex: 1 1 0; width: auto; min-width: 0; }
+.fb-memberfoot { display: flex; align-items: center; gap: 16px; padding-left: 52px; }
 .fb-memberfoot .fb-ramp { margin-left: auto; }
 .fb-swatch {
   width: 38px; height: 38px; flex: none; padding: 0;
