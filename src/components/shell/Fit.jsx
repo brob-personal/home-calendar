@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
 import { CANVAS_W, CANVAS_H, DEVICE_H } from "../../lib/canvas.js";
+import { FitDiag, diagRequested } from "./FitDiag.jsx";
 
 /*
   Maps the fixed 900x675 canvas onto the frame it lands in. Every dimension
@@ -114,24 +115,61 @@ export function fitFor(width, height) {
   const sx = width / CANVAS_W;
   const sy = height / CANVAS_H;
   if (Math.abs(sx / sy - 1) <= FILL_TOLERANCE) {
-    // Device-shaped frame: this is the wall iPad, so the height is known
-    // rather than measured, and the canvas is anchored to the top of the
-    // frame so that a frame which does come up short cannot push the board
-    // down off the bottom of the glass.
-    return { x: sx, y: DEVICE_SCALE_Y, anchor: "top" };
+    // Device-shaped frame: this is the wall iPad, so DEVICE_H is a floor
+    // under the measured height rather than a replacement for it. Pinning it
+    // outright was pass 7 and it is still the right answer when every signal
+    // reports short; what it could not handle is a glass that is *taller*
+    // than the constant, which would leave exactly the band being reported.
+    // `max` covers both: short signals cannot shrink the board below the
+    // panel, and an honest larger measurement is still allowed to grow it.
+    //
+    // The canvas stays anchored to the top of the frame, so whichever of the
+    // two wins, the discrepancy lands off the bottom edge rather than being
+    // split across the top and bottom.
+    return { x: sx, y: Math.max(sy, DEVICE_SCALE_Y), anchor: "top" };
   }
   const s = Math.min(sx, sy);
   return { x: s, y: s, anchor: "center" };
 }
 
+/*
+  The largest of a set of candidates, ignoring the ones that are not usable
+  numbers. Zeroes and undefineds are what jsdom, a pre-layout browser and an
+  unsupported API all return, and none of them is evidence of a small screen.
+*/
+function largest(candidates) {
+  const usable = candidates.filter((n) => Number.isFinite(n) && n > 0);
+  return usable.length ? Math.max(...usable) : 0;
+}
+
+/*
+  Every way the platform will tell us how big the viewport is, reduced with
+  `max` rather than by picking a favourite.
+
+  This file has picked a favourite three times — getBoundingClientRect on a
+  CSS-sized box, then window.innerHeight, then the rect of a `position: fixed;
+  inset: 0` box — and the grey band along the bottom survived all three. Each
+  choice was defensible and each one can come up short of the glass; what none
+  of them can do is come up *too large*, because they are all descriptions of
+  the same viewport. So there is nothing to lose by taking whichever reports
+  the most and everything to gain: the board can only be too small if *every*
+  signal is short, rather than if the one that was picked is.
+
+  visualViewport is in the list for the same reason it was once deliberately
+  excluded. It shrinks when the iOS keyboard opens, which is why scaling to it
+  would rescale the whole board whenever Composer or a note took focus — but
+  under `max` a shrunken visualViewport is simply never the largest, so it can
+  contribute its (occasionally larger) value without being able to shrink
+  anything.
+*/
 function measureFrame(el) {
   const r = el?.getBoundingClientRect();
-  // jsdom has no layout engine and reports 0x0; so does a real browser for
-  // the instant before first layout. Fall back to the viewport it would have
-  // resolved to anyway.
-  if (r?.width && r?.height) return { w: r.width, h: r.height };
-  if (typeof window === "undefined") return { w: 0, h: 0 };
-  return { w: window.innerWidth, h: window.innerHeight };
+  if (typeof window === "undefined") return { w: r?.width ?? 0, h: r?.height ?? 0 };
+  const doc = document.documentElement;
+  return {
+    w: largest([r?.width, window.innerWidth, doc?.clientWidth]),
+    h: largest([r?.height, window.innerHeight, doc?.clientHeight, window.visualViewport?.height]),
+  };
 }
 
 export function Fit({ children }) {
@@ -170,6 +208,11 @@ export function Fit({ children }) {
 
   return (
     <div className="fb-fit" ref={ref}>
+      {/*
+        ?diag only. Outside .fb-device on purpose: it reports the numbers the
+        canvas is scaled against, so it must not itself be scaled by them.
+      */}
+      {diagRequested() && <FitDiag />}
       {/*
         scale() before translate() is load-bearing. The transform list
         composes as scale x translate, so the offsets are scaled with it, per
