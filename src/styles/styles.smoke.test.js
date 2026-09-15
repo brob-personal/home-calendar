@@ -95,7 +95,12 @@ describe("board stylesheet", () => {
     // canvas is centred in the frame, so a frame centred in the screen can
     // only ever produce symmetric gaps. One-sided means top-anchored and
     // short at the bottom, so that is where the overshoot belongs.
-    expect(fit).toContain("height: calc(100% + var(--fit-extend-b))");
+    expect(fit).toContain("height: calc(max(100%, 100vh) + var(--fit-extend-b))");
+    // `100%` is the layout viewport, which is the quantity that has come up
+    // short at every pass; `100vh` is the large viewport, the full glass.
+    // Either can be the smaller on a given iPadOS build, so the frame takes
+    // the larger rather than depending on which one this iPad shorts.
+    expect(fit).toContain("max(100%, 100vh)");
     expect(BOARD_CSS).toContain("--fit-extend-b:");
     // Anchored at the top: the extension must lengthen the frame downward,
     // not recentre it, or the gap comes back split across both edges.
@@ -106,6 +111,8 @@ describe("board stylesheet", () => {
     expect(fit).not.toContain("inset: 0");
     expect(fit).not.toContain("--fit-bleed");
     expect(fit).not.toContain("100dvh");
+    // A bare `calc(100% + ...)` is pass 5, which was still short.
+    expect(fit).not.toContain("calc(100% +");
   });
 
   it("derives the dock offset instead of restating it", () => {

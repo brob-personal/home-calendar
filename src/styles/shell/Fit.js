@@ -56,14 +56,35 @@ import { CANVAS_W, CANVAS_H } from "../../lib/canvas.js";
     what runs past the glass, and there is no bottom edge left for body to
     show at.
 
+  - `max(100%, 100vh)` rather than `100%`, because pass 5 was still short and
+    the two are not the same quantity. `100%` on a fixed box resolves against
+    the initial containing block, which is the *layout* viewport — the thing
+    that has come up short at every step of this. `100vh` resolves against the
+    large viewport, the screen with all dynamic browser UI retracted, which
+    under viewport-fit=cover is the full pane of glass including the strip
+    behind the status bar. Either one can be the smaller on a given iPadOS
+    build, and nothing in the platform promises which. Taking the larger of
+    the two costs nothing anywhere — in a desktop window they are the same
+    number — and it stops the frame's height from depending on which of the
+    two a particular iPad decides to short.
+
+    `max()` and `vh` are both old enough to be safe here; deliberately not
+    `dvh`/`lvh`/`svh`, which would be the precise way to say this but would
+    invalidate the whole declaration (and leave the frame at `height: auto`)
+    on anything that does not know them.
+
     The cost is at the bottom only, and it is bounded: whatever part of
     --fit-extend-b is not absorbed by the shortfall is clipped off the bottom
-    of the board. At 24px against a 20px shortfall that is 4 screen px of the
-    board's own --board-pad-b (18 canvas px, 22 at 1.2x), which is blank.
-    Worst case, if the viewport turns out not to be short at all, the whole
-    24px comes out of that padding and the calendar sits flush to the glass.
-    That is the deliberate direction to err in: too much extension costs
-    padding, too little leaves grey.
+    of the board. The first 22 screen px are free — that is --board-pad-b (18
+    canvas px at 1.2x), which is blank in every view. 40px means up to 18
+    screen px, 15 canvas px, can come off the bottom of the calendar itself if
+    the frame turns out not to have been short at all. That is the deliberate
+    direction to err in at this point: too much extension costs a strip of
+    padding, too little leaves grey, and grey is the thing being reported.
+
+    So this is two independent guards, not one: the frame no longer takes the
+    layout viewport's word for the screen height, *and* it overshoots whatever
+    it does resolve to.
 
   The box-shadow stays: it is drawn outside the canvas, so `overflow:
   hidden` clips it away for free when the canvas is flush, while it still
@@ -74,7 +95,7 @@ export default `
 
 .fb-fit {
   position: fixed; top: 0; left: 0;
-  width: 100%; height: calc(100% + var(--fit-extend-b));
+  width: 100%; height: calc(max(100%, 100vh) + var(--fit-extend-b));
   background: var(--frame-bg); overflow: hidden;
 }
 .fb-device {
