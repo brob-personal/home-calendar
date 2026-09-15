@@ -235,6 +235,46 @@ describe("board stylesheet", () => {
     }
   });
 
+  it("scopes every event surface that renders as a <button> past the reset", () => {
+    /*
+      Root.js's reset is `.fb-root button { font: inherit; color: inherit;
+      background: none; ... }` — specificity (0,1,1), which outranks any bare
+      single-class rule at (0,1,0). Three event surfaces ARE the button rather
+      than a <span> inside one: SpanBar renders Month's bars and Week's
+      all-day band as <button>, and DayView's all-day chips are buttons too.
+      Styled bare, each silently lost every font longhand it declared (`font`
+      is a shorthand, so `font: inherit` takes size, weight and line-height
+      with it) plus its background and ink — Month's bars shipped at the
+      inherited 16px/400, a different and much larger face than the titles
+      beside them in Day and Week, and Day's chips shipped with no fill at all.
+
+      So each must stay scoped by a parent to clear (0,1,1). Day's and Week's
+      timed titles are exempt: .fb-blocktitle and .fb-wbtitle are <span>s,
+      which the reset never matches.
+    */
+    expect(month).toContain(".fb-rowevents .fb-cellev {");
+    expect(month).toContain(".fb-rowevents .fb-cellmore {");
+    expect(week).toContain(".fb-alldaytrack .fb-alldaychip {");
+    expect(day).toContain(".fb-allday .fb-alldaychip {");
+    // The trap itself, so this test keeps pointing at something real.
+    expect(root).toContain(".fb-root button { font: inherit;");
+  });
+
+  it("steps event type down from Day to Week to Month", () => {
+    // Canvas px, which <Fit> then upscales, so the ladder is the invariant
+    // rather than any absolute number: a Day block has the most room to spend
+    // and a Month bar the least, so the type gets smaller in that order.
+    const sizeOf = (sheet, rule) =>
+      Number(sheet.match(new RegExp(`\\${rule} \\{[^}]*font-size: (\\d+)px`))[1]);
+
+    const dayTitle = sizeOf(day, ".fb-blocktitle");
+    const weekTitle = sizeOf(week, ".fb-wbtitle");
+    const monthBar = sizeOf(month, ".fb-rowevents .fb-cellev");
+
+    expect(dayTitle).toBeGreaterThan(weekTitle);
+    expect(weekTitle).toBeGreaterThan(monthBar);
+  });
+
   it("has no hardcoded colour literal outside tokens.js", () => {
     // fit.js is the one chunk with a JS literal at all — CANVAS_W/CANVAS_H
     // interpolated from src/lib/canvas.js — and its only string literal is

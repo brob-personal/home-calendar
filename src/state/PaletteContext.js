@@ -9,9 +9,10 @@ import { splitFill, variantColor } from "../lib/color.js";
 
   Those two functions were computed in the root and threaded down as `fill`
   and `color` props to WeekView, MonthView, AgendaView and Countdowns. They
-  are now read from context instead. DayView never received them — it derives
-  its block colour per lane from the lane owner's hue directly — so only three
-  views and the countdown ticker consume this.
+  are now read from context instead. DayView takes `fillFor` for its all-day
+  chips only: its timed blocks derive their colour per lane from the lane
+  owner's hue directly, but the chips sit in a single row above the columns
+  where there is no lane owner to ask.
 
   The colour rule these functions encode, and which nothing downstream may
   break: a person is a hue. An event's `variant` (Google's colorId, 1-11,

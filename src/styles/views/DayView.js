@@ -23,9 +23,23 @@ export default `
 /* Day */
 .fb-day { display: flex; flex-direction: column; gap: 10px; height: 100%; }
 .fb-allday { display: flex; gap: 8px; flex-wrap: wrap; flex: none; }
-.fb-alldaychip {
-  font-size: 11px; font-weight: 600; padding: 6px 12px;
-  background: var(--paper); border-radius: 8px; color: var(--mute);
+/*
+  Scoped under .fb-allday for the same reason as MonthView's .fb-cellev: these
+  chips are button elements, and Root.js's reset -- "button { background:
+  none; font: inherit; color: inherit }" -- is (0,1,1), so a bare
+  .fb-alldaychip at (0,1,0) lost its background outright. The chips rendered
+  as bare text at the inherited 16px/400 with no fill behind them at all,
+  along with losing their size, weight and ink.
+
+  The fill itself now comes from DayView.jsx as an inline fillFor(e), the same
+  split fill Week's band and Month's bars carry, rather than the flat --paper
+  this rule used to ask for: an all-day event is still its owner's event and
+  should read in the owner's colour. --ink-on-color follows the fill, and the
+  old --mute ink goes with it.
+*/
+.fb-allday .fb-alldaychip {
+  font-size: 10px; font-weight: 600; padding: 6px 12px;
+  border-radius: 8px; color: var(--ink-on-color);
 }
 .fb-dayhead { display: flex; flex: none; padding-right: 6px; }
 .fb-dayhead .fb-headhome { display: flex; align-items: center; justify-content: center; padding: 2px 0 8px; }
@@ -54,12 +68,12 @@ export default `
 .fb-dblock.is-stacked { flex-direction: column; justify-content: flex-start; align-items: flex-start; }
 .fb-dblock.is-compact { flex-direction: row; gap: 6px; }
 .fb-blocktitle {
-  font-size: 11px; font-weight: 700; letter-spacing: -.015em;
+  font-size: 10px; font-weight: 700; letter-spacing: -.015em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 .fb-dblock.is-compact .fb-blocktitle { flex: 0 1 auto; min-width: 0; max-width: none; }
 .fb-blocktime {
-  font-size: 9px; font-weight: 600; opacity: .66; flex: none;
+  font-size: 8px; font-weight: 600; opacity: .66; flex: none;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 /* .fb-moreblock itself is declared in week.js with the rest of the shared
