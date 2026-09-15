@@ -94,6 +94,60 @@ before a fresh load re-derives it), that's a manual repeat of the four steps
 above; there's no in-app or Shortcuts equivalent to closing and reopening a
 standalone PWA.
 
+## 5. Build identity and the diagnostic overlay
+
+Two things on the board exist only to be read off the wall. Both are there
+because of §4: the board cannot be reloaded without the four-step dance
+above, so nothing about a photograph of the screen tells you which build took
+it, and Guided Access allows taps inside the app and nothing else, so there is
+no address bar to put a `?diag` flag in.
+
+**The build badge** is the small dark pill in the bottom-left corner. It shows
+the short commit SHA and the build's date and UTC time — `7096823 0915.1420Z`.
+It is always on screen. If you are reporting anything about how the board
+looks, include the badge in the photograph or the report cannot be tied to a
+build.
+
+The badge does one more thing for free. It is pinned to the *bottom of the
+layout viewport*, and its bottom 2px are lime. So the lime line marks where
+the page believes the screen ends:
+
+- Grey **below** the lime line — the page's viewport stops short of the glass.
+  Those pixels were never given to the page, and nothing in the stylesheet can
+  reach them.
+- Grey **starting at** the lime line — the page has those pixels and is
+  painting them itself.
+
+**The diagnostic overlay** is reached by tapping the **top-left corner of the
+screen** (roughly the top-left 56px, over the board's own margin):
+
+- **Three taps** toggle a full-screen readout: build identity, every width and
+  height the platform will report, the resolved safe-area insets, the
+  rectangles of all four layout boxes with all four edges, the transform
+  actually applied to the canvas, the scale the code computed and every signal
+  that fed it, and the background colour of every layer. Three taps again
+  closes it. There are also `RE-READ`, `COLOUR PROBE` and `CLOSE` buttons
+  along its top.
+- **Four taps** toggle the colour probe. It recolours every layer that could
+  paint an edge and removes the month gradient above them, so a stray edge
+  names its own owner: **magenta** is the frame (`.fb-fit`), **yellow** the
+  board root, **cyan** the stage, **orange** the body, **lime** outside the
+  body altogether. If the edge stays neutral grey under the probe, *nothing in
+  the page paints it* — the page either never receives those pixels or does not
+  get the last word on them, and no CSS length in this repository will move it.
+
+The count resolves about half a second after you stop tapping, so a four-tap
+does not open the overlay on its way past three. Both toggle, because there is
+no way out of a stuck overlay on a pinned board short of §4. The probe lasts
+until you four-tap again or the board is reloaded.
+
+Neither gesture blocks anything. The taps are counted by watching for them, not
+by putting a target in the corner, so they still reach whatever is underneath —
+including the wake tap on a sleeping board.
+
+Settings → Display diagnostics has the same readout in text form, for a desk
+browser where a four-tap in the corner is a strange thing to ask for.
+
 ## Done when
 
 The board is on screen, showing live data, Auto-Lock is off, and Guided

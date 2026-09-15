@@ -26,6 +26,13 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.es2021,
+
+        // Compile-time constants injected by vite.config.js's `define`. They
+        // are real identifiers in the source and esbuild substitutes literals
+        // for them, so no-undef has to be told they exist. Only src/lib/build.js
+        // reads them; everything else imports from there.
+        __BUILD_SHA__: "readonly",
+        __BUILD_TIME__: "readonly",
       },
       parserOptions: {
         ecmaFeatures: { jsx: true },

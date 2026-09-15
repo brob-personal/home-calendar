@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 
 import { CANVAS_W, CANVAS_H, DEVICE_H } from "../../lib/canvas.js";
-import { FitDiag, diagRequested } from "./FitDiag.jsx";
+import { DiagSurface } from "./DiagSurface.jsx";
+// The scale and the signals behind it are recorded for the diagnostic overlay
+// rather than recomputed by it — see recordFitSignals' comment for why a
+// second measurement would not be the same observation.
+import { recordFitSignals } from "./FitDiag.jsx";
 
 /*
   Maps the fixed 900x675 canvas onto the frame it lands in. Every dimension
@@ -164,11 +168,27 @@ function largest(candidates) {
 */
 function measureFrame(el) {
   const r = el?.getBoundingClientRect();
-  if (typeof window === "undefined") return { w: r?.width ?? 0, h: r?.height ?? 0 };
+  if (typeof window === "undefined") {
+    return { w: r?.width ?? 0, h: r?.height ?? 0, candidates: null };
+  }
   const doc = document.documentElement;
+  // Named rather than passed to largest() as a bare array literal, so the
+  // diagnostic overlay can print the individual signals beside the value that
+  // won. Object.values preserves insertion order, so the list largest() sees
+  // is the same list in the same order it saw before.
+  const candidates = {
+    w: { rect: r?.width, innerWidth: window.innerWidth, clientWidth: doc?.clientWidth },
+    h: {
+      rect: r?.height,
+      innerHeight: window.innerHeight,
+      clientHeight: doc?.clientHeight,
+      visualViewport: window.visualViewport?.height,
+    },
+  };
   return {
-    w: largest([r?.width, window.innerWidth, doc?.clientWidth]),
-    h: largest([r?.height, window.innerHeight, doc?.clientHeight, window.visualViewport?.height]),
+    w: largest(Object.values(candidates.w)),
+    h: largest(Object.values(candidates.h)),
+    candidates,
   };
 }
 
@@ -185,8 +205,10 @@ export function Fit({ children }) {
 
   useEffect(() => {
     const measure = () => {
-      const { w, h } = measureFrame(ref.current);
+      const m = measureFrame(ref.current);
+      const { w, h } = m;
       const next = fitFor(w, h);
+      recordFitSignals(m, next);
       // Returning prev on an identical measurement keeps a resize burst from
       // re-rendering the whole board for nothing.
       setFit((prev) =>
@@ -209,10 +231,21 @@ export function Fit({ children }) {
   return (
     <div className="fb-fit" ref={ref}>
       {/*
-        ?diag only. Outside .fb-device on purpose: it reports the numbers the
-        canvas is scaled against, so it must not itself be scaled by them.
+        The build badge and the diagnostic gesture. Always mounted — the badge
+        is meant to be on screen in every photograph of the wall, and the
+        gesture is the only way to reach the overlay on a device with no
+        address bar.
+
+        Inside .fb-fit and outside .fb-device, and both halves of that matter.
+        Outside .fb-device because it reports the numbers the canvas is scaled
+        against and must not itself be scaled by them — and because a transform
+        makes its subtree the containing block for `position: fixed`
+        descendants, so a badge mounted in there would be pinned to the canvas
+        rather than to the glass, which is the one thing it exists to tell
+        apart. Inside .fb-fit because .fb-fit carries no transform, so fixed
+        positioning there still resolves against the viewport.
       */}
-      {diagRequested() && <FitDiag />}
+      <DiagSurface />
       {/*
         scale() before translate() is load-bearing. The transform list
         composes as scale x translate, so the offsets are scaled with it, per
