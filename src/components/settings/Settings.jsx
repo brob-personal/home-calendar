@@ -8,7 +8,7 @@ import { useMode } from "../../state/ModeContext.js";
 import { fetchAccessRole } from "../../data/google.js";
 import { Avatar } from "../shell/Avatar.jsx";
 import { Sheet } from "../shell/Sheet.jsx";
-import { viewportRows, tintLayers } from "../shell/FitDiag.jsx";
+import { diagRows, setColourProbe } from "../shell/FitDiag.jsx";
 import { Field } from "../shell/Field.jsx";
 
 /* "Roommate" reads better than the raw mode id in a UI label; every other
@@ -120,7 +120,8 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
     const trimmed = value.trim();
     const i = memberCalendarIndex(memberId);
     if (i === -1) {
-      if (trimmed) setCalendars([...calendarList, { id: trimmed, memberIds: [memberId], enabled: true }]);
+      if (trimmed)
+        setCalendars([...calendarList, { id: trimmed, memberIds: [memberId], enabled: true }]);
       return;
     }
     if (!trimmed) {
@@ -295,11 +296,11 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
         </div>
         <p className="fb-note">
           To add someone else&apos;s calendar: have them open Google Calendar, go to that
-          calendar&apos;s Settings and sharing, and share it with brianjrobinson03@gmail.com
-          (at least &ldquo;See all event details&rdquo;). Once shared, find the Calendar ID under
-          &ldquo;Integrate calendar&rdquo; in that same settings page &mdash; it&apos;s their email for a
-          primary calendar, or a long id ending in @group.calendar.google.com for a
-          secondary one &mdash; and paste it here next to their name.
+          calendar&apos;s Settings and sharing, and share it with brianjrobinson03@gmail.com (at
+          least &ldquo;See all event details&rdquo;). Once shared, find the Calendar ID under
+          &ldquo;Integrate calendar&rdquo; in that same settings page &mdash; it&apos;s their email
+          for a primary calendar, or a long id ending in @group.calendar.google.com for a secondary
+          one &mdash; and paste it here next to their name.
         </p>
         <p className="fb-note">
           The strip beside each name is that person&apos;s eleven shades. Google&apos;s event colors
@@ -308,11 +309,10 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
         </p>
         <p className="fb-note">
           Each person can have their own photo, too: share a Drive folder with
-          brianjrobinson03@gmail.com &mdash; viewing access is enough &mdash; and paste its id
-          here, the same way as the Photos folder below &mdash; find it in the folder&apos;s share
-          link, drive.google.com/drive/folders/<b>this part</b>. The board shows that
-          folder&apos;s first image, alphabetically by filename, as their avatar. Leave it empty
-          to keep their initial.
+          brianjrobinson03@gmail.com &mdash; viewing access is enough &mdash; and paste its id here,
+          the same way as the Photos folder below &mdash; find it in the folder&apos;s share link,
+          drive.google.com/drive/folders/<b>this part</b>. The board shows that folder&apos;s first
+          image, alphabetically by filename, as their avatar. Leave it empty to keep their initial.
         </p>
       </Field>
 
@@ -361,7 +361,9 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           ))}
           <button
             className="fb-ghost"
-            onClick={() => setCalendars([...calendarList, { id: "", memberIds: [], enabled: true }])}
+            onClick={() =>
+              setCalendars([...calendarList, { id: "", memberIds: [], enabled: true }])
+            }
           >
             Add calendar
           </button>
@@ -616,27 +618,28 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
         <p className="fb-note">
           First, share the Drive folder you want to use with brianjrobinson03@gmail.com &mdash; it
           does not need edit access, viewing access is enough, but it does need to be shared. The
-          idle screensaver rotates through images in this Drive folder in place of the
-          month&apos;s artwork. Find the id in the folder&apos;s share link &mdash;
+          idle screensaver rotates through images in this Drive folder in place of the month&apos;s
+          artwork. Find the id in the folder&apos;s share link &mdash;
           drive.google.com/drive/folders/<b>this part</b>. Leave it empty to keep the month art.
           Only image files are shown; the board can read the folder but never edits it.
         </p>
       </Field>
 
       {/*
-        Display diagnostics. Here, and not behind the ?diag query parameter
-        this started as, because the board runs as a home-screen app with no
-        address bar — a URL flag is untypeable on the wall, which made the
-        original entry point useless exactly where it was needed.
+        Display diagnostics — the second way in, kept for the case where
+        someone is already in Settings and for a desktop browser where a
+        four-tap in the corner is a strange thing to ask for.
 
-        Both halves answer the same question about the grey band along the
-        bottom of the board. The rows are every height and width the platform
-        will report, including .fb-device's painted rect, so the board's real
-        bottom edge can be compared against the real screen. The button tints
-        the only two layers that paint --frame-bg, which are the same #D9DBE0
-        and so cannot be told apart by looking: the band turning magenta means
-        body below a short frame, lime means the frame below a short canvas,
-        and staying grey means neither and therefore not the page at all.
+        The gesture is the primary entry point: three taps in the top-left
+        corner of the glass open the full-screen overlay, four toggle the
+        colour probe (src/components/shell/DiagSurface.jsx). That is what the
+        wall board actually has — no address bar for `?diag`, and Guided
+        Access allows nothing but taps inside the app.
+
+        The rows here are the same payload the overlay prints, rendered inside
+        the scaled canvas at canvas-px size. They are readable on a desk and
+        too small to photograph from a step ladder, which is why the overlay
+        exists as well rather than instead.
       */}
       <Field label="Display diagnostics">
         <pre
@@ -647,7 +650,7 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
             color: "var(--ink)",
           }}
         >
-          {viewportRows()
+          {diagRows()
             .map(([label, value]) => `${label.padEnd(15)}${value}`)
             .join("\n")}
         </pre>
@@ -655,18 +658,20 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           <button
             className="fb-chip"
             onClick={() => {
-              tintLayers();
+              setColourProbe(true);
               onClose();
             }}
           >
-            Tint frame layers
+            Colour probe on
           </button>
         </div>
         <p className="fb-note">
-          Tinting closes this sheet so the board is visible, and lasts until the board is
-          reloaded. If a stray edge turns <b>magenta</b> the frame is short of the screen; if it
-          turns <b>lime</b> the canvas is short of the frame; if it stays grey it is not being
-          painted by the board at all.
+          The probe closes this sheet so the board is visible, recolours every layer that could
+          paint an edge, and lasts until the board is reloaded or a four-tap in the top-left corner
+          turns it off. A stray edge that comes up <b>magenta</b> is the frame, <b>yellow</b> the
+          board root, <b>cyan</b> the stage, <b>orange</b> the body, <b>lime</b> outside the body
+          altogether. If it stays neutral grey, nothing in the page paints it and no CSS length here
+          can move it.
         </p>
       </Field>
 
