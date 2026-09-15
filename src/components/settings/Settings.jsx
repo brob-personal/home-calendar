@@ -197,7 +197,12 @@ export function Settings({ settings, setSettings, members, setMembers, onClose }
           {members.map((m) => (
             <div className="fb-memberblock" key={m.id}>
               <div className="fb-memberrow">
-                <Avatar member={m} size={44} />
+                {/* 34, down from 44, so the roster row reads at one scale
+                    with the shrunken fields beside it. Not a tap target —
+                    no click handler, per tap-target-audit.md's audit of
+                    every Avatar call site. .fb-memberfoot's padding-left
+                    tracks this number plus the row's gap. */}
+                <Avatar member={m} size={34} />
                 <input
                   className="fb-input fb-input-name"
                   value={m.name}
