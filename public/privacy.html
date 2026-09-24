@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Family Board – Privacy Policy</title>
+    <style>
+      :root {
+        --bg: #fbfaf7;
+        --fg: #1f2328;
+        --muted: #5b626b;
+        --rule: #e3e0d8;
+        --link: #1a5fb4;
+        --code-bg: #efece5;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #16181c;
+          --fg: #e6e4df;
+          --muted: #a0a6ae;
+          --rule: #2c3036;
+          --link: #8ab4f8;
+          --code-bg: #23262c;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          17px/1.6 system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 2.5rem 1.25rem 4rem;
+      }
+      h1 {
+        font-size: 1.9rem;
+        line-height: 1.2;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.2rem;
+        margin: 2.25rem 0 0.5rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--rule);
+      }
+      .updated {
+        color: var(--muted);
+        margin: 0 0 1.5rem;
+      }
+      a {
+        color: var(--link);
+        overflow-wrap: anywhere;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.88em;
+        background: var(--code-bg);
+        padding: 0.1em 0.35em;
+        border-radius: 4px;
+        overflow-wrap: anywhere;
+      }
+      ul {
+        padding-left: 1.25rem;
+      }
+      li {
+        margin: 0.3rem 0;
+      }
+      blockquote {
+        margin: 1rem 0;
+        padding: 0.75rem 1rem;
+        border-left: 3px solid var(--link);
+        background: var(--code-bg);
+        border-radius: 0 6px 6px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Family Board – Privacy Policy</h1>
+      <p class="updated">Last updated: September 24, 2026</p>
+
+      <h2>What Family Board is</h2>
+      <p>
+        Family Board is a personal, non-commercial family dashboard: a calendar, chores list,
+        notes, weather and photo screensaver shown on a wall-mounted tablet in one household. It is
+        built and run by one individual for their own family. It is not offered to the public,
+        there are no user sign-ups, and it is not sold or monetized in any way.
+      </p>
+
+      <h2>Google data the app accesses</h2>
+      <p>
+        The app connects to a single Google account belonging to the household, with these OAuth
+        scopes:
+      </p>
+      <ul>
+        <li>
+          <code>https://www.googleapis.com/auth/calendar</code> — <strong>Google Calendar</strong>.
+          Used to read events from the household's calendars so they can be displayed, and to
+          create, edit and delete events when someone does so from the touchscreen. The app also
+          reads the calendar list to check whether each calendar can be written to.
+        </li>
+        <li>
+          <code>https://www.googleapis.com/auth/drive.readonly</code> —
+          <strong>Google Drive (read-only)</strong>. Used only to list and display image files from
+          a folder the household chooses, for the photo screensaver and family member pictures.
+          The app cannot change or delete anything in Drive.
+        </li>
+      </ul>
+      <p>No other Google APIs or account information (such as your profile or contacts) are used.</p>
+
+      <h2>How data is handled</h2>
+      <ul>
+        <li>
+          <strong>Google credentials stay on the server.</strong> The Google refresh token is
+          stored only as an encrypted environment variable in the app's Vercel hosting account. It
+          is shown once to the owner during the initial setup so it can be saved there, and it is
+          never sent to or stored on the tablet. The server uses it to get short-lived access
+          tokens, which are kept only in memory.
+        </li>
+        <li>
+          <strong>Data is cached only on the device.</strong> Calendar events, notes, chores,
+          family member names and pictures, settings, the weather location and the list of
+          screensaver photos are cached in the tablet's browser storage (localStorage) so the board
+          keeps working offline. Recently shown photos may also sit briefly (up to about an hour)
+          in the browser's normal cache.
+        </li>
+        <li>
+          <strong>No server-side database.</strong> The server passes requests through to Google
+          and returns the results. It does not store or log calendar events, photos or other
+          content. The only information it keeps is short-lived, in memory: the access token and
+          per-IP request counters used to limit abuse.
+        </li>
+        <li>
+          <strong>No analytics, ads or tracking.</strong> There are no analytics tools, ad
+          networks, tracking pixels or error-reporting services.
+        </li>
+      </ul>
+
+      <h2>Sharing and third parties</h2>
+      <p>
+        User data is not sold, shared, rented or transferred to anyone. It is not used for
+        advertising, and it is not used to train AI or machine-learning models. The only outside
+        services involved are infrastructure the app needs to work:
+      </p>
+      <ul>
+        <li><strong>Google APIs</strong> (Calendar, Drive and sign-in), where the data already lives.</li>
+        <li><strong>Vercel</strong>, which hosts the website and the server functions.</li>
+        <li>
+          <strong>Open-Meteo</strong>, a free weather service. The tablet sends it only the
+          latitude and longitude set in the board's settings. No Google data is sent.
+        </li>
+        <li>
+          <strong>Google Fonts</strong>, which serves the board's typeface. Like any web font, this
+          request reveals the device's IP address and browser type to Google.
+        </li>
+      </ul>
+
+      <h2>Google API Services User Data Policy</h2>
+      <blockquote>
+        The app's use and transfer to any other app of information received from Google APIs will
+        adhere to the
+        <a href="https://developers.google.com/terms/api-services-user-data-policy"
+          >Google API Services User Data Policy</a
+        >, including the Limited Use requirements.
+      </blockquote>
+
+      <h2>Retention and deletion</h2>
+      <ul>
+        <li>
+          Cached data stays on the tablet until it is cleared, either by resetting the app or by
+          clearing the browser's website data.
+        </li>
+        <li>
+          You can revoke the app's access to your Google account at any time at
+          <a href="https://myaccount.google.com/permissions">https://myaccount.google.com/permissions</a>.
+        </li>
+        <li>
+          Removing the refresh token from the Vercel environment ends all of the app's access to
+          Google data immediately.
+        </li>
+      </ul>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about this policy or the app's handling of data:
+        <a href="mailto:brianjrobinson03@gmail.com">brianjrobinson03@gmail.com</a>
+      </p>
+    </main>
+  </body>
+</html>
