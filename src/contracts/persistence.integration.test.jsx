@@ -238,6 +238,57 @@ describe("source.list() rejects — Deferred Defect #7", () => {
   });
 });
 
+describe("degraded follows the source's broadcasts", () => {
+  /* A board that cold-started offline and then reconnected. list() answers
+     from cache with `.degraded`; the next poll broadcast says it's healthy. */
+  function recoveringSource() {
+    const listeners = new Set();
+    const source = defineSource(
+      {
+        list: async () => Object.assign([CACHED_EVENT], { degraded: true }),
+        create: async (e) => e,
+        update: async (_id, p) => p,
+        remove: async () => {},
+        subscribe: (fn) => {
+          listeners.add(fn);
+          return () => listeners.delete(fn);
+        },
+      },
+      "recovering source",
+    );
+    const broadcast = (events) => {
+      for (const fn of listeners) fn(events);
+    };
+    return { source, broadcast };
+  }
+
+  it("clears the Offline chip once a poll comes back healthy", async () => {
+    const { source, broadcast } = recoveringSource();
+    active = source;
+
+    const { result } = renderHook(() => useBoardData(new Date()));
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    expect(result.current.degraded).toBe(true);
+
+    act(() => broadcast(Object.assign([CACHED_EVENT], { degraded: false })));
+    expect(result.current.degraded).toBe(false);
+
+    act(() => broadcast(Object.assign([CACHED_EVENT], { degraded: true })));
+    expect(result.current.degraded).toBe(true);
+  });
+
+  it("leaves degraded alone for a broadcast that doesn't report health", async () => {
+    const { source, broadcast } = recoveringSource();
+    active = source;
+
+    const { result } = renderHook(() => useBoardData(new Date()));
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    act(() => broadcast([CACHED_EVENT]));
+    expect(result.current.degraded).toBe(true);
+  });
+});
+
 describe("the full cycle — create, persist, reload", () => {
   it("an event created on the board is there after a restart", async () => {
     /* Phase 1: the board is online. Create an event the way the composer

@@ -57,13 +57,12 @@ import { DEFAULT_MEMBERS, DEFAULT_SETTINGS } from "../contracts/defaults.js";
   outright rejection, so R12's failure UI has one flag to read regardless of
   which source is active.
 
-  One gap left for whoever next touches this seam: google.js's `subscribe`
-  broadcasts a plain snapshot array with no `.degraded` flag on it (its
-  `notify()` only ever forwards `[...cache]`), so a poll that fails *after*
-  a successful initial load never surfaces here — only the awaited `list()`
-  call above can set `degraded`. Recovery has the same gap: a background
-  poll that reconnects never clears it either. Extending that is a google.js
-  change, R8's file, not made here.
+  After load, `degraded` follows the source's broadcasts: google.js stamps
+  every `subscribe` snapshot with a boolean `.degraded`, so a poll that fails
+  sets it and one that reconnects clears it. Before that only the cold-start
+  `list()` could set it and nothing cleared it — a board that reloaded before
+  the network was up said "Offline" over a healthy sync until the next
+  reload. A snapshot without the flag (the mock) leaves it as it was.
 */
 export function useBoardData(now) {
   const source = useMemo(() => createSource(), []);
@@ -196,7 +195,14 @@ export function useBoardData(now) {
     mount cannot beat the load effect's own setEvents. The source owns the
     listener list and returns its own teardown.
   */
-  useEffect(() => source.subscribe((next) => setEvents(next)), [source]);
+  useEffect(
+    () =>
+      source.subscribe((next) => {
+        setEvents(next);
+        if (typeof next.degraded === "boolean") setDegraded(next.degraded);
+      }),
+    [source],
+  );
 
   /* ── Events ───────────────────────────────────────────────────────────── */
   /*
