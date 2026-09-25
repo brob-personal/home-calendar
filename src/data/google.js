@@ -122,6 +122,8 @@ export function createGoogleSource(options = {}) {
   let cache = [];
   let pollHandle = null;
   let wakeAttached = false;
+  /* The last list()/poll's health, stamped on every broadcast — see notify(). */
+  let degraded = false;
 
   /* ── HTTP ─────────────────────────────────────────────────────────────── */
 
@@ -457,10 +459,12 @@ export function createGoogleSource(options = {}) {
     if (result) {
       const events = range ? result.events.filter((e) => inRange(e, range)) : result.events;
       const out = [...events];
-      if (result.degraded) out.degraded = true;
+      degraded = result.degraded;
+      if (degraded) out.degraded = true;
       return out;
     }
 
+    degraded = true;
     const fallback = cache.length ? cache : await readPersistedEventsCache();
     const events = range ? fallback.filter((e) => inRange(e, range)) : fallback;
     const out = [...events];
@@ -598,16 +602,26 @@ export function createGoogleSource(options = {}) {
     return copy;
   }
 
-  function notify() {
-    const snapshot = [...cache];
+  /*
+    Every broadcast carries the source's current health as a non-contract
+    boolean `.degraded`, the same flag list() sets on a fallback. Without it
+    only the cold-start list() could ever set useBoardData's `degraded`, and
+    nothing could clear it: a board that lost the race with the network on
+    one reload said "Offline" over a perfectly good sync until the next.
+  */
+  function notify(events = cache) {
+    const snapshot = [...events];
+    snapshot.degraded = degraded;
     for (const fn of [...listeners]) fn(snapshot);
   }
 
   /* ── Polling + wake ───────────────────────────────────────────────────── */
 
+  /* Through list() rather than refreshAll() so a failed poll broadcasts the
+     same fallback list() would have returned — this session's merge or the
+     persisted cache, never an empty `cache` — along with `degraded: true`. */
   async function poll() {
-    const result = await refreshAll({ ...defaultWindow(), useSyncToken: true });
-    if (result) notify();
+    notify(await list());
   }
 
   function onWake() {

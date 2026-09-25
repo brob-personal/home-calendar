@@ -517,6 +517,67 @@ describe("degrading on failure", () => {
     const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
     await expect(source.list()).resolves.toEqual(expect.any(Array));
   });
+
+  /*
+    The Offline chip that never went away. A cold start that loses the race
+    with the network (a reload at bedtime to pick up a deploy, or iOS
+    relaunching the web process overnight) degrades list(), and before this
+    the poll's broadcasts carried no health at all, so a board that went
+    back to syncing fine every five minutes still said "Offline" until the
+    next reload.
+  */
+  it("tells subscribers when a poll recovers, and when one fails", async () => {
+    vi.useFakeTimers();
+    try {
+      await seedSettings([{ id: CAL, memberIds: ["brian"], enabled: true }]);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => respond(500, { ok: false, error: "down" })),
+      );
+      const source = createGoogleSource({ apiBase: API_BASE, deviceSecret: SECRET });
+      expect((await source.list()).degraded).toBe(true);
+
+      const seen = [];
+      const unsubscribe = source.subscribe((events) => seen.push(events));
+
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          respond(200, {
+            ok: true,
+            items: [
+              {
+                id: "evt-1",
+                summary: "Standup",
+                start: { dateTime: "2026-09-09T09:00:00.000Z" },
+                end: { dateTime: "2026-09-09T09:30:00.000Z" },
+              },
+            ],
+            nextSyncToken: "tok",
+          }),
+        ),
+      );
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+
+      expect(seen).toHaveLength(1);
+      expect(seen[0].map((e) => e.title)).toEqual(["Standup"]);
+      expect(seen[0].degraded).toBe(false);
+
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => respond(500, { ok: false, error: "down" })),
+      );
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+
+      expect(seen).toHaveLength(2);
+      expect(seen[1].map((e) => e.title)).toEqual(["Standup"]);
+      expect(seen[1].degraded).toBe(true);
+
+      unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("fetchAccessRole", () => {
