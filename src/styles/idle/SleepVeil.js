@@ -6,10 +6,15 @@
   a 5%-opaque board. R3's sleepStyle ("black" | "dim") turns that slider
   into the discrete choice the spec actually asks for; these rules already
   support both ends of it.
+
+  The veil is a <button>, so it's scoped under .fb-root: Root.js's
+  `.fb-root button { background: none }` is (0,1,1) and beat a bare
+  `.fb-veil`, leaving the veil transparent — bedtime came and the board
+  stayed fully lit behind a faint clock.
 */
 export default `
 /* Sleep */
-.fb-veil {
+.fb-root .fb-veil {
   position: absolute; inset: 0; z-index: 60;
   background: var(--veil-bg); display: grid; place-items: center; transition: opacity .8s ease;
 }

@@ -260,6 +260,16 @@ describe("board stylesheet", () => {
     expect(root).toContain(".fb-root button { font: inherit;");
   });
 
+  it("scopes the sleep veil past the button reset so it actually covers the board", () => {
+    /*
+      SleepVeil is one full-screen <button> (the whole screen is the wake
+      target). Styled bare as `.fb-veil`, the reset's `background: none`
+      won, the veil rendered transparent, and bedtime changed nothing but a
+      5%-opacity clock floating over a fully lit board.
+    */
+    expect(sleep).toMatch(/^\.fb-root \.fb-veil \{[^}]*background: var\(--veil-bg\)/m);
+  });
+
   it("steps event type down from Day to Week to Month", () => {
     // Canvas px, which <Fit> then upscales, so the ladder is the invariant
     // rather than any absolute number: a Day block has the most room to spend
