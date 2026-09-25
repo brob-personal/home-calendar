@@ -25,12 +25,24 @@ import { Cross } from "./icons.jsx";
   `autoFocus` title inputs win over that default — React applies `autoFocus`
   during commit, before this effect runs, so by the time this checks
   whether focus already landed inside the sheet, it usually has.
+
+  That open/close focus work runs once per mount, not per render. Every
+  caller passes an inline `onClose`, so it changes identity on each parent
+  render — a keystroke in Settings, the board clock ticking. With `onClose`
+  as an effect dependency, each of those re-ran the cleanup (focus back to
+  the opener) and the setup (focus onto Close), and that blur dismissed the
+  iPad keyboard after every character. The latest `onClose` is read through
+  a ref instead.
 */
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
 export function Sheet({ title, children, onClose, wide }) {
   const sheetRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     const node = sheetRef.current;
@@ -43,7 +55,7 @@ export function Sheet({ title, children, onClose, wide }) {
 
     const onKeyDown = (e) => {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab") return;
@@ -65,7 +77,7 @@ export function Sheet({ title, children, onClose, wide }) {
       node.removeEventListener("keydown", onKeyDown);
       if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="fb-scrim" onClick={onClose}>
