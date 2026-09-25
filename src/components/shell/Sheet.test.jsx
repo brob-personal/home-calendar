@@ -91,6 +91,40 @@ describe("Sheet", () => {
     opener.remove();
   });
 
+  /*
+    Every caller passes an inline `onClose={() => ...}`, so each parent
+    re-render (a keystroke in Settings, the board clock ticking) hands the
+    sheet a new function. That must not re-run the open/close focus logic:
+    it used to bounce focus to the opener and back to Close, and the blur
+    dismissed the iPad keyboard after every character typed.
+  */
+  it("keeps focus in a typed-into input when the parent re-renders with a new onClose", async () => {
+    const user = userEvent.setup();
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+
+    const latest = vi.fn();
+    function Host({ onClose }) {
+      return (
+        <Sheet title="Test sheet" onClose={onClose}>
+          <input placeholder="name" />
+        </Sheet>
+      );
+    }
+    const { rerender } = render(<Host onClose={() => {}} />);
+
+    const input = screen.getByPlaceholderText("name");
+    await user.click(input);
+    await user.keyboard("a");
+    rerender(<Host onClose={latest} />);
+
+    expect(input).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(latest).toHaveBeenCalledTimes(1);
+    opener.remove();
+  });
+
   it("still closes on scrim click and the close button", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
