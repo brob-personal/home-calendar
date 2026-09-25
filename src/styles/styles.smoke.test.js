@@ -210,6 +210,17 @@ describe("board stylesheet", () => {
     expect(stage).toContain("overflow: hidden");
   });
 
+  it("shades Week's today column darker than the board rather than painting it --paper", () => {
+    // Flat --paper read as a near-white slab against a tinted board (the
+    // .fb-art month wash, or a custom paper). A translucent dark fill
+    // darkens whatever is behind the column instead, so today is always a
+    // deeper shade of the background the user configured.
+    const today = week.match(/\.fb-wcol\.is-today \{[^}]*\}/)[0];
+    expect(today).toContain("background: var(--today-shade)");
+    expect(today).not.toContain("--paper");
+    expect(BOARD_CSS).toMatch(/--today-shade: rgba\(\d+,\d+,\d+,\.\d+\);/);
+  });
+
   it("keeps the three insets layout.js derives the event-column track from", () => {
     // src/lib/layout.js computes TRACK_W from these numbers rather than
     // measuring the DOM — the canvas is letterboxed, not responsive — and

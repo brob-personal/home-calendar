@@ -85,6 +85,12 @@ export default `
   --shadow-fab: rgba(30,34,42,.24);
   --shadow-note: rgba(30,34,42,.3);
 
+  /* WeekView's today column. Translucent on purpose: it darkens whatever
+     is behind the column — the .fb-art month wash, a custom paper, or a
+     theme's paper — so today reads as a deeper shade of the board the
+     user configured rather than a flat, near-white --paper slab. */
+  --today-shade: rgba(30,34,42,.06);
+
   --scrim: rgba(28,32,40,.32);
   --shadow-sheet: rgba(24,28,36,.24);
   --shadow-row: rgba(30,34,42,.1);

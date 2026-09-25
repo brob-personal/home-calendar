@@ -45,11 +45,12 @@
     now rather than to a radius; with a continuous background behind it
     there is no corner to notice.
 
-  MonthView's `.fb-cell`, WeekView's `.fb-wcol.is-today`, DayView's
-  `.fb-alldaychip` and MonthView's `.fb-monthweather` are untouched. They
-  are flat --paper, and they now sit directly on the fully-washed board
+  MonthView's `.fb-cell`, DayView's `.fb-alldaychip` and MonthView's
+  `.fb-monthweather` are untouched. They are flat --paper, and they now sit directly on the fully-washed board
   instead of on a faintly-washed card, so they read with more contrast
-  than before, not less.
+  than before, not less. WeekView's `.fb-wcol.is-today` used to be on that
+  list and read as a white slab on the tinted board; it is now
+  --today-shade, a darker shade of whatever the board shows behind it.
 */
 export default `
 /* Countdowns — 46px */
